@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* Tokens de la identidad Bytes (docs/spec.md, sección 11). El sistema visual completo llega en la fase 6. */
+@theme {
+  --color-brand: #19510a;
+  --color-brand-2: #2c6e1b;
+  --color-ink: #101820;
+  --color-muted: #5e6872;
+  --color-surface: #ffffff;
+}
+
+body {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}
