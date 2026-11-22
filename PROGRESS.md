@@ -22,6 +22,21 @@ Plan aprobado: https://claude.ai/artifact/GSnQHsdYHduT8bpe6sQPD2 (backend fases 
 - [x] `geo` (geocerca 120 m) y `dates` ("el martes" en hora de Caracas)
 - [x] 154 pruebas; cobertura 100 % de líneas en `src/lib`
 
+## Fase 2 · Datos — lista
+
+- [x] Esquema Drizzle de 19 tablas; el DDL se genera desde el esquema (`ddl.ts`) con CHECK en cada enum
+- [x] Seed canónico: 40 trabajadores, 6 soldadores cumplen el pedido del guion, niveles respaldados por hechos
+- [x] `resetDemo`: una transacción, idempotente (misma huella sha256 tras dos resets), conserva `is_real`
+- [x] `npm run db:seed` crea la base local (717 filas en ~70 ms)
+
+Cambios respecto a la sección 5.1 de la especificación, todos por seguridad o consistencia:
+
+- `contracts.otp_hash` en lugar de `otp_code`: el código de firma no se guarda en claro.
+- `contracts.start_date`: la disponibilidad se deduce de contratos activos, no de un texto libre.
+- `fees.academy_id`, `fees.contract_id`, `fees.created_at`: para calcular ingresos sin adivinar por el concepto.
+- `workers.conversation_id`: enlaza el registro por voz con la pantalla que lo inició.
+- Sin `drizzle-kit`: arrastra un `esbuild` con aviso de seguridad; las tablas se crean desde el propio esquema.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.
