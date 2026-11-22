@@ -42,3 +42,7 @@ next-env.d.ts
 
 # Plantilla de variables (sin valores reales)
 !.env.example
+
+# base de datos local
+*.db
+*.db-*
