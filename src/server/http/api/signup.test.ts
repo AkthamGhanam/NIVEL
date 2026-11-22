@@ -156,7 +156,8 @@ describe("registro de empresa", () => {
     expect(await client.get<{ firstName: string }>("/api/me", { as: "worker" })).toMatchObject({
       firstName: "Pedro",
     });
-    expect(state.personas.companies.filter((company) => !company.registered)).toHaveLength(4);
+    // De ejemplo queda una sola empresa, recién creada.
+    expect(state.personas.companies.filter((company) => !company.registered)).toHaveLength(1);
   });
 
   it("borrar todo también se lleva a las empresas y personas reales", async () => {
@@ -169,7 +170,7 @@ describe("registro de empresa", () => {
 
     const state = await client.get<DemoState>("/api/state");
     expect(state.activeCompany).toBeNull();
-    expect(state.personas.companies).toHaveLength(4);
+    expect(state.personas.companies).toHaveLength(1);
     expect(state.personas.workers.length).toBeGreaterThan(0);
   });
 });

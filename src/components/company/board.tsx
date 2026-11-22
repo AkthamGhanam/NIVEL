@@ -91,8 +91,7 @@ export function CrewBanner({ board }: { readonly board: RequestBoard }) {
           </ButtonLink>
         ) : (
           <p className="text-muted-on-ink">
-            {open === 1 ? "Falta 1 puesto por ocupar." : `Faltan ${open} puestos por ocupar.`} La primera
-            persona que acepta ocupa el puesto.
+            {open === 1 ? "Falta 1 puesto por ocupar." : `Faltan ${open} puestos por ocupar.`}
           </p>
         )}
       </div>
@@ -235,9 +234,7 @@ function SelectableList({
 }) {
   return (
     <>
-      <p className="text-ink-2">
-        Marca a quien quieras invitar. La primera persona que acepte ocupa el puesto.
-      </p>
+      <p className="text-ink-2">Marca a quien quieras invitar.</p>
       <Card className="p-0">
         <ul aria-label="Personas que cumplen" className="divide-y divide-line-2 overflow-hidden rounded-card">
           {candidates.map((candidate) => (

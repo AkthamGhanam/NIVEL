@@ -9,6 +9,8 @@ import type { Database } from "./db/client";
 export interface TelegramChannel {
   readonly api: TelegramApi;
   readonly appUrl: string | undefined;
+  /** Nota de voz a texto. Sin él, el bot pide que le escriban. */
+  readonly transcribe?: ((audio: Blob) => Promise<string>) | undefined;
 }
 
 /**

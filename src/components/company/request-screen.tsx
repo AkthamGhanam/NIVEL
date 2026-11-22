@@ -1,7 +1,7 @@
 // Pantalla principal del contratista: pedir cuadrilla (formulario o Nivi), tablero y costos.
 "use client";
 
-import { useCallback } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
@@ -10,7 +10,8 @@ import { createScriptedNivi } from "@/client/scripted-nivi";
 import { createSpeechPlayer } from "@/client/speech-player";
 import { Card } from "@/components/ui/card";
 import { CrewIcon } from "@/components/ui/icons";
-import { LoadingText, Notice } from "@/components/ui/notice";
+import { Disclosure } from "@/components/ui/disclosure";
+import { LoadingText, NotEmployerNotice, Notice } from "@/components/ui/notice";
 import { SeatRing } from "@/components/ui/rings";
 import { TelegramCard } from "@/components/telegram/telegram-card";
 import { NiviCard, NiviCardFrame } from "@/components/voice/nivi-card";
@@ -69,10 +70,7 @@ export function EmptyBoard() {
   );
 }
 
-const NIVI_CARD = {
-  title: "Pídela con Nivi",
-  hint: "Dile qué personal necesitas, hablando o escribiendo",
-} as const;
+const NIVI_CARD = { title: "Pídela con Nivi", hint: "Dile qué personal necesitas" } as const;
 
 function ScriptedTalk() {
   const { company, api, board } = useCompany();
@@ -85,6 +83,19 @@ function ScriptedTalk() {
     });
   });
   return <NiviPanel nivi={nivi} />;
+}
+
+/** Con una solicitud activa, lo único en primer plano es la cuadrilla; costos y otro pedido quedan plegados. */
+function ActiveRequest({ again, ...view }: BoardViewProps & { readonly again: ReactNode }) {
+  return (
+    <>
+      <BoardView {...view} />
+      <Disclosure title="Ver costos y comprobantes">
+        <CostPanel board={view.board} />
+      </Disclosure>
+      <Disclosure title="Hacer otro pedido">{again}</Disclosure>
+    </>
+  );
 }
 
 export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
@@ -101,44 +112,45 @@ export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
   const refreshBoard = useCallback(() => void store.refresh(), [store]);
   const board = live.data ?? null;
 
+  const form = <RequestForm key="formulario" zone={company.zone} onSubmit={publish} />;
+  const [talking, setTalking] = useState(false);
+  const niviCard = { ...NIVI_CARD, onOpenChange: setTalking };
+  const nivi = planB ? (
+    <NiviCardFrame key="nivi" {...niviCard}>
+      <ScriptedTalk />
+    </NiviCardFrame>
+  ) : (
+    <NiviCard key="nivi" {...niviCard} openSession={api.voice} onActivity={refreshBoard} />
+  );
+  // Una conversación abierta se queda en su sitio aunque aparezca el tablero: si la tarjeta cambiara de
+  // lugar se desmontaría y Nivi se cortaría justo al crear la solicitud. En plan B siempre va arriba.
+  const niviOnTop = !board || talking || planB;
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[21rem_minmax(0,1fr)]">
-      <section aria-labelledby="pedir-titulo" className="flex min-w-0 flex-col gap-4">
-        <div>
-          {planB ? (
-            <NiviCardFrame {...NIVI_CARD}>
-              <ScriptedTalk />
-            </NiviCardFrame>
-          ) : (
-            <NiviCard {...NIVI_CARD} openSession={api.voice} onActivity={refreshBoard} />
-          )}
-        </div>
-        <Card className="flex flex-col gap-4">
-          <h2 id="pedir-titulo" className="display text-2xl">
-            Pide tu cuadrilla
-          </h2>
-          <RequestForm zone={company.zone} onSubmit={publish} />
-        </Card>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      {live.error !== undefined && !live.loading ? (
+        <Notice tone="pending">{errorMessage(live.error)}</Notice>
+      ) : null}
+      {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
+      {!live.loading && !board ? (
+        <h1 id="pedir-titulo" className="display text-3xl sm:text-4xl">
+          Pide tu cuadrilla
+        </h1>
+      ) : null}
+      {!live.loading && niviOnTop ? nivi : null}
+      {!live.loading && board ? (
+        <ActiveRequest
+          board={board}
+          onInvite={(choice) => void invite.invoke(board.request.id, choice)}
+          pending={invite.pending}
+          error={invite.error}
+          again={niviOnTop ? [form] : [nivi, form]}
+        />
+      ) : null}
+      {!live.loading && !board ? <Card>{form}</Card> : null}
+      <Disclosure title="Más opciones">
         <TelegramCard role="company" />
-      </section>
-      <div className="order-first grid min-w-0 items-start gap-6 lg:order-none 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="flex min-w-0 flex-col gap-4">
-          {live.error !== undefined && !live.loading ? (
-            <Notice tone="pending">{errorMessage(live.error)}</Notice>
-          ) : null}
-          {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
-          {!live.loading && board ? (
-            <BoardView
-              board={board}
-              onInvite={(choice) => void invite.invoke(board.request.id, choice)}
-              pending={invite.pending}
-              error={invite.error}
-            />
-          ) : null}
-          {!live.loading && !board && live.error === undefined ? <EmptyBoard /> : null}
-        </div>
-        <CostPanel board={board} />
-      </div>
+        <NotEmployerNotice />
+      </Disclosure>
     </div>
   );
 }

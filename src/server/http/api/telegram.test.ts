@@ -60,3 +60,13 @@ describe("conectar Telegram desde la app", () => {
     await expect(client.post("/api/telegram/setup", { as: "admin" })).rejects.toMatchObject({ status: 409 });
   });
 });
+
+describe("entrar a la app desde el bot", () => {
+  it("un código inventado no abre ninguna sesión: lleva a la portada", async () => {
+    const response = await dispatch(new Request(`${api.baseUrl}/api/telegram/enter?c=en-inventado`));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("/");
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
+});

@@ -2,7 +2,7 @@
 "use client";
 
 import { useConversation } from "@elevenlabs/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { errorMessage } from "@/client/api";
 import { WORKLET_PATHS } from "@/client/voice-worklets";
@@ -28,6 +28,15 @@ export function orbState(status: string, isSpeaking: boolean, starting: boolean)
   if (status === "connecting" || starting) return "thinking";
   if (status !== "connected") return "idle";
   return isSpeaking ? "speaking" : "listening";
+}
+
+/** El micrófono se cierra si la persona lo pausó o, en voz, mientras Nivi está hablando. */
+export function micShouldClose(state: {
+  readonly voice: boolean;
+  readonly isSpeaking: boolean;
+  readonly paused: boolean;
+}): boolean {
+  return state.paused || (state.voice && state.isSpeaking);
 }
 
 export function addBubble(list: readonly NiviBubble[], from: NiviBubble["from"], text: string): NiviBubble[] {
@@ -90,11 +99,18 @@ export function useNivi(openSession: () => Promise<NiviSession>) {
   const session = useNiviSession(openSession);
   const { start, send, starting, mode, problem, bubbles, conversationId, ended } = session;
 
-  const { status, isSpeaking, isMuted, setMuted } = session;
+  const { status, isSpeaking, setMuted } = session;
+  const [paused, setPaused] = useState(false);
+  // Por turnos: mientras Nivi habla, el micrófono se cierra solo. Así no se oye a sí misma por el
+  // altavoz del teléfono ni se responde sola; al terminar, vuelve a escuchar a la persona.
+  const micClosed = micShouldClose({ voice: mode === "voz", isSpeaking, paused });
+  useEffect(() => {
+    if (status === "connected") setMuted(micClosed);
+  }, [status, micClosed, setMuted]);
   return {
-    /** Micrófono en pausa: Nivi no oye nada hasta que la persona lo reactiva. Útil con mucho ruido alrededor. */
-    muted: isMuted,
-    toggleMute: () => setMuted(!isMuted),
+    /** Micrófono en pausa por la persona: Nivi no oye nada hasta que ella lo reactiva. */
+    muted: paused,
+    toggleMute: () => setPaused((current) => !current),
     start,
     send,
     stop: session.endSession,

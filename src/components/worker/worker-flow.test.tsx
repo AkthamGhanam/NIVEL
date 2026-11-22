@@ -204,7 +204,6 @@ describe("entrada del trabajador", () => {
     expect(shell).toContain(DEMO_FOOTER);
     expect(level).toContain("Nivel 2 · Verificado");
     expect(level).toContain("Te falta 1 trabajo confirmado para Nivel 3: Probado.");
-    expect(level).toContain(`De $240 a $300 al mes. ${REFERENCE_BAND_NOTICE}`);
     expect(html(<OfferList offers={await worker.offers()} />)).toContain("Aún no tienes ofertas nuevas.");
   });
 

@@ -326,6 +326,23 @@ export const telegramCodes = sqliteTable("telegram_codes", {
   expiresAt: text("expires_at").notNull(),
 });
 
+/** Registro en curso de una persona nueva desde Telegram, antes de tener cuenta. */
+export interface TelegramSignupDraft {
+  readonly kind: "worker" | "company";
+  readonly step: "permiso" | "nombre" | "oficio" | "anos" | "rif" | "zona";
+  readonly name?: string;
+  readonly trade?: (typeof TRADES)[number];
+  readonly yearsExp?: number;
+  readonly rif?: string;
+  readonly consentAt?: string;
+}
+
+export const telegramSignups = sqliteTable("telegram_signups", {
+  chatId: text("chat_id").primaryKey(),
+  draft: json<TelegramSignupDraft>("draft").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const schema = {
   companies,
   academies,
@@ -349,4 +366,5 @@ export const schema = {
   voiceClips,
   telegramLinks,
   telegramCodes,
+  telegramSignups,
 };

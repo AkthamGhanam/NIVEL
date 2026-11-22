@@ -2,7 +2,8 @@
 import { and, eq, lt } from "drizzle-orm";
 import { z } from "zod";
 
-import { addDays, localDate } from "@/lib/dates";
+import { type ChatIntent, readBareNumber, readIntent, readRequestHints } from "@/lib/chat-intent";
+import { addDays, localDate, resolveStartDate } from "@/lib/dates";
 import { DomainValidationError } from "@/lib/errors";
 import { formatDay, formatUsd, plural } from "@/lib/format";
 import { type Level, LEVEL_NAMES } from "@/lib/level";
@@ -20,6 +21,7 @@ import { getLevelStatus } from "./levels";
 import { correctMyProfile, getMyProfile } from "./profile";
 import { activeRequestBoard, createJobRequest, inviteCandidates, pinRequestSite } from "./requests";
 import { appLink, openAppButton, sendToChat } from "./telegram-notify";
+import { ENTRY_PREFIX, handleSignup, SIGNUP_CHOICE, WELCOME } from "./telegram-signup";
 
 type LinkedActor = Extract<Actor, { role: "worker" | "company" }>;
 type Link = typeof telegramLinks.$inferSelect;
@@ -100,6 +102,7 @@ const updateSchema = z.object({
     .object({
       chat: chatSchema,
       text: z.string().max(4096).optional(),
+      voice: z.object({ file_id: z.string().max(200), duration: z.number().optional() }).optional(),
       location: z
         .object({
           latitude: z.number().min(-90).max(90),
@@ -118,9 +121,6 @@ const updateSchema = z.object({
     .optional(),
 });
 
-const NOT_LINKED =
-  "Hola, soy el bot de NIVEL.\nPara usarme, entra a NIVEL con tu cuenta y toca «Conectar Telegram». " +
-  "Eso te trae de vuelta aquí ya conectado.";
 const PRIVATE_ONLY = "Por seguridad solo atiendo en chats privados. Escríbeme directo.";
 const BAD_CODE = "Ese enlace ya venció o ya se usó. Vuelve a NIVEL y toca «Conectar Telegram» otra vez.";
 const GENERIC_FAILURE = "Algo falló de nuestro lado. Intenta de nuevo en un momento.";
@@ -220,6 +220,32 @@ async function workerAction(turn: WorkerTurn, data: string): Promise<void> {
   return reply("¿Qué necesitas?", { buttons: WORKER_MENU });
 }
 
+const WORKER_INTENT_BUTTON: Partial<Record<ChatIntent, string>> = {
+  ofertas: "of",
+  nivel: "nv",
+  disponibilidad: "ab",
+};
+
+/** Lo que el trabajador escribió o dictó. "Acepto" vale solo si hay una única oferta: nunca se adivina cuál. */
+async function workerText(turn: WorkerTurn, text: string): Promise<void> {
+  if (text === "/ofertas") return workerAction(turn, "of");
+  const intent = readIntent(text);
+  if (intent === "aceptar" || intent === "rechazar") {
+    const pending = (await listMyOffers(turn.context, turn.actor)).filter(
+      (offer) => offer.status === "enviada",
+    );
+    const [only] = pending;
+    if (pending.length !== 1 || !only) return showOffers(turn.context, turn.actor, turn.reply);
+    return answerOffer(turn, { invitationId: only.invitationId, accept: intent === "aceptar" });
+  }
+  const button = WORKER_INTENT_BUTTON[intent];
+  return button
+    ? workerAction(turn, button)
+    : turn.reply("¿Qué necesitas? Toca una opción, escríbeme o mándame una nota de voz.", {
+        buttons: WORKER_MENU,
+      });
+}
+
 // ───────── Contratista ─────────
 
 const COMPANY_MENU: Rows = [
@@ -237,8 +263,6 @@ const choices = (
   label = (value: string | number) => `${value}`,
 ) => values.map((value) => ({ text: label(value), data: `${prefix}:${value}` }));
 const LIMITS = Object.freeze({ quantity: 50, days: 90, dailyPayUsd: 1000 });
-const WHOLE = /^\d{1,4}$/;
-const AMOUNT = /^\d{1,4}([.,]\d{1,2})?$/;
 
 const tradeLabel = (trade: string | number) => TRADE_LABELS[trade as (typeof TRADES)[number]].singular;
 const TRADE_BUTTONS: Rows = [
@@ -256,15 +280,18 @@ interface Prompt {
 function promptFor(draft: TelegramDraft, today: ReturnType<typeof localDate>): Prompt {
   switch (draft.step) {
     case "oficio":
-      return { text: "¿Qué oficio necesitas?", buttons: TRADE_BUTTONS };
+      return {
+        text: "¿Qué oficio necesitas?",
+        buttons: TRADE_BUTTONS,
+      };
     case "cantidad":
       return {
-        text: "¿Cuántas personas? Toca un número o escríbelo.",
+        text: "¿Cuántas personas?",
         buttons: [choices("q", [1, 2, 3, 4]), choices("q", [5, 6, 8, 10]), [CANCEL]],
       };
     case "nivel":
       return {
-        text: "¿Desde qué nivel? Nivel 2 o más sirve para la mayoría de las obras.",
+        text: "¿Desde qué nivel?",
         buttons: [
           choices("l", [1, 2, 3], (level) => `Nivel ${level}`),
           choices("l", [4, 5], (level) => `Nivel ${level}`),
@@ -284,12 +311,12 @@ function promptFor(draft: TelegramDraft, today: ReturnType<typeof localDate>): P
       };
     case "dias":
       return {
-        text: "¿Cuántos días de obra? Toca un número o escríbelo.",
+        text: "¿Cuántos días de obra?",
         buttons: [choices("d", [1, 3, 5, 10]), choices("d", [15, 20, 30]), [CANCEL]],
       };
     case "pago":
       return {
-        text: "¿Cuánto pagas al día por persona, en dólares? Toca un monto o escríbelo.",
+        text: "¿Cuánto pagas al día por persona, en dólares?",
         buttons: [
           choices("p", [15, 20, 25, 30], (pay) => `$${pay}`),
           choices("p", [35, 40, 50], (pay) => `$${pay}`),
@@ -307,40 +334,111 @@ function promptFor(draft: TelegramDraft, today: ReturnType<typeof localDate>): P
   }
 }
 
-const inRange = (value: number, max: number) => Number.isFinite(value) && value >= 1 && value <= max;
+const inRange = (value: number | undefined, max: number): value is number =>
+  value !== undefined && Number.isFinite(value) && value >= 1 && value <= max;
 
-/** Aplica una respuesta (botón o texto) al paso actual. Devuelve el borrador siguiente, o nada si no sirve. */
-function advance(
-  draft: TelegramDraft,
-  answer: string,
-  today: ReturnType<typeof localDate>,
-): TelegramDraft | undefined {
-  const [prefix, raw = ""] = answer.includes(":") ? answer.split(":") : ["", answer.trim()];
-  const expects = (step: TelegramDraft["step"], key: string) =>
-    draft.step === step && (prefix === key || prefix === "");
-  if (expects("oficio", "t")) {
-    const trade = TRADES.find((candidate) => candidate === raw);
-    return trade ? { ...draft, trade, step: "cantidad" } : undefined;
+const STEP_ORDER = ["oficio", "cantidad", "nivel", "inicio", "dias", "pago"] as const;
+type AskStep = (typeof STEP_ORDER)[number];
+
+const FILLED: Readonly<Record<AskStep, (draft: TelegramDraft) => boolean>> = {
+  oficio: (draft) => draft.trade !== undefined,
+  cantidad: (draft) => draft.quantity !== undefined,
+  nivel: (draft) => draft.minLevel !== undefined,
+  inicio: (draft) => draft.startDate !== undefined,
+  dias: (draft) => draft.days !== undefined,
+  pago: (draft) => draft.dailyPayUsd !== undefined,
+};
+
+/** El siguiente dato que falta. Con todo completo, toca confirmar. */
+function withNextStep(draft: TelegramDraft): TelegramDraft {
+  const missing = STEP_ORDER.find((step) => !FILLED[step](draft));
+  return { ...draft, step: missing ?? "confirmar" };
+}
+
+type Fields = Omit<TelegramDraft, "step">;
+
+/** Solo entran los datos dentro de los mismos topes que valida la app. */
+function validFields(fields: Fields): Fields {
+  const { trade, quantity, minLevel, startDate, days, dailyPayUsd } = fields;
+  return {
+    ...(trade ? { trade } : {}),
+    ...(inRange(quantity, LIMITS.quantity) && Number.isInteger(quantity) ? { quantity } : {}),
+    ...(inRange(minLevel, 5) && Number.isInteger(minLevel) ? { minLevel } : {}),
+    ...(startDate ? { startDate } : {}),
+    ...(inRange(days, LIMITS.days) && Number.isInteger(days) ? { days } : {}),
+    ...(dailyPayUsd !== undefined && dailyPayUsd > 0 && dailyPayUsd <= LIMITS.dailyPayUsd
+      ? { dailyPayUsd }
+      : {}),
+  };
+}
+
+function startDateOf(phrase: string | undefined, now: Date): string | undefined {
+  if (!phrase) return undefined;
+  try {
+    return resolveStartDate(phrase, now);
+  } catch {
+    return undefined;
   }
-  if (expects("cantidad", "q") && WHOLE.test(raw) && inRange(Number(raw), LIMITS.quantity)) {
-    return { ...draft, quantity: Number(raw), step: "nivel" };
+}
+
+const BUTTON_FIELD: Readonly<Record<string, AskStep>> = {
+  t: "oficio",
+  q: "cantidad",
+  l: "nivel",
+  s: "inicio",
+  d: "dias",
+  p: "pago",
+};
+
+/** Lo que aporta un botón ("q:3") al borrador. */
+function fieldsFromButton(data: string, today: ReturnType<typeof localDate>): Fields {
+  const [prefix = "", raw = ""] = data.split(":");
+  const value = Number(raw);
+  switch (BUTTON_FIELD[prefix]) {
+    case "oficio":
+      return { ...(TRADES.find((trade) => trade === raw) ? { trade: raw as (typeof TRADES)[number] } : {}) };
+    case "cantidad":
+      return { quantity: value };
+    case "nivel":
+      return { minLevel: value };
+    case "inicio":
+      return inRange(value, 3) ? { startDate: addDays(today, value) } : {};
+    case "dias":
+      return { days: value };
+    case "pago":
+      return { dailyPayUsd: value };
+    default:
+      return {};
   }
-  if (expects("nivel", "l") && WHOLE.test(raw) && inRange(Number(raw), 5)) {
-    return { ...draft, minLevel: Number(raw), step: "inicio" };
-  }
-  if (draft.step === "inicio" && prefix === "s" && inRange(Number(raw), 3)) {
-    return { ...draft, startDate: addDays(today, Number(raw)), step: "dias" };
-  }
-  if (expects("dias", "d") && WHOLE.test(raw) && inRange(Number(raw), LIMITS.days)) {
-    return { ...draft, days: Number(raw), step: "pago" };
-  }
-  if (expects("pago", "p") && AMOUNT.test(raw)) {
-    const pay = Number(raw.replace(",", "."));
-    return pay > 0 && pay <= LIMITS.dailyPayUsd
-      ? { ...draft, dailyPayUsd: pay, step: "confirmar" }
-      : undefined;
-  }
-  return undefined;
+}
+
+const NUMBER_FIELD: Partial<Record<TelegramDraft["step"], "quantity" | "minLevel" | "days" | "dailyPayUsd">> =
+  {
+    cantidad: "quantity",
+    nivel: "minLevel",
+    dias: "days",
+    pago: "dailyPayUsd",
+  };
+
+/**
+ * Lo que aporta una frase escrita o dictada: todos los datos que traiga
+ * ("3 soldadores para el lunes") o, si es solo un número, el dato que se acaba de preguntar.
+ */
+function fieldsFromText(draft: TelegramDraft, text: string, now: Date): Fields {
+  const { startPhrase, ...hints } = readRequestHints(text);
+  const startDate = startDateOf(startPhrase, now);
+  const said: Fields = { ...hints, ...(startDate ? { startDate } : {}) };
+  if (Object.keys(said).length > 0) return said;
+  const field = NUMBER_FIELD[draft.step];
+  const bare = readBareNumber(text);
+  return field && bare !== undefined ? { [field]: bare } : {};
+}
+
+/** Suma al borrador lo nuevo que sea válido. Devuelve nada si la respuesta no aportó ningún dato. */
+function advance(draft: TelegramDraft, added: Fields): TelegramDraft | undefined {
+  const valid = validFields(added);
+  if (Object.keys(valid).length === 0) return undefined;
+  return withNextStep({ ...draft, ...valid });
 }
 
 const saveDraft = (context: AppContext, chatId: string, draft: TelegramDraft | null) =>
@@ -430,43 +528,80 @@ async function showCrew({ context, actor, reply }: CompanyTurn): Promise<void> {
   );
 }
 
+async function askNext(turn: CompanyTurn, draft: TelegramDraft, misunderstood = false): Promise<void> {
+  const prompt = promptFor(draft, localDate(turn.context.now()));
+  await turn.reply(misunderstood ? `No entendí ese dato. ${prompt.text}` : prompt.text, {
+    buttons: prompt.buttons,
+  });
+}
+
+async function continueDraft(turn: CompanyTurn, draft: TelegramDraft, added: Fields): Promise<void> {
+  const next = advance(draft, added);
+  if (next) await saveDraft(turn.context, turn.link.chatId, next);
+  await askNext(turn, next ?? draft, next === undefined);
+}
+
+async function inviteBest(turn: CompanyTurn, requestId: string, quantity: number): Promise<void> {
+  const sent = await inviteCandidates(turn.context, turn.actor, { requestId, quantity });
+  await turn.reply(
+    sent.length === 0
+      ? "No quedó nadie por invitar."
+      : `Invité a ${sent.map((entry) => entry.candidate.shortName).join(", ")}. Te aviso aquí cuando respondan.`,
+    { buttons: [[{ text: "Ver mi cuadrilla", data: "cu" }]] },
+  );
+}
+
+const ASK_LOCATION = "Párate en la obra y toca el botón de abajo. Con ese punto verifico las llegadas.";
+
+/** Un botón tocado por el contratista. */
 async function companyAction(turn: CompanyTurn, data: string): Promise<void> {
-  const { context, link, actor, reply } = turn;
-  const today = localDate(context.now());
+  const { context, link, reply } = turn;
   const [verb, first = "", second = ""] = data.split(":");
-  if (verb === "pe") {
-    const draft: TelegramDraft = { step: "oficio" };
-    await saveDraft(context, link.chatId, draft);
-    return reply(promptFor(draft, today).text, { buttons: promptFor(draft, today).buttons });
-  }
+  if (verb === "pe") return startDraft(turn, {});
   if (verb === "no") {
     await saveDraft(context, link.chatId, null);
     return reply("Cancelado. No publiqué nada.", { buttons: COMPANY_MENU });
   }
   if (verb === "cu") return showCrew(turn);
-  if (verb === "ub") {
-    return reply("Párate en la obra y toca el botón de abajo. Con ese punto verifico las llegadas.", {
-      askLocation: "Enviar mi ubicación",
-    });
-  }
-  if (verb === "iv") {
-    const sent = await inviteCandidates(context, actor, { requestId: first, quantity: Number(second) });
-    return reply(
-      sent.length === 0
-        ? "No quedó nadie por invitar."
-        : `Invité a ${sent.map((entry) => entry.candidate.shortName).join(", ")}. Te aviso aquí cuando respondan.`,
-      { buttons: [[{ text: "Ver mi cuadrilla", data: "cu" }]] },
-    );
-  }
+  if (verb === "ub") return reply(ASK_LOCATION, { askLocation: "Enviar mi ubicación" });
+  if (verb === "iv") return inviteBest(turn, first, Number(second));
   if (verb === "ok" && link.draft?.step === "confirmar") return publishDraft(turn, link.draft);
-  if (link.draft) {
-    const next = advance(link.draft, data, today);
-    const current = next ?? link.draft;
-    if (next) await saveDraft(context, link.chatId, next);
-    const prompt = promptFor(current, today);
-    return reply(next ? prompt.text : `No entendí ese dato. ${prompt.text}`, { buttons: prompt.buttons });
-  }
+  if (link.draft) return continueDraft(turn, link.draft, fieldsFromButton(data, localDate(context.now())));
   return reply("¿Qué necesitas?", { buttons: COMPANY_MENU });
+}
+
+async function startDraft(turn: CompanyTurn, said: Fields): Promise<void> {
+  const draft = withNextStep({ step: "oficio", ...validFields(said) });
+  await saveDraft(turn.context, turn.link.chatId, draft);
+  await askNext(turn, draft);
+}
+
+const COMPANY_COMMANDS: Readonly<Record<string, string>> = { "/pedir": "pe", "/cuadrilla": "cu" };
+const COMPANY_INTENT_BUTTON: Partial<Record<ChatIntent, string>> = {
+  cuadrilla: "cu",
+  ubicacion: "ub",
+  cancelar: "no",
+};
+
+/** Lo que el contratista escribió o dictó: se entiende la frase entera y se pregunta solo lo que falte. */
+async function companyText(turn: CompanyTurn, text: string): Promise<void> {
+  const command = COMPANY_COMMANDS[text];
+  if (command) return companyAction(turn, command);
+  if (text.startsWith("/")) return turn.reply("¿Qué necesitas?", { buttons: COMPANY_MENU });
+  const { link, context } = turn;
+  const intent = readIntent(text);
+  if (link.draft) {
+    if (intent === "cancelar") return companyAction(turn, "no");
+    if (link.draft.step === "confirmar" && intent === "confirmar") return publishDraft(turn, link.draft);
+    return continueDraft(turn, link.draft, fieldsFromText(link.draft, text, context.now()));
+  }
+  if (intent === "pedir") return startDraft(turn, fieldsFromText({ step: "oficio" }, text, context.now()));
+  const button = COMPANY_INTENT_BUTTON[intent];
+  return button
+    ? companyAction(turn, button)
+    : turn.reply("¿Qué necesitas? Toca una opción, escríbeme o mándame una nota de voz.", {
+        buttons: COMPANY_MENU,
+      });
 }
 
 async function pinFromChat(
@@ -503,6 +638,8 @@ interface ChatTurn {
 
 async function connectChat({ context, chatId, reply }: ChatTurn, code: string): Promise<void> {
   const now = context.now();
+  // Un código de entrada a la app no sirve para conectar un chat.
+  if (code.startsWith(`${ENTRY_PREFIX}-`)) return reply(BAD_CODE);
   const [claimed] = await context.db.delete(telegramCodes).where(eq(telegramCodes.code, code)).returning();
   if (!claimed || claimed.expiresAt < now.toISOString()) {
     await reply(BAD_CODE);
@@ -558,6 +695,7 @@ interface Incoming {
   readonly isPrivate: boolean;
   readonly text?: string | undefined;
   readonly data?: string | undefined;
+  readonly voice?: { readonly file_id: string; readonly duration?: number | undefined } | undefined;
   readonly location?:
     NonNullable<NonNullable<z.infer<typeof updateSchema>["message"]>["location"]> | undefined;
 }
@@ -573,6 +711,7 @@ function readUpdate(raw: unknown): Incoming | undefined {
     isPrivate: chat.type === "private",
     text: message?.text?.trim(),
     data: callback?.data,
+    voice: message?.voice,
     location: message?.location,
   };
 }
@@ -585,21 +724,67 @@ async function route(context: AppContext, incoming: Incoming, reply: Reply): Pro
     .select()
     .from(telegramLinks)
     .where(eq(telegramLinks.chatId, incoming.chatId));
-  if (!link) return reply(NOT_LINKED);
-  if (!(await accountStillExists(context, link))) {
+  if (link && !(await accountStillExists(context, link))) {
     await context.db.delete(telegramLinks).where(eq(telegramLinks.chatId, link.chatId));
-    return reply(NOT_LINKED);
+    return reply(WELCOME, { buttons: SIGNUP_CHOICE });
+  }
+  const text = incoming.voice ? await heard(context, incoming.voice, reply) : incoming.text;
+  // Una nota que no se pudo oír ya tuvo su respuesta: no se le suma el menú.
+  if (incoming.voice && !text) return;
+  if (!link) {
+    // Sin cuenta todavía: puede registrarse aquí mismo como trabajador o como empresa.
+    const signup = { context, chatId: incoming.chatId, reply };
+    const handled = await handleSignup(signup, {
+      data: incoming.data,
+      text: text?.startsWith("/") ? "" : text,
+    });
+    return handled ? undefined : reply(WELCOME, { buttons: SIGNUP_CHOICE });
   }
   const actor = actorOf(link);
   if (link.role === "worker") {
-    const data = incoming.data ?? (incoming.text === "/ofertas" ? "of" : "menu");
-    return workerAction({ context, actor, reply }, data);
+    const turn = { context, actor, reply };
+    if (incoming.data) return workerAction(turn, incoming.data);
+    return text ? workerText(turn, text) : reply("¿Qué necesitas?", { buttons: WORKER_MENU });
   }
   const turn = { context, link, actor, reply };
   if (incoming.location) return pinFromChat(turn, incoming.location);
-  const command = incoming.text === "/pedir" ? "pe" : incoming.text === "/cuadrilla" ? "cu" : undefined;
-  const typed = incoming.text && !incoming.text.startsWith("/") ? incoming.text : "menu";
-  return companyAction(turn, incoming.data ?? command ?? typed);
+  if (incoming.data) return companyAction(turn, incoming.data);
+  return text ? companyText(turn, text) : reply("¿Qué necesitas?", { buttons: COMPANY_MENU });
+}
+
+/** Una nota de voz dura lo que una frase: más larga sería otro uso (y otro costo). */
+export const MAX_VOICE_SECONDS = 60;
+const NO_VOICE = "Por ahora no puedo oír notas de voz. Escríbeme o toca una opción.";
+const NOT_HEARD = "No logré entender la nota de voz. Intenta de nuevo, más cerca del teléfono, o escríbeme.";
+
+/**
+ * Nota de voz a texto. Le muestra a la persona lo que se entendió, para que
+ * pueda corregir. El audio no se guarda.
+ */
+async function heard(
+  context: AppContext,
+  voice: NonNullable<Incoming["voice"]>,
+  reply: Reply,
+): Promise<string | undefined> {
+  const channel = context.telegram;
+  if (!channel?.transcribe) {
+    await reply(NO_VOICE);
+    return undefined;
+  }
+  if ((voice.duration ?? 0) > MAX_VOICE_SECONDS) {
+    await reply("Esa nota es muy larga. Mándame una de menos de un minuto.");
+    return undefined;
+  }
+  try {
+    const text = (await channel.transcribe(await channel.api.downloadFile(voice.file_id))).trim();
+    if (text === "") throw new Error("sin texto");
+    await reply(`Entendí: «${text.slice(0, 300)}»`);
+    return text;
+  } catch (error) {
+    log("warn", "telegram_voice_failed", { error: error instanceof Error ? error.name : "desconocido" });
+    await reply(NOT_HEARD);
+    return undefined;
+  }
 }
 
 /**

@@ -400,9 +400,12 @@ Pendiente:
 - [x] **Subir de nivel** (`/t/nivel?subiste=1`): suena el efecto y la felicitación de Nivi, que también
       queda escrita con «Escuchar la felicitación». La de Carlos a Nivel 3 usa el audio pregenerado; para
       cualquier otra persona la frase se pide al TTS. Al salir de la pantalla se calla
-- [x] 775 pruebas tras unir con main (PR #32); cobertura de líneas 96 %
+- [x] En `/c`, una conversación abierta con Nivi se queda en su sitio cuando aparece la solicitud. Antes la
+      tarjeta cambiaba de lugar al aparecer el tablero, se desmontaba y la conversación se cortaba justo
+      después de crear la solicitud (pasaba también con el Nivi de verdad). En plan B la tarjeta va siempre arriba
+- [x] 802 pruebas tras unir con main (PR #33); cobertura de líneas 96 %
 
-Recorrido en Chromium, ya unido con main tras el PR #32: chequeo previo en `/admin/chequeo` (1440 px y
+Recorrido en Chromium, ya unido con main tras el PR #33: chequeo previo en `/admin/chequeo` (1440 px y
 390 px) y plan B completo en `/c?planb=1` (saludo, solicitud, invitaciones, cierre y terminar); axe sin
 hallazgos en lo de esta fase, sin desbordes, cero tokens pedidos y cero peticiones fuera de la app durante el
 plan B. Los recorridos completos de la empresa y del trabajador no se repitieron tras unir con main.
@@ -459,3 +462,15 @@ Pendiente del plan B y del chequeo:
 - [x] 692 pruebas
 
 Sin probar: el bot contra Telegram real, Nivi con las variables nuevas en ElevenLabs y el GPS en un teléfono.
+
+## Fase 13 · Experiencia más simple — lista en código, sin probar con servicios reales
+
+- [x] Un paso por pantalla en `/t` y `/c`: lo que toca hacer va primero; costos, otro pedido, Telegram y
+      avisos quedan plegados. Menos texto en todas las tarjetas
+- [x] Nivi por turnos: el micrófono se cierra solo mientras ella habla (no se oye a sí misma por el altavoz)
+      y pregunta un dato a la vez. Hay que tocar "Reconectar a Nivi" para publicar el prompt
+- [x] Bot de Telegram: entiende frases completas y notas de voz (Scribe), además de los botones; registro
+      de trabajador o empresa desde el chat y enlace de un solo uso para abrir la app con esa cuenta
+- [x] En `/t/obra` sin trabajo: muestra las ofertas ahí mismo o pregunta antes de ir al inicio
+- [x] Una sola empresa de ejemplo, sin tarifas ni pagos precargados; el historial vive en otras empresas
+- [x] 719 pruebas

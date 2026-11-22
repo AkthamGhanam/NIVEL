@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createElevenLabs } from "./adapters/elevenlabs";
 import { createTelegram } from "./adapters/telegram";
 import { requireEnv, serverEnv } from "./config/env";
 import { type AppContext, createContext } from "./context";
@@ -25,8 +26,15 @@ async function start(): Promise<App> {
   });
   await migrate(handle);
   const env = serverEnv();
+  const voiceKey = env.ELEVENLABS_API_KEY;
   const telegram = env.TELEGRAM_BOT_TOKEN
-    ? { api: createTelegram({ token: env.TELEGRAM_BOT_TOKEN }), appUrl: env.NEXT_PUBLIC_APP_URL }
+    ? {
+        api: createTelegram({ token: env.TELEGRAM_BOT_TOKEN }),
+        appUrl: env.NEXT_PUBLIC_APP_URL,
+        transcribe: voiceKey
+          ? (audio: Blob) => createElevenLabs({ apiKey: voiceKey }).transcribe(audio)
+          : undefined,
+      }
     : undefined;
   return {
     handle,

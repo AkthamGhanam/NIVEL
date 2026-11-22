@@ -5,7 +5,7 @@ export type OrbState = "idle" | "listening" | "thinking" | "speaking";
 
 export const ORB_STATUS: Readonly<Record<OrbState, string>> = {
   idle: "Toca para hablar con Nivi",
-  listening: "Nivi te escucha",
+  listening: "Tu turno: habla ahora",
   thinking: "Nivi está pensando…",
   speaking: "Nivi está hablando",
 };
