@@ -1,7 +1,8 @@
+// Inicio de la app del trabajador: nivel, disponibilidad, trabajo en curso, ofertas y Nivi.
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { MyProfile, WorkerOffer } from "@/client/worker-api";
@@ -15,13 +16,14 @@ import { cx } from "@/lib/cx";
 import { formatUsd } from "@/lib/format";
 import { REFERENCE_BAND_NOTICE } from "@/lib/legal-copy";
 
+import { NiviCard } from "@/components/voice/nivi-card";
+
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
 import { ContractGate } from "./contract-gate";
 import { OfferCompany, OfferSummary, OfferVoiceNote } from "./offer-card";
 import { useWorker } from "./worker-gate";
 
-/** Nivel de la persona, qué le falta para el siguiente y la banda de referencia del mercado. */
 export function LevelCard({ level }: { readonly level: MyProfile["level"] }) {
   return (
     <Card className="flex flex-col gap-2">
@@ -44,7 +46,6 @@ interface OpenToWorkProps {
   readonly pending: boolean;
 }
 
-/** Interruptor "Abierto a trabajar": la persona decide si las empresas pueden invitarla. */
 export function OpenToWorkSwitch({ open, onChange, pending }: OpenToWorkProps) {
   return (
     <Card className="flex items-center justify-between gap-3">
@@ -90,7 +91,6 @@ export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] 
   );
 }
 
-/** El trabajo que la persona ya aceptó, con su siguiente paso a un toque. */
 function CurrentJob({ offer }: { readonly offer: WorkerOffer & { contractId: string } }) {
   return (
     <section aria-labelledby="trabajo-titulo" className="flex flex-col gap-3">
@@ -117,7 +117,6 @@ export function NextStep({ action }: { readonly action: ReturnType<typeof stepAc
   );
 }
 
-/** Enlace a Ayuda: siempre a la mano, porque reportar no puede costar trabajo. */
 export function HelpLink({ href, children }: { readonly href: string; readonly children: ReactNode }) {
   return (
     <Link
@@ -129,7 +128,6 @@ export function HelpLink({ href, children }: { readonly href: string; readonly c
   );
 }
 
-/** Inicio de la app: nivel, disponibilidad, el trabajo en curso y las ofertas que llegan en vivo. */
 export function HomeScreen() {
   const { api, offers: offersStore, profile: profileStore } = useWorker();
   const profile = useLive(profileStore);
@@ -138,6 +136,7 @@ export function HomeScreen() {
     await api.correctProfile({ openToWork: open });
     await profileStore.refresh();
   });
+  const refreshOffers = useCallback(() => void offersStore.refresh(), [offersStore]);
   const job = currentJob(offers.data ?? []);
   const failure = toggle.error ?? (profile.error === undefined ? null : errorMessage(profile.error));
 
@@ -159,6 +158,12 @@ export function HomeScreen() {
       {job ? <CurrentJob offer={job} /> : null}
       {offers.loading ? <LoadingText>Nivi está revisando tus ofertas…</LoadingText> : null}
       {offers.data ? <OfferList offers={offers.data} /> : null}
+      <NiviCard
+        title="Habla con Nivi"
+        hint="Pregúntale por tus ofertas o acéptalas hablando"
+        openSession={api.voice}
+        onActivity={refreshOffers}
+      />
       <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
     </>
   );

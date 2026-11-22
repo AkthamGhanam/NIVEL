@@ -1,3 +1,4 @@
+// Solicitudes de personal: crear, buscar candidatos, invitar y tablero en vivo.
 import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { type IsoDate, resolveStartDate } from "@/lib/dates";
@@ -23,12 +24,12 @@ export interface NewJobRequest {
   readonly quantity: number;
   readonly minLevel: Level;
   readonly zone: string;
-  /** "YYYY-MM-DD" o texto como "el martes". */
+
   readonly startDate: string;
   readonly days: number;
   readonly dailyPayUsd: number;
   readonly contractType: ContractType;
-  /** Texto libre opcional de la vacante; pasa por moderación. */
+
   readonly notes?: string | undefined;
   readonly createdVia: "voz" | "web";
 }
@@ -40,7 +41,7 @@ export interface CandidateSearch {
   readonly matching: number;
   readonly candidates: readonly PublicCandidate[];
   readonly legalCost: LegalCostEstimate;
-  /** Tarifa de NIVEL por contratación, de la más baja a la más alta según el nivel. Nulo si nadie cumple. */
+
   readonly feeRange: { readonly min: PriceWithIva; readonly max: PriceWithIva } | null;
 }
 
@@ -83,7 +84,6 @@ function assertAllowedText(input: NewJobRequest): void {
   ensure(firstViolation === undefined, firstViolation?.explanation ?? "");
 }
 
-/** Publica una solicitud de cuadrilla y devuelve los candidatos que cumplen. */
 export async function createJobRequest(
   context: AppContext,
   actor: Actor,
@@ -101,7 +101,7 @@ export async function createJobRequest(
     quantity: input.quantity,
     minLevel: input.minLevel,
     zone: input.zone.trim(),
-    // La obra de la demo está en la sede de la empresa activa.
+
     lat: company.lat,
     lng: company.lng,
     startDate: resolveStartDate(input.startDate, now),
@@ -112,7 +112,7 @@ export async function createJobRequest(
     createdVia: input.createdVia,
     createdAt: now.toISOString(),
   };
-  // Valida montos y rangos antes de escribir nada.
+
   estimateLegalCost({ dailyPayUsd: row.dailyPayUsd, days: row.days, quantity: row.quantity });
   const [request] = await context.db.insert(jobRequests).values(row).returning();
   if (!request) throw new Error("La solicitud no se guardó");
@@ -144,10 +144,6 @@ export interface InvitationSent {
   readonly candidate: PublicCandidate;
 }
 
-/**
- * A quién invitar: los siguientes N mejores, o las personas que eligió la
- * empresa (siempre entre las que cumplen y aún no fueron invitadas).
- */
 export type InviteChoice =
   | { readonly requestId: string; readonly quantity: number }
   | { readonly requestId: string; readonly workerIds: readonly string[] };
@@ -162,7 +158,6 @@ function pickInvitees(available: readonly PublicCandidate[], input: InviteChoice
   return picked;
 }
 
-/** Invita a las personas elegidas, o a los siguientes N mejores que aún no fueron invitados. */
 export async function inviteCandidates(
   context: AppContext,
   actor: Actor,
@@ -216,13 +211,12 @@ export interface RequestBoard extends CandidateSearch {
     readonly candidate: PublicCandidate | undefined;
   }>;
   readonly accepted: number;
-  /** Personas ya contratadas: firma, asistencia y pago de cada una. */
+
   readonly crew: readonly CrewMember[];
-  /** Mejor candidato aún no invitado, si alguien rechazó y falta gente. */
+
   readonly suggestedReplacement: PublicCandidate | null;
 }
 
-/** Tablero en vivo de la solicitud más reciente de la empresa (lo consulta `/c` por polling). */
 export async function activeRequestBoard(context: AppContext, actor: Actor): Promise<RequestBoard | null> {
   const { companyId } = requireRole(actor, "company");
   const [request] = await context.db
@@ -242,8 +236,7 @@ export async function activeRequestBoard(context: AppContext, actor: Actor): Pro
   const invitedIds = new Set(sent.map((invitation) => invitation.workerId));
   const accepted = sent.filter((invitation) => invitation.status === "aceptada").length;
   const pending = sent.filter((invitation) => invitation.status === "enviada").length;
-  // Solo hay "reemplazo" si alguien rechazó: si la empresa invitó a menos personas de las que
-  // necesita por elección propia, la lista de candidatos ya le ofrece a quién más invitar.
+
   const someoneDeclined = sent.some((invitation) => invitation.status === "rechazada");
   const needsReplacement = accepted + pending < request.quantity && someoneDeclined;
   return {

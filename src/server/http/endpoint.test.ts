@@ -1,3 +1,4 @@
+// Pruebas de endpoint.
 import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 
@@ -37,6 +38,9 @@ beforeAll(async () => {
       conversationToken: async (agent) => `token-${agent}`,
       speaker: () => ({ voice: "voz", speak: async () => new Uint8Array([1]) }),
       transcribe: async () => "",
+      voiceSetup: () => {
+        throw new Error("sin voz en esta prueba");
+      },
     },
     secureCookies: true,
   };

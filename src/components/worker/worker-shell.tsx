@@ -1,3 +1,4 @@
+// Marco de la app del trabajador: menú lateral en escritorio y barra inferior en el teléfono.
 "use client";
 
 import Link from "next/link";
@@ -15,14 +16,12 @@ export const WORKER_NAV = [
   { href: "/t/mis-datos", label: "Perfil" },
 ] as const;
 
-/** Sección activa: la más específica que contenga la dirección actual. */
 function activeHref(current: string | null): string | null {
   if (!current) return null;
   const matches = WORKER_NAV.filter((item) => current === item.href || current.startsWith(`${item.href}/`));
   return matches.sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
 }
 
-/** Navegación inferior en el teléfono: cuatro secciones al alcance del pulgar. */
 function BottomNav({ current }: { readonly current: string | null }) {
   const active = activeHref(current);
   return (
@@ -50,7 +49,6 @@ function BottomNav({ current }: { readonly current: string | null }) {
   );
 }
 
-/** Menú lateral en escritorio, con el mismo estilo que la web del contratista. */
 function SideNav({ current }: { readonly current: string | null }) {
   const active = activeHref(current);
   return (
@@ -62,7 +60,7 @@ function SideNav({ current }: { readonly current: string | null }) {
               href={item.href}
               aria-current={item.href === active ? "page" : undefined}
               className={cx(
-                "flex min-h-12 items-center rounded-control px-3.5 text-[1.0625rem] font-semibold",
+                "flex min-h-13 items-center rounded-control px-3.5 text-[1.0625rem] font-semibold transition-colors duration-150",
                 item.href === active
                   ? "bg-brand text-white"
                   : "text-muted-on-ink hover:bg-ink-2 hover:text-white",
@@ -77,10 +75,6 @@ function SideNav({ current }: { readonly current: string | null }) {
   );
 }
 
-/**
- * Fondo de las pantallas sin sesión (acceso, carga, errores): una columna
- * centrada sobre el gris claro, a pantalla completa en el teléfono.
- */
 export function WorkerStage({ children }: { readonly children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-canvas">
@@ -96,10 +90,6 @@ interface WorkerShellProps {
   readonly children: ReactNode;
 }
 
-/**
- * App web del trabajador. En el teléfono: encabezado, contenido y barra
- * inferior. En escritorio: menú oscuro a la izquierda y el contenido centrado.
- */
 export function WorkerShell({ firstName, onSwitch, children }: WorkerShellProps) {
   const pathname = usePathname();
   const switchButton = (
@@ -112,7 +102,7 @@ export function WorkerShell({ firstName, onSwitch, children }: WorkerShellProps)
     </button>
   );
   return (
-    <div className="flex min-h-dvh flex-1 flex-col lg:flex-row">
+    <div className="flex min-h-dvh flex-1 flex-col lg:flex-row lg:bg-ink">
       <header className="on-dark flex items-center justify-between gap-3 bg-ink px-4 py-2 lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:flex-col lg:items-stretch lg:justify-start lg:gap-8 lg:overflow-y-auto lg:px-5 lg:py-7">
         <Link href="/t" aria-label="NIVEL, ir al inicio" className="inline-flex min-h-12 items-center">
           <NivelMark tone="white" size={28} />

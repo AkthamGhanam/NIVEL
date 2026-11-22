@@ -1,12 +1,14 @@
+// Datos de la demo para el equipo: reiniciar, ayudas para presentar y prueba de la voz de Nivi.
 "use client";
 
 import { useState } from "react";
 
-import type { ResetSummary } from "@/client/team-api";
+import type { PublishResult, ResetSummary, VoiceCheck } from "@/client/team-api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
 import { Switch } from "@/components/ui/switch";
+import { Tag } from "@/components/ui/tag";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
@@ -22,7 +24,6 @@ interface ConfirmButtonProps {
   readonly onConfirm: () => void;
 }
 
-/** Acción que borra datos: pide confirmar en un segundo paso, en la misma página. */
 export function ConfirmButton({
   label,
   warning,
@@ -151,7 +152,57 @@ function DemoHelpersCard({ onDone }: { readonly onDone: (message: string) => voi
   );
 }
 
-/** Lo que antes estaba en el Modo Jurado: reiniciar los datos y las ayudas para presentar /t y /c. */
+export const publishNotice = (result: PublishResult) =>
+  result.idsMatchEnv
+    ? `Nivi quedó reconectada a ${result.appUrl} con ${result.tools} herramientas.`
+    : `Nivi quedó publicada, pero sus identificadores no coinciden con los de Vercel: trabajador ${result.agents.worker}, contratista ${result.agents.contractor}.`;
+
+function VoiceSteps({ check }: { readonly check: VoiceCheck }) {
+  return (
+    <ol className="flex flex-col gap-2">
+      {check.steps.map((step) => (
+        <li key={step.name} className="flex items-start gap-2">
+          <Tag tone={step.ok ? "ok" : "alert"}>{step.ok ? "Bien" : "Falla"}</Tag>
+          <span>
+            <span className="font-bold">{step.name}.</span> {step.detail}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function VoiceCard({ onDone }: { readonly onDone: (message: string) => void }) {
+  const { api } = useTeam();
+  const [check, setCheck] = useState<VoiceCheck | null>(null);
+  const test = useAction(async () => setCheck(await api.checkVoice()));
+  const publish = useAction(async () => onDone(publishNotice(await api.publishVoice())));
+  const pending = test.pending || publish.pending;
+  return (
+    <Card className="flex flex-col gap-4 lg:col-span-2">
+      <h2 className="text-xl font-extrabold">Voz de Nivi</h2>
+      <p className="text-ink-2">
+        La prueba conversa con Nivi por texto y confirma que guarda un perfil. Reconectar vuelve a publicar
+        los agentes con la dirección y la clave de este servidor.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={pending} onClick={() => void test.invoke()}>
+          {test.pending ? "Probando…" : "Probar a Nivi"}
+        </Button>
+        <Button variant="outline" disabled={pending} onClick={() => void publish.invoke()}>
+          {publish.pending ? "Reconectando…" : "Reconectar a Nivi"}
+        </Button>
+      </div>
+      {check ? <VoiceSteps check={check} /> : null}
+      {test.error || publish.error ? (
+        <Notice tone="alert" urgent>
+          {test.error ?? publish.error}
+        </Notice>
+      ) : null}
+    </Card>
+  );
+}
+
 export function DataScreen() {
   const [message, setMessage] = useState<string | null>(null);
   return (
@@ -168,6 +219,7 @@ export function DataScreen() {
       <div className="grid gap-5 lg:grid-cols-2">
         <ResetCard onDone={setMessage} />
         <DemoHelpersCard onDone={setMessage} />
+        <VoiceCard onDone={setMessage} />
       </div>
     </div>
   );

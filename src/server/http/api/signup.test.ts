@@ -1,3 +1,4 @@
+// Registro real desde la web.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiClient } from "../../../../scripts/smoke/client";
@@ -5,15 +6,9 @@ import { dispatch, type InProcessApi, startInProcessApi } from "../../testing/in
 import type { DemoState } from "../../use-cases/personas";
 import { normalizeRif } from "../../use-cases/registration";
 
-/**
- * Registro real desde la web: el trabajador que escribe su perfil y la empresa
- * que se registra. Por las rutas reales, con su sesión y su lugar en el reset.
- */
-
 let api: InProcessApi;
 let ipCounter = 0;
 
-/** Cada cliente sale de una IP distinta: así el tope de registros por IP no cruza pruebas. */
 function newClient() {
   ipCounter += 1;
   const ip = `203.0.113.${ipCounter}`;
@@ -88,7 +83,7 @@ describe("registro del trabajador escribiendo", () => {
     expect(me).toMatchObject({ firstName: "María", zone: "San Diego" });
     const state = await client.get<DemoState>("/api/state");
     expect(state.active.workerId).not.toBeNull();
-    expect(state.personas.workers.some((worker) => worker.name === WORKER.name)).toBe(false);
+    expect(state.personas.workers.find((worker) => worker.registered)).toMatchObject({ name: "María F." });
   });
 
   it("sin el permiso o siendo menor de edad no crea nada", async () => {
@@ -117,23 +112,23 @@ describe("registro de empresa", () => {
     expect(created.data.company).toMatchObject({ rif: "J-41234567-8", verified: false });
     const state = await client.get<DemoState>("/api/state");
     expect(state.activeCompany).toMatchObject({ name: COMPANY.name, verified: false, zone: "Valencia" });
-    expect(state.personas.companies.some((company) => company.name === COMPANY.name)).toBe(false);
-    // Con su sesión ya consulta su tablero: no lanza 401.
+    expect(state.personas.companies.find((company) => company.registered)?.name).toBe(COMPANY.name);
+
     await client.get("/api/requests/active", { as: "company" });
   });
 
-  it("nadie puede entrar como una empresa real desde el selector de prueba", async () => {
+  it("una empresa registrada aparece en la lista y se puede volver a entrar a ella", async () => {
     const owner = newClient();
     await owner.post("/api/companies/register", {
       body: { ...COMPANY, rif: "J-41234567-0", name: "Taller Real" },
     });
     const companyId = (await owner.get<DemoState>("/api/state")).active.companyId;
 
-    const intruder = await newClient().call("POST", "/api/state", {
-      body: { role: "company", id: companyId },
-    });
+    const visitor = newClient();
+    const entry = await visitor.call("POST", "/api/state", { body: { role: "company", id: companyId } });
 
-    expect(intruder.status).toBe(403);
+    expect(entry.status).toBe(200);
+    expect((await visitor.get<DemoState>("/api/state")).activeCompany?.name).toBe("Taller Real");
   });
 
   it("rechaza un RIF repetido o mal escrito", async () => {
@@ -161,7 +156,7 @@ describe("registro de empresa", () => {
     expect(await client.get<{ firstName: string }>("/api/me", { as: "worker" })).toMatchObject({
       firstName: "Pedro",
     });
-    expect(state.personas.companies).toHaveLength(4);
+    expect(state.personas.companies.filter((company) => !company.registered)).toHaveLength(4);
   });
 
   it("borrar todo también se lleva a las empresas y personas reales", async () => {

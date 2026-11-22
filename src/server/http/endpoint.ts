@@ -1,3 +1,4 @@
+// Envoltorio común de las rutas de la API: autenticación, validación, límites y errores uniformes.
 import { randomUUID } from "node:crypto";
 
 import type { z } from "zod";
@@ -29,54 +30,38 @@ import {
   sessionCookieName,
 } from "./session";
 import type { Speaker, Transcriber } from "../use-cases/voice";
+import type { VoiceSetup } from "../use-cases/voice-setup";
 import { decodeToolContext, encodeToolContext, TOOL_CONTEXT_HEADER, type ToolContext } from "./tool-context";
 
-/**
- * Envoltorio común de todas las rutas de la API: autenticación en servidor
- * (denegada por defecto), validación del cuerpo con zod, protección CSRF,
- * límite de tamaño, errores uniformes y un log por petición con correlation ID.
- * No depende de Next.js: recibe un `Request` estándar y devuelve un `Response`.
- */
-
 export const MAX_BODY_BYTES = 64 * 1024;
-/** Con varias personas activas en el mismo navegador, indica con cuál se hace la petición. */
+
 export const ROLE_HEADER = "x-nivel-role";
 export const DEMO_KEY_HEADER = "x-demo-key";
 export const TOOL_SECRET_HEADER = "x-tool-secret";
 
-/** Tope general por IP. Holgado: en el evento muchas personas comparten la misma red. */
 export const GENERAL_LIMIT: RateRule = Object.freeze({ limit: 1200, windowSeconds: 60 });
-/** Intentos fallidos de un secreto (clave de demo o de herramientas) por IP: frena la fuerza bruta. */
+
 export const SECRET_FAILURE_LIMIT: RateRule = Object.freeze({ limit: 10, windowSeconds: 300 });
 
 const ROLES = ["worker", "company", "academy", "admin"] as const satisfies readonly Role[];
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-/**
- * Quién puede llamar la ruta:
- * - un rol o una lista de roles: exige la cookie firmada de uno de ellos;
- * - si incluye "admin": también vale la clave de demo en `x-demo-key`;
- * - "tool": un agente de voz, con el secreto de herramientas en `x-tool-secret`;
- * - "public": cualquiera (solo para datos no sensibles).
- */
 export type Access = "public" | "tool" | Role | readonly [Role, ...Role[]];
 
 type RolesOf<A extends Access> = A extends Role ? A : A extends readonly Role[] ? A[number] : never;
 
-/** Actor que recibe el manejador: indefinido solo en rutas públicas. */
 export type ActorOf<A extends Access> = A extends "public" | "tool"
   ? undefined
   : Extract<Actor, { role: RolesOf<A> }>;
 
-/** Servicios externos que usan las rutas. Se inyectan para poder sustituirlos en las pruebas. */
 export interface Services {
-  /** Token de corta vida para abrir una conversación con un agente de voz. */
   readonly conversationToken: (agent: "worker" | "contractor") => Promise<string>;
-  /** La voz de Nivi para el TTS. Lanza `ConfigError` si falta configuración. */
+
   readonly speaker: () => Speaker;
-  /** Transcripción de una nota de voz (Scribe). */
+
   readonly transcribe: Transcriber;
+  readonly voiceSetup: () => VoiceSetup;
 }
 
 export interface Runtime {
@@ -86,7 +71,7 @@ export interface Runtime {
   readonly toolSecret: string | undefined;
   readonly limiter: RateLimiter;
   readonly services: Services;
-  /** Marca las cookies como `Secure` (todo despliegue por https). */
+
   readonly secureCookies: boolean;
 }
 
@@ -95,27 +80,26 @@ export type RuntimeProvider = () => Promise<Runtime>;
 export interface EndpointInput<Body, RequestActor> {
   readonly actor: RequestActor;
   readonly body: Body;
-  /** Cuerpo binario validado, solo en rutas con `upload`. */
+
   readonly upload: Blob | undefined;
   readonly params: Readonly<Record<string, string>>;
   readonly url: URL;
   readonly context: AppContext;
-  /** Personas con sesión válida en este navegador, por rol. */
+
   readonly sessions: Sessions;
-  /** Cabecera `Set-Cookie` que abre la sesión del actor indicado. */
+
   readonly issueSession: (actor: Actor) => string;
-  /** Cabecera `Set-Cookie` que cierra la sesión de un rol (por ejemplo, al borrar la cuenta). */
+
   readonly endSession: (role: Role) => string;
-  /** ¿Coincide el valor con la clave de demo del servidor? Falso si no está configurada. */
+
   readonly isDemoKey: (candidate: string | null) => boolean;
-  /** Contexto firmado de la conversación de voz que llama a la herramienta, si lo trae. */
+
   readonly toolContext: ToolContext | undefined;
-  /** Firma el contexto que acompañará a una conversación de voz. */
+
   readonly issueToolContext: (context: ToolContext) => string;
   readonly services: Services;
 }
 
-/** Resultado con cabeceras extra (por ejemplo `Set-Cookie`) o un código distinto de 200. */
 export class ApiResponse {
   constructor(
     readonly data: unknown,
@@ -123,19 +107,18 @@ export class ApiResponse {
   ) {}
 }
 
-/** Cuerpo binario aceptado en lugar de JSON (por ejemplo, una nota de voz). */
 export interface UploadRule {
   readonly maxBytes: number;
-  /** Tipos MIME admitidos, sin parámetros (`audio/webm`, no `audio/webm;codecs=opus`). */
+
   readonly types: readonly string[];
 }
 
 interface EndpointOptions<A extends Access, Schema extends z.ZodType | undefined> {
   readonly access: A;
   readonly body?: Schema;
-  /** La ruta recibe el cuerpo crudo como `Blob` en `upload`. Excluyente con `body`. */
+
   readonly upload?: UploadRule;
-  /** Tope propio de la ruta por IP, además del general (por ejemplo, lo que cuesta dinero). */
+
   readonly limit?: RateRule & { readonly bucket: string };
 }
 
@@ -150,10 +133,10 @@ async function readSessions(request: Request, runtime: Runtime): Promise<Session
   const sessions: Partial<Record<Role, Actor>> = {};
   for (const role of ROLES) {
     const actor = decodeSession(cookies.get(sessionCookieName(role)), runtime.sessionSecret, now);
-    // Una cookie válida de un rol no sirve bajo el nombre de otro.
+
     if (actor?.role === role) sessions[role] = actor;
   }
-  // La sesión muere con la cuenta: si la persona la borró (o un reinicio se la llevó), ya no vale.
+
   const worker = sessions.worker;
   if (worker?.role === "worker" && !(await workerIsActive(runtime.context.db, worker.workerId))) {
     delete sessions.worker;
@@ -161,7 +144,6 @@ async function readSessions(request: Request, runtime: Runtime): Promise<Session
   return sessions;
 }
 
-/** IP del cliente según el proxy de la plataforma. Solo se usa para limitar peticiones. */
 function clientIp(request: Request): string {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || request.headers.get("x-real-ip") || "desconocida";
@@ -172,10 +154,6 @@ interface Caller {
   readonly runtime: Runtime;
 }
 
-/**
- * Compara un secreto en tiempo constante y cuenta los fallos por IP: tras
- * varios intentos errados esa IP queda bloqueada unos minutos.
- */
 function secretIsValid({ request, runtime }: Caller, candidate: string | null, expected: string | undefined) {
   const key = `secreto:${clientIp(request)}`;
   const now = runtime.context.now();
@@ -194,7 +172,6 @@ function assertWithinGeneralLimit({ request, runtime }: Caller): void {
 function authenticate(caller: Caller, access: Access, sessions: Sessions): Actor | undefined {
   const { request, runtime } = caller;
   if (access === "tool") {
-    // Los agentes llaman desde pocas IP compartidas: no entran en el tope general.
     if (secretIsValid(caller, request.headers.get(TOOL_SECRET_HEADER), runtime.toolSecret)) return undefined;
     throw new UnauthorizedError("Secreto de herramientas inválido.");
   }
@@ -214,11 +191,10 @@ function authenticate(caller: Caller, access: Access, sessions: Sessions): Actor
   throw new UnauthorizedError();
 }
 
-/** CSRF: una petición de navegador que cambia datos debe venir de nuestro propio origen. */
 function assertSameOrigin(request: Request): void {
   if (SAFE_METHODS.has(request.method)) return;
   const origin = request.headers.get("origin");
-  if (origin === null) return; // No es un navegador (script smoke, herramientas de los agentes).
+  if (origin === null) return;
   const expected = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
   let originHost: string | undefined;
   try {
@@ -229,7 +205,6 @@ function assertSameOrigin(request: Request): void {
   if (!originHost || originHost !== expected) throw new ForbiddenError("Origen no permitido.");
 }
 
-/** Lee el cuerpo sin cargar en memoria más de `maxBytes`, venga o no con Content-Length. */
 async function readLimitedBytes(request: Request, maxBytes: number): Promise<Buffer> {
   const declared = Number(request.headers.get("content-length") ?? 0);
   if (Number.isFinite(declared) && declared > maxBytes) throw new PayloadTooLargeError();
@@ -327,7 +302,6 @@ function requestIdOf(request: Request): string {
 function errorResponse(error: unknown, requestId: string): Response {
   const described = describeError(error);
   if (described.status >= 500) {
-    // El detalle va al log del servidor, nunca al cliente.
     log("error", "request_failed", {
       requestId,
       error: error instanceof Error ? `${error.name}: ${error.message}` : "desconocido",
@@ -338,7 +312,6 @@ function errorResponse(error: unknown, requestId: string): Response {
 }
 
 function successResponse(result: unknown, requestId: string): Response {
-  // Respuesta ya armada (por ejemplo, un audio): solo se le agrega el correlation ID.
   if (result instanceof Response) {
     result.headers.set("X-Request-ID", requestId);
     return result;
@@ -350,7 +323,6 @@ function successResponse(result: unknown, requestId: string): Response {
   return jsonResponse(result, 200, { "X-Request-ID": requestId });
 }
 
-/** Crea el manejador de una ruta. `runtime` se resuelve por petición para poder inyectarlo en pruebas. */
 export function endpoint<A extends Access, Schema extends z.ZodType | undefined = undefined>(
   options: EndpointOptions<A, Schema>,
   handler: (input: EndpointInput<BodyOf<Schema>, ActorOf<A>>) => Promise<unknown>,

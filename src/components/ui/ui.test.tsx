@@ -1,3 +1,4 @@
+// Pruebas de ui.
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -22,7 +23,7 @@ describe("botones", () => {
     const markup = html(<Button disabled>Firmar</Button>);
 
     expect(markup).toContain('type="button"');
-    expect(markup).toContain("min-h-12");
+    expect(markup).toContain("min-h-13");
     expect(markup).toContain("disabled");
     expect(html(<Button type="submit">Enviar</Button>)).toContain('type="submit"');
   });
@@ -113,7 +114,7 @@ describe("voz y marco", () => {
     );
     expect(html(<BytesLogo />)).toContain('alt="Bytes Technology"');
     expect(html(<NivelMark tone="white" />)).toContain("NIVEL");
-    expect(html(<DemoFooter />)).toContain("Demo · nombres, empresas y cifras de ejemplo");
+    expect(html(<DemoFooter />)).toContain("Versión demo · datos de ejemplo");
   });
 });
 

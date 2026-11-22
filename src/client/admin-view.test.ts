@@ -1,3 +1,4 @@
+// Pruebas de admin-view.
 import { describe, expect, it } from "vitest";
 
 import {
@@ -20,6 +21,7 @@ const COMPANIES = [
     zone: "Los Guayos",
     rif: "J-50123456-7",
     verified: true,
+    registered: false,
   },
 ];
 

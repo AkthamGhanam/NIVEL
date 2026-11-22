@@ -1,9 +1,13 @@
+// Pantalla principal del contratista: pedir cuadrilla (formulario o Nivi), tablero y costos.
 "use client";
+
+import { useCallback } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
+import { NiviCard } from "@/components/voice/nivi-card";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
@@ -19,7 +23,6 @@ interface BoardViewProps {
   readonly error: string | null;
 }
 
-/** Centro de `/c`: la solicitud activa, quién aceptó y a quién más se puede invitar. */
 export function BoardView({ board, onInvite, pending, error }: BoardViewProps) {
   const open = board.request.status === "abierta";
   return (
@@ -53,7 +56,6 @@ export function EmptyBoard() {
   );
 }
 
-/** Pantalla principal del contratista: pedir personal, tablero en vivo y costos. */
 export function RequestScreen() {
   const { company, api, board: store } = useCompany();
   const live = useLive(store);
@@ -65,11 +67,20 @@ export function RequestScreen() {
     await api.createRequest(input);
     await store.refresh();
   };
+  const refreshBoard = useCallback(() => void store.refresh(), [store]);
   const board = live.data ?? null;
 
   return (
     <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem]">
-      <section aria-labelledby="pedir-titulo">
+      <section aria-labelledby="pedir-titulo" className="flex flex-col gap-4">
+        <div>
+          <NiviCard
+            title="Pídela con Nivi"
+            hint="Dile qué personal necesitas, hablando o escribiendo"
+            openSession={api.voice}
+            onActivity={refreshBoard}
+          />
+        </div>
         <Card className="flex flex-col gap-4">
           <h2 id="pedir-titulo" className="display text-2xl">
             Pide tu cuadrilla

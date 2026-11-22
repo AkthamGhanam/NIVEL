@@ -1,3 +1,4 @@
+// Rutas de registro desde la web: trabajador y empresa.
 import { z } from "zod";
 
 import { TRADES } from "@/lib/trades";
@@ -6,7 +7,6 @@ import { COMPANY_KINDS, registerCompany, registerWorkerByForm } from "../../use-
 import { ApiResponse, endpoint, type RuntimeProvider } from "../endpoint";
 import type { RateRule } from "../rate-limit";
 
-/** Cada registro crea filas reales que el reset no borra: tope propio por IP. */
 const SIGNUP_LIMIT: RateRule & { bucket: string } = Object.freeze({
   bucket: "registro",
   limit: 20,
@@ -35,7 +35,6 @@ const companySignupSchema = z.strictObject({
 });
 
 export const signupRoutes = (runtime: RuntimeProvider) => ({
-  /** "Prefiero escribir": crea el perfil del trabajador y abre su sesión. */
   worker: endpoint(
     { access: "public", body: workerSignupSchema, limit: SIGNUP_LIMIT },
     async ({ body, context, issueSession }) => {
@@ -52,7 +51,6 @@ export const signupRoutes = (runtime: RuntimeProvider) => ({
     runtime,
   ),
 
-  /** Registro de una empresa contratista y su sesión. */
   company: endpoint(
     { access: "public", body: companySignupSchema, limit: SIGNUP_LIMIT },
     async ({ body, context, issueSession }) => {

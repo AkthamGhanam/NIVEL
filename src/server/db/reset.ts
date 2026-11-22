@@ -1,3 +1,4 @@
+// Reset de la demo: deja la base exactamente como el seed, en una sola transacción (todo o nada).
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
@@ -6,14 +7,9 @@ import type { Database } from "./client";
 import { schema } from "./schema";
 import { buildSeed, type SeedRows } from "./seed/build";
 
-/**
- * Reset de la demo: deja la base exactamente como el seed, en una sola
- * transacción (todo o nada). Idempotente.
- */
-
 export interface ResetOptions {
   readonly now: Date;
-  /** Conserva los perfiles de personas reales (`is_real`). Solo `?all=1` lo desactiva. */
+
   readonly keepRealWorkers: boolean;
 }
 
@@ -22,7 +18,6 @@ export interface ResetSummary {
   readonly keptRealWorkers: number;
 }
 
-/** Padres antes que hijos: es el orden válido para insertar con claves foráneas. */
 const INSERT_ORDER = [
   "companies",
   "academies",
@@ -45,7 +40,6 @@ const INSERT_ORDER = [
   "demoState",
 ] as const satisfies ReadonlyArray<keyof typeof schema>;
 
-/** SQLite admite un número limitado de parámetros por sentencia. */
 const ROWS_PER_INSERT = 50;
 
 function chunk<T>(items: readonly T[], size: number): T[][] {
@@ -60,7 +54,7 @@ function deleteStatements(db: Database, keepRealWorkers: boolean): Statement[] {
   return [...INSERT_ORDER].reverse().map((key) => {
     if (key === "workers" && keepRealWorkers)
       return db.delete(schema.workers).where(eq(schema.workers.isReal, false));
-    // Las empresas que se registraron en la web corren la misma suerte que los perfiles reales.
+
     if (key === "companies" && keepRealWorkers)
       return db.delete(schema.companies).where(eq(schema.companies.isReal, false));
     return db.delete(schema[key] as SQLiteTable);
