@@ -1,3 +1,4 @@
+// Las páginas estáticas, renderizadas en el servidor.
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -13,11 +14,6 @@ import PrivacyPage from "./legal/privacidad/page";
 import TermsPage from "./legal/terminos/page";
 import NotFound from "./not-found";
 import HomePage from "./page";
-
-/**
- * Las páginas estáticas, renderizadas en el servidor: estructura accesible y
- * las reglas de la revisión legal sobre lo que se puede y no se puede decir.
- */
 
 const PAGES: ReadonlyArray<readonly [string, () => ReactElement]> = [
   ["inicio", HomePage],
@@ -52,7 +48,7 @@ describe.each(PAGES)("página de %s", (_name, Page) => {
   });
 
   it("avisa que es una demo con datos de ejemplo", () => {
-    expect(markup).toContain("Demo · nombres, empresas y cifras de ejemplo");
+    expect(markup).toContain("Versión demo · datos de ejemplo");
   });
 });
 
@@ -117,7 +113,6 @@ describe("textos de toda la interfaz", () => {
 const IMPORT_PATTERN = /import\s+(type\s+)?\{([^}]*)\}\s+from\s+"(@\/[^"]+)"/g;
 const isClientModule = (file: string) => /^\s*"use client";/.test(readFileSync(file, "utf8"));
 
-/** Nombres con minúscula inicial que una página del servidor importa de un módulo de cliente. */
 function clientFunctionsUsedOnServer(file: string): string[] {
   const source = readFileSync(file, "utf8");
   if (isClientModule(file)) return [];
@@ -134,7 +129,6 @@ function clientFunctionsUsedOnServer(file: string): string[] {
 
 describe("frontera entre servidor y cliente", () => {
   it("una página del servidor solo toma componentes de un módulo de cliente, nunca funciones", () => {
-    // Llamar en el servidor una función de un módulo "use client" rompe la página al abrirla.
     const pages = sourceFiles(join("src", "app"));
 
     expect(pages.length).toBeGreaterThan(15);

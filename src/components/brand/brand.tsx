@@ -1,22 +1,16 @@
+// Marca: logos de Bytes, isotipo de NIVEL y distintivo discreto de versión demo.
 import { cx } from "@/lib/cx";
 import { DEMO_FOOTER } from "@/lib/legal-copy";
 
-/*
- * Los logos van con <img> y no con next/image: ese componente añade un
- * `style` en línea que nuestra política de seguridad de contenido bloquea.
- * Son PNG pequeños y ya optimizados, servidos desde /brand.
- */
 /* eslint-disable @next/next/no-img-element */
 
 const H_RATIO = 660 / 200;
 
 interface BrandLogoProps {
-  /** `green` sobre fondos claros, `white` sobre tinta o verde. */
   readonly tone?: "green" | "white";
   readonly height?: number;
 }
 
-/** Logo horizontal de Bytes Technology. */
 export function BytesLogo({ tone = "green", height = 28 }: BrandLogoProps) {
   return (
     <img
@@ -29,7 +23,6 @@ export function BytesLogo({ tone = "green", height = 28 }: BrandLogoProps) {
   );
 }
 
-/** Marca del producto: isotipo de Bytes y la palabra NIVEL en el titular de la marca. */
 export function NivelMark({
   tone = "green",
   size = 32,
@@ -45,7 +38,12 @@ export function NivelMark({
   );
 }
 
-/** Pie obligatorio de la demo: todo lo que se ve es de ejemplo. */
 export function DemoFooter({ className }: { readonly className?: string }) {
-  return <footer className={cx("px-4 py-5 text-center text-sm text-muted", className)}>{DEMO_FOOTER}</footer>;
+  return (
+    <footer className={cx("flex justify-center px-4 py-4", className)}>
+      <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-muted">
+        {DEMO_FOOTER}
+      </span>
+    </footer>
+  );
 }

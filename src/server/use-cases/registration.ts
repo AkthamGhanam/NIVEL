@@ -1,3 +1,4 @@
+// Registro de trabajadores (voz o formulario) y de empresas.
 import { and, count, eq, gte, inArray } from "drizzle-orm";
 
 import { ensure } from "@/lib/errors";
@@ -11,25 +12,20 @@ import { companies, courses, workers } from "../db/schema";
 import { ConflictError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
 
-/**
- * Registro del trabajador hablando con Nivi. El perfil nace en Nivel 1 y no
- * aparece en búsquedas de empresas hasta que la persona acepte compartirlo.
- */
-
 export interface VoiceProfile {
   readonly name: string;
   readonly isAdult: boolean;
   readonly trade: Trade;
   readonly yearsExp: number;
   readonly skills: readonly string[];
-  /** Municipio o sector, nunca la dirección exacta. */
+
   readonly zone: string;
   readonly availability: string;
-  /** Conversación de voz que creó el perfil: enlaza la herramienta con la pantalla que la inició. */
+
   readonly conversationId: string;
-  /** Persona real registrada en el evento: el reset no la borra. */
+
   readonly real: boolean;
-  /** Cuándo aceptó en pantalla el uso de su voz y sus datos. */
+
   readonly consentAt: string;
 }
 
@@ -38,7 +34,7 @@ export interface ProfileCreated {
   readonly firstName: string;
   readonly level: Level;
   readonly route: { readonly freeCourse: string | null; readonly recommendedCourse: string | null };
-  /** Referencia de mercado en USD al mes. No es una promesa de salario. */
+
   readonly referenceBand: { readonly min: number; readonly max: number };
 }
 
@@ -46,9 +42,9 @@ export const UNDERAGE_MESSAGE = "Por ahora NIVEL es solo para personas mayores d
 
 const NAME_PATTERN = /^\p{L}[\p{L} .'-]{1,79}$/u;
 const LIMITS = Object.freeze({ yearsExp: 60, skills: 10, skillLength: 40, text: 80 });
-/** Tope de perfiles creados por voz: evita que un abuso llene la base durante el evento. */
+
 const MAX_VOICE_PROFILES = 300;
-/** Ventana para que la pantalla que inició la conversación reclame el perfil recién creado. */
+
 const CLAIM_WINDOW_MS = 30 * 60 * 1000;
 
 const tidy = (text: string) => text.trim().replace(/\s+/g, " ");
@@ -102,7 +98,6 @@ const byConversation = (context: AppContext, conversationId: string) =>
     .from(workers)
     .where(eq(workers.conversationId, conversationId));
 
-/** Tope de perfiles creados desde la app (voz o formulario): evita que un abuso llene la base. */
 async function ensureRoomForProfiles(context: AppContext): Promise<void> {
   const [{ total } = { total: 0 }] = await context.db
     .select({ total: count() })
@@ -142,7 +137,7 @@ async function insertWorker(context: AppContext, input: NewWorker): Promise<stri
     consentVoiceAt: input.via === "voz" ? input.consentAt : null,
     createdAt: context.now().toISOString(),
   });
-  // La bitácora no guarda el nombre: solo oficio y zona reconocida.
+
   const place = profile.zone.known ? profile.zone.name : "zona por ubicar";
   await logEvent(context, {
     actor: input.via === "voz" ? "Nivi" : "Trabajador",
@@ -154,7 +149,6 @@ async function insertWorker(context: AppContext, input: NewWorker): Promise<stri
   return id;
 }
 
-/** Crea el perfil. Si el agente repite la llamada en la misma conversación, devuelve el mismo perfil. */
 export async function registerWorkerByVoice(
   context: AppContext,
   input: VoiceProfile,
@@ -174,13 +168,8 @@ export async function registerWorkerByVoice(
   return describe(context, { id, name: profile.name, trade: input.trade, level: 1 });
 }
 
-/** Lo que pide el formulario "Prefiero escribir": lo mismo que Nivi, sin la conversación. */
 export type FormProfile = Omit<VoiceProfile, "conversationId" | "real">;
 
-/**
- * Registro escribiendo en la web. Siempre es una persona real: nace privada,
- * sobrevive al reset y no aparece entre las cuentas de prueba.
- */
 export async function registerWorkerByForm(
   context: AppContext,
   input: FormProfile,
@@ -201,7 +190,6 @@ export async function registerWorkerByForm(
   };
 }
 
-/** Trabajador creado en esta conversación de voz, si lo hay y la conversación sigue reciente. */
 export async function workerOfConversation(
   context: AppContext,
   conversationId: string,
@@ -214,10 +202,6 @@ export async function workerOfConversation(
   return worker && { role: "worker", workerId: worker.id };
 }
 
-/**
- * La pantalla que inició la conversación reclama su perfil recién creado.
- * El id de conversación solo lo conocen esa pantalla y el agente, y deja de valer a los 30 minutos.
- */
 export async function claimProfile(
   context: AppContext,
   conversationId: string,
@@ -229,14 +213,12 @@ export async function claimProfile(
   return { actor, profile: await describe(context, worker) };
 }
 
-/* Registro de empresas */
-
 export const COMPANY_KINDS = Object.freeze(["contratista", "empresa"] as const);
 export type CompanyKind = (typeof COMPANY_KINDS)[number];
 
 export interface CompanySignup {
   readonly name: string;
-  /** RIF venezolano: letra, 8 dígitos y dígito verificador (J-12345678-9). */
+
   readonly rif: string;
   readonly zone: string;
   readonly kind: CompanyKind;
@@ -252,10 +234,9 @@ export interface CompanyCreated {
 
 const COMPANY_NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} .,&'()-]{1,79}$/u;
 const RIF_PATTERN = /^([JGVEPC])-?(\d{8})-?(\d)$/;
-/** Tope de empresas registradas en la web durante la demo. */
+
 const MAX_REAL_COMPANIES = 200;
 
-/** Deja el RIF en la forma J-12345678-9, o falla si no tiene esa forma. */
 export function normalizeRif(raw: string): string {
   const match = RIF_PATTERN.exec(raw.trim().toUpperCase().replace(/\s+/g, ""));
   ensure(match !== null, "El RIF debe tener la forma J-12345678-9");
@@ -263,10 +244,6 @@ export function normalizeRif(raw: string): string {
   return `${letter}-${number}-${check}`;
 }
 
-/**
- * Registra una empresa real. Nace sin verificar: la verificación del RIF la
- * hace una persona del equipo, nunca la propia empresa.
- */
 export async function registerCompany(
   context: AppContext,
   input: CompanySignup,

@@ -1,3 +1,4 @@
+// Formulario para crear el perfil del trabajador escribiendo.
 "use client";
 
 import Link from "next/link";
@@ -18,7 +19,6 @@ interface WorkerSignupFormProps {
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
-/** Separa las técnicas escritas con comas: "MIG, TIG" → ["MIG", "TIG"]. */
 export function splitSkills(text: string): string[] {
   return text
     .split(/[,;\n]/)
@@ -29,7 +29,6 @@ export function splitSkills(text: string): string[] {
 
 export const AVAILABILITY = ["Inmediata", "En una semana", "Fines de semana", "Medio tiempo"] as const;
 
-/** Lee el formulario y arma lo que espera el servidor. */
 export function readWorkerSignup(data: FormData): WorkerSignupInput {
   const text = (name: string) => String(data.get(name) ?? "").trim();
   return {
@@ -131,10 +130,6 @@ function PlaceFields() {
   );
 }
 
-/**
- * "Prefiero escribir": lo mismo que Nivi pregunta, en un formulario corto.
- * El perfil nace en Nivel 1 y privado: no aparece en búsquedas hasta que la persona lo comparta.
- */
 export function WorkerSignupForm({ onSubmit, pending, error }: WorkerSignupFormProps) {
   const [adult, setAdult] = useState(false);
   const [consent, setConsent] = useState(false);

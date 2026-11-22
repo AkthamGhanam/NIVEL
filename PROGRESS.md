@@ -356,30 +356,24 @@ Pendiente de las notas de voz:
 - Sin probar en Safari (graba en MP4) ni en un teléfono real.
 - Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
 
-### 12b · Hablar con Nivi — listo en código (sin probar aún contra ElevenLabs real)
+### 12b · Worklets de audio propios para Nivi — listo en código (sin probar aún contra ElevenLabs real)
 
-- [x] `NiviVoice`: un componente y tres modos sobre el mismo agente. **Nota de voz** (el micrófono solo se
-      abre mientras se mantiene presionado; también con el teclado), **llamada** (manos libres, con «Colgar»)
-      y **texto** (sin micrófono). Orbe con su estado en palabras y la conversación escrita en vivo
-- [x] El modo elegido se recuerda en el teléfono, por separado para el trabajador y la empresa
-- [x] `/c`: tarjeta «Pídela hablando» en modo llamada; lo que el agente crea aparece en el tablero de al lado
-- [x] El registro por voz es el de la fase 11 (acceso de `/t`, con `@elevenlabs/react`). Aquí solo se le pasan
-      los worklets propios: sin eso el SDK los carga como `blob:`, que la CSP no admite
-- [x] SDK `@elevenlabs/client` 1.37.1, la misma versión que trae `@elevenlabs/react`. Sus worklets se sirven
-      desde `public/elevenlabs`; una prueba avisa si dejan de coincidir con el paquete
-- [x] 690 pruebas; cobertura de líneas 99 %
+La conversación con Nivi es la de main (`NiviPanel` y `NiviCard`, voz o texto, desde el PR #26). El
+componente `NiviVoice` de tres modos que traía esta fase se quitó para no tener dos conversaciones distintas.
 
-Recorrido en Chromium (1440 px y 390 px) antes de unir con la fase 11: estados de Nivi y panel de la empresa,
-axe sin hallazgos y sin desbordes. Se comprobó en el navegador que el worklet propio carga bajo la CSP real
-y que, con un token de mentira, el SDK intenta conectar con ElevenLabs sin chocar con la CSP.
+- [x] El Nivi de main abre la conversación con los worklets del SDK servidos desde `public/elevenlabs`. Sin
+      eso el SDK los carga como `blob:`, que la CSP no admite: la conversación sigue, pero el navegador
+      bloquea el análisis del audio de salida y deja un aviso en la consola
+- [x] Una prueba compara esas copias con las del paquete instalado y avisa si el SDK cambia de versión
+- [x] 665 pruebas; cobertura de líneas 99 %
 
-Pendiente de hablar con Nivi:
+Pendiente:
 
-- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs: nunca se oyó a Nivi desde estas
-  pantallas. Falta probar en producción el registro y el panel de `/c`.
-- La pantalla `/t/registro` que traía esta fase (hoja de permiso con audio, tres modos y «Esto entendimos»)
-  se quitó al unir con la fase 11, para no tener dos registros por voz. El registro actual solo tiene llamada.
-- Si ElevenLabs no conecta, el registro muestra el mensaje técnico del SDK en inglés.
+- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs, así que el arreglo no se vio
+  funcionando: los worklets se cargan solo cuando la conversación ya conectó.
+- El modo de mantener presionado para hablar (nota de voz) que pide la especificación no está: el panel de
+  main tiene voz y texto.
+- Si ElevenLabs no conecta, el panel muestra el mensaje técnico del SDK en inglés.
 - Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
 - El Plan B (`?planb=1`), el widget de respaldo y el chequeo previo siguen pendientes.
 

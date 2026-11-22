@@ -1,3 +1,4 @@
+// La vista del contratista de punta a punta, sin navegador.
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -20,12 +21,6 @@ import { RatingView } from "./rating-screen";
 import { BoardView, EmptyBoard } from "./request-screen";
 import { SiteView } from "./site-screen";
 import { WagePayments } from "./wage-payments";
-
-/**
- * La vista del contratista de punta a punta, sin navegador: el cliente de la
- * pantalla habla con las rutas reales (misma cookie, mismo CSRF) y cada paso
- * del camino dorado se pinta con lo que el servidor devolvió de verdad.
- */
 
 let server: InProcessApi;
 let company: CompanyApi;
@@ -75,7 +70,7 @@ beforeAll(async () => {
   server = startInProcessApi();
   team = new ApiClient(server.baseUrl, dispatch, server.demoKey);
   await team.post("/api/demo/reset", { as: "admin" });
-  // Las pruebas responden por cada trabajador: el bot queda apagado para que no se adelante.
+
   await team.post("/api/demo/bot", { as: "admin", body: { state: "off" } });
   company = createCompanyApi(createApiRequest(createBrowserFetch(server.baseUrl)));
   carlos = await workerClient(IDS.carlos);
@@ -99,31 +94,35 @@ describe("entrada del contratista", () => {
     await expect(company.board()).rejects.toMatchObject({ status: 401, needsSession: true });
   });
 
-  it("el acceso invita a registrar la empresa y deja las empresas de prueba a un lado", async () => {
+  it("el acceso ofrece registrar la empresa o entrar con una cuenta", async () => {
     const state = await company.state();
-    const access = (error: string | null, accounts = state.personas.companies) =>
+    const access = (tab: "crear" | "entrar", error: string | null, accounts = state.personas.companies) =>
       html(
         <CompanyAccess
-          demoAccounts={accounts}
-          onPickDemo={noop}
+          accounts={accounts}
+          onPick={noop}
           onRegister={noop}
           pending={false}
           error={error}
+          initialTab={tab}
         />,
       );
-    const markup = access(null);
+    const create = access("crear", null);
+    const enter = access("entrar", null);
 
     expect(state.active.companyId).toBeNull();
     expect(state.activeCompany).toBeNull();
     expect(state.personas.companies).toHaveLength(4);
-    expect(markup).toContain("Registra tu empresa");
-    expect(markup).toContain('name="rif"');
-    expect(markup).toContain("Entra con una empresa de prueba");
-    expect(markup).toContain("Constructora Los Guayos");
-    expect(markup).toContain("RIF J-50123456-7");
-    expect(markup).toContain("Empresa verificada");
-    expect(markup).toContain('Entrar<span class="sr-only"> como Constructora Los Guayos</span>');
-    expect(access("La clave no es correcta.", [])).toMatch(/role="alert".*La clave no es correcta\./);
+    expect(create).toContain("Registrar mi empresa");
+    expect(create).toContain('name="rif"');
+    expect(enter).toContain("Cuentas de demostración");
+    expect(enter).toContain("Constructora Los Guayos");
+    expect(enter).toContain("RIF J-50123456-7");
+    expect(enter).toContain("Verificada");
+    expect(enter).toContain("Entrar como Constructora Los Guayos");
+    expect(access("entrar", "La clave no es correcta.", [])).toMatch(
+      /role="alert".*La clave no es correcta\./,
+    );
   });
 
   it("al entrar, el servidor abre la sesión y el encabezado identifica a la empresa", async () => {
@@ -209,7 +208,7 @@ describe("pedir cuadrilla y tablero en vivo", () => {
     expect(markup).toMatch(
       /Reemplazo sugerido.*Carlos R\..*Invitar<span class="sr-only"> a Carlos R\.<\/span>/,
     );
-    // Con un solo puesto por cubrir, la tarjeta de reemplazo es la única forma de invitar.
+
     expect(markup).not.toContain("Invitar a 1 más");
   });
 

@@ -1,3 +1,4 @@
+// Puerta de la app del trabajador: sesión, acceso y datos en vivo.
 "use client";
 
 import { useSearchParams } from "next/navigation";
@@ -20,24 +21,22 @@ import { useLive } from "../hooks/use-live";
 import { WorkerAccess } from "./worker-access";
 import { WorkerShell, WorkerStage } from "./worker-shell";
 
-/** Cada cuánto se revisa si llegó una invitación nueva. */
 export const OFFERS_POLL_MS = 3000;
 
 export interface WorkerSession {
   readonly workerId: string;
   readonly api: WorkerApi;
-  /** Invitaciones y trabajos de la persona, al día mientras la app está abierta. */
+
   readonly offers: LiveStore<WorkerOffer[]>;
   readonly profile: LiveStore<MyProfile>;
-  /** Se puede mostrar "Simular que estoy en la obra": solo en el Modo Jurado y si el servidor lo permite. */
+
   readonly canSimulateSite: boolean;
-  /** Vuelve a preguntar al servidor quién tiene la sesión (por ejemplo, tras borrar la cuenta). */
+
   readonly refreshSession: () => Promise<void>;
 }
 
 const WorkerContext = createContext<WorkerSession | null>(null);
 
-/** Persona con sesión abierta. Solo se usa dentro de `WorkerGate`. */
 export function useWorker(): WorkerSession {
   const session = use(WorkerContext);
   if (!session) throw new Error("useWorker se usa dentro de WorkerGate");
@@ -56,7 +55,6 @@ function createSessionStores() {
 
 type SessionStores = ReturnType<typeof createSessionStores>;
 
-/** Entrar con una cuenta de prueba o crear el perfil: después todo se pide ya con la persona nueva. */
 function useAccessActions(stores: SessionStores, done: () => void) {
   const reloadSession = async () => {
     await Promise.all([stores.state.refresh(), stores.offers.refresh(), stores.profile.refresh()]);
@@ -81,12 +79,6 @@ function GateMessage({ children }: { readonly children: ReactNode }) {
   );
 }
 
-/**
- * Puerta de la app del trabajador. Pregunta al servidor con qué persona está
- * abierta la sesión; si no hay ninguna, muestra el acceso: crear el perfil
- * (con Nivi o escribiendo) o entrar con una cuenta de prueba. La
- * autorización real la hace el servidor en cada petición.
- */
 export function WorkerGate({ children }: { readonly children: ReactNode }) {
   const [stores] = useState(createSessionStores);
   const [choosing, setChoosing] = useState(false);
@@ -113,21 +105,21 @@ export function WorkerGate({ children }: { readonly children: ReactNode }) {
     );
   }
   const { personas, active, flags } = state.data;
-  // Vale cualquier sesión abierta, también la de una persona real que se registró hablando
-  // y que por privacidad no aparece en el selector.
+
   if (active.workerId === null || choosing) {
     return (
-      <WorkerStage>
+      <>
         <WorkerAccess
           api={stores.api}
-          demoAccounts={personas.workers}
-          onPickDemo={(workerId) => void enter.invoke(workerId)}
+          accounts={personas.workers}
+          initialTab={choosing ? "entrar" : "crear"}
+          onPick={(workerId) => void enter.invoke(workerId)}
           onRegister={(input) => void register.invoke(input)}
           onRegistered={() => void reloadSession()}
           pending={enter.pending || register.pending}
           error={register.error ?? enter.error}
         />
-      </WorkerStage>
+      </>
     );
   }
   const session: WorkerSession = {
