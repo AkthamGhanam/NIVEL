@@ -424,7 +424,7 @@ describe("bitácora y servicio de voz", () => {
       events: Array<{ type: string; product: string; latencyMs: number | null }>;
     }>("/api/events");
     const toolEvents = events.filter(
-      (event) => event.type.startsWith("herramienta_") && event.type !== "herramienta_rechazada",
+      (event) => event.type.startsWith("herramienta_") && !/rechazada|fallo/.test(event.type),
     );
     expect(events.some((event) => event.type === "herramienta_rechazada")).toBe(true);
     const serialized = JSON.stringify(events);

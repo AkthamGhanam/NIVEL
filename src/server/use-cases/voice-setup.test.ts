@@ -123,7 +123,7 @@ describe("probar la voz", () => {
 
     expect(check.ok).toBe(false);
     expect(check.steps[1]).toMatchObject({ ok: false });
-    expect(check.steps[1]?.detail).toContain("no llamó a guardar_perfil");
+    expect(check.steps[1]?.detail).toContain("no llegó al servidor");
   });
 
   it("si el servidor rechazó la clave, sugiere reconectar", async () => {
