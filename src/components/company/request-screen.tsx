@@ -1,7 +1,7 @@
 // Pantalla principal del contratista: pedir cuadrilla (formulario o Nivi), tablero y costos.
 "use client";
 
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
@@ -93,6 +93,7 @@ export function RequestScreen() {
   const board = live.data ?? null;
 
   const form = <RequestForm key="formulario" zone={company.zone} onSubmit={publish} />;
+  const [talking, setTalking] = useState(false);
   const nivi = (
     <NiviCard
       key="nivi"
@@ -100,32 +101,34 @@ export function RequestScreen() {
       hint="Dile qué personal necesitas"
       openSession={api.voice}
       onActivity={refreshBoard}
+      onOpenChange={setTalking}
     />
   );
+  // Una conversación abierta se queda en su sitio aunque aparezca el tablero: si la tarjeta cambiara de
+  // lugar se desmontaría y Nivi se cortaría justo al crear la solicitud.
+  const niviOnTop = !board || talking;
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       {live.error !== undefined && !live.loading ? (
         <Notice tone="pending">{errorMessage(live.error)}</Notice>
       ) : null}
       {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
+      {!live.loading && !board ? (
+        <h1 id="pedir-titulo" className="display text-3xl sm:text-4xl">
+          Pide tu cuadrilla
+        </h1>
+      ) : null}
+      {!live.loading && niviOnTop ? nivi : null}
       {!live.loading && board ? (
         <ActiveRequest
           board={board}
           onInvite={(choice) => void invite.invoke(board.request.id, choice)}
           pending={invite.pending}
           error={invite.error}
-          again={[nivi, form]}
+          again={niviOnTop ? [form] : [nivi, form]}
         />
       ) : null}
-      {!live.loading && !board ? (
-        <>
-          <h1 id="pedir-titulo" className="display text-3xl sm:text-4xl">
-            Pide tu cuadrilla
-          </h1>
-          {nivi}
-          <Card>{form}</Card>
-        </>
-      ) : null}
+      {!live.loading && !board ? <Card>{form}</Card> : null}
       <Disclosure title="Más opciones">
         <TelegramCard role="company" />
         <NotEmployerNotice />
