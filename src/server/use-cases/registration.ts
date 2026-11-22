@@ -1,4 +1,4 @@
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, inArray } from "drizzle-orm";
 
 import { ensure } from "@/lib/errors";
 import { type Level, MARKET_REFERENCE_BANDS } from "@/lib/level";
@@ -7,7 +7,7 @@ import { locateZone } from "@/lib/zones";
 
 import type { Actor } from "../actor";
 import type { AppContext } from "../context";
-import { courses, workers } from "../db/schema";
+import { companies, courses, workers } from "../db/schema";
 import { ConflictError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
 
@@ -102,20 +102,27 @@ const byConversation = (context: AppContext, conversationId: string) =>
     .from(workers)
     .where(eq(workers.conversationId, conversationId));
 
-/** Crea el perfil. Si el agente repite la llamada en la misma conversación, devuelve el mismo perfil. */
-export async function registerWorkerByVoice(
-  context: AppContext,
-  input: VoiceProfile,
-): Promise<ProfileCreated> {
-  const profile = cleanProfile(input);
-  const [existing] = await byConversation(context, input.conversationId);
-  if (existing) return describe(context, existing);
+/** Tope de perfiles creados desde la app (voz o formulario): evita que un abuso llene la base. */
+async function ensureRoomForProfiles(context: AppContext): Promise<void> {
   const [{ total } = { total: 0 }] = await context.db
     .select({ total: count() })
     .from(workers)
-    .where(eq(workers.createdVia, "voz"));
+    .where(inArray(workers.createdVia, ["voz", "texto"]));
   if (total >= MAX_VOICE_PROFILES)
     throw new ConflictError("Llegamos al máximo de registros de la demo por hoy.");
+}
+
+interface NewWorker {
+  readonly profile: ReturnType<typeof cleanProfile>;
+  readonly trade: Trade;
+  readonly via: "voz" | "texto";
+  readonly real: boolean;
+  readonly conversationId: string | null;
+  readonly consentAt: string;
+}
+
+async function insertWorker(context: AppContext, input: NewWorker): Promise<string> {
+  const { profile } = input;
   const id = context.newId("w");
   await context.db.insert(workers).values({
     id,
@@ -129,22 +136,69 @@ export async function registerWorkerByVoice(
     lng: profile.zone.point.lng,
     availability: profile.availability,
     level: 1,
-    createdVia: "voz",
+    createdVia: input.via,
     isReal: input.real,
     conversationId: input.conversationId,
-    consentVoiceAt: input.consentAt,
+    consentVoiceAt: input.via === "voz" ? input.consentAt : null,
     createdAt: context.now().toISOString(),
   });
   // La bitácora no guarda el nombre: solo oficio y zona reconocida.
   const place = profile.zone.known ? profile.zone.name : "zona por ubicar";
   await logEvent(context, {
-    actor: "Nivi",
+    actor: input.via === "voz" ? "Nivi" : "Trabajador",
     type: "perfil_creado",
-    label: `Perfil nuevo por voz · ${TRADE_LABELS[input.trade].singular} · ${place}${input.real ? " · persona real" : ""}`,
+    label: `Perfil nuevo ${input.via === "voz" ? "por voz" : "en la web"} · ${TRADE_LABELS[input.trade].singular} · ${place}${input.real ? " · persona real" : ""}`,
     detail: { workerId: id, real: input.real },
-    product: "agents",
+    product: input.via === "voz" ? "agents" : "app",
+  });
+  return id;
+}
+
+/** Crea el perfil. Si el agente repite la llamada en la misma conversación, devuelve el mismo perfil. */
+export async function registerWorkerByVoice(
+  context: AppContext,
+  input: VoiceProfile,
+): Promise<ProfileCreated> {
+  const profile = cleanProfile(input);
+  const [existing] = await byConversation(context, input.conversationId);
+  if (existing) return describe(context, existing);
+  await ensureRoomForProfiles(context);
+  const id = await insertWorker(context, {
+    profile,
+    trade: input.trade,
+    via: "voz",
+    real: input.real,
+    conversationId: input.conversationId,
+    consentAt: input.consentAt,
   });
   return describe(context, { id, name: profile.name, trade: input.trade, level: 1 });
+}
+
+/** Lo que pide el formulario "Prefiero escribir": lo mismo que Nivi, sin la conversación. */
+export type FormProfile = Omit<VoiceProfile, "conversationId" | "real">;
+
+/**
+ * Registro escribiendo en la web. Siempre es una persona real: nace privada,
+ * sobrevive al reset y no aparece entre las cuentas de prueba.
+ */
+export async function registerWorkerByForm(
+  context: AppContext,
+  input: FormProfile,
+): Promise<{ readonly actor: Extract<Actor, { role: "worker" }>; readonly profile: ProfileCreated }> {
+  const profile = cleanProfile({ ...input, conversationId: "", real: true });
+  await ensureRoomForProfiles(context);
+  const id = await insertWorker(context, {
+    profile,
+    trade: input.trade,
+    via: "texto",
+    real: true,
+    conversationId: null,
+    consentAt: input.consentAt,
+  });
+  return {
+    actor: { role: "worker", workerId: id },
+    profile: await describe(context, { id, name: profile.name, trade: input.trade, level: 1 }),
+  };
 }
 
 /** Trabajador creado en esta conversación de voz, si lo hay y la conversación sigue reciente. */
@@ -173,4 +227,85 @@ export async function claimProfile(
   const [worker] = await byConversation(context, conversationId);
   if (!worker) throw new NotFoundError("un perfil para esta conversación");
   return { actor, profile: await describe(context, worker) };
+}
+
+/* Registro de empresas */
+
+export const COMPANY_KINDS = Object.freeze(["contratista", "empresa"] as const);
+export type CompanyKind = (typeof COMPANY_KINDS)[number];
+
+export interface CompanySignup {
+  readonly name: string;
+  /** RIF venezolano: letra, 8 dígitos y dígito verificador (J-12345678-9). */
+  readonly rif: string;
+  readonly zone: string;
+  readonly kind: CompanyKind;
+}
+
+export interface CompanyCreated {
+  readonly id: string;
+  readonly name: string;
+  readonly rif: string;
+  readonly zone: string;
+  readonly verified: boolean;
+}
+
+const COMPANY_NAME_PATTERN = /^[\p{L}\p{N}][\p{L}\p{N} .,&'()-]{1,79}$/u;
+const RIF_PATTERN = /^([JGVEPC])-?(\d{8})-?(\d)$/;
+/** Tope de empresas registradas en la web durante la demo. */
+const MAX_REAL_COMPANIES = 200;
+
+/** Deja el RIF en la forma J-12345678-9, o falla si no tiene esa forma. */
+export function normalizeRif(raw: string): string {
+  const match = RIF_PATTERN.exec(raw.trim().toUpperCase().replace(/\s+/g, ""));
+  ensure(match !== null, "El RIF debe tener la forma J-12345678-9");
+  const [, letter, number, check] = match;
+  return `${letter}-${number}-${check}`;
+}
+
+/**
+ * Registra una empresa real. Nace sin verificar: la verificación del RIF la
+ * hace una persona del equipo, nunca la propia empresa.
+ */
+export async function registerCompany(
+  context: AppContext,
+  input: CompanySignup,
+): Promise<{ readonly actor: Extract<Actor, { role: "company" }>; readonly company: CompanyCreated }> {
+  const name = tidy(input.name);
+  ensure(COMPANY_NAME_PATTERN.test(name), "Escribe el nombre de la empresa (de 2 a 80 caracteres)");
+  const rif = normalizeRif(input.rif);
+  const zoneText = tidy(input.zone);
+  ensure(zoneText.length > 0, "Falta la zona de la empresa");
+  const zone = locateZone(zoneText);
+  const [taken] = await context.db.select({ id: companies.id }).from(companies).where(eq(companies.rif, rif));
+  if (taken) throw new ConflictError("Ya hay una empresa registrada con ese RIF.");
+  const [{ total } = { total: 0 }] = await context.db
+    .select({ total: count() })
+    .from(companies)
+    .where(eq(companies.isReal, true));
+  if (total >= MAX_REAL_COMPANIES)
+    throw new ConflictError("Llegamos al máximo de empresas registradas en la demo por hoy.");
+  const id = context.newId("co");
+  await context.db.insert(companies).values({
+    id,
+    name,
+    rif,
+    verified: false,
+    kind: input.kind,
+    zone: zone.name,
+    lat: zone.point.lat,
+    lng: zone.point.lng,
+    isReal: true,
+  });
+  await logEvent(context, {
+    actor: "Empresa",
+    type: "empresa_registrada",
+    label: `Empresa nueva en la web · ${zone.known ? zone.name : "zona por ubicar"}`,
+    detail: { companyId: id },
+    product: "app",
+  });
+  return {
+    actor: { role: "company", companyId: id },
+    company: { id, name, rif, zone: zone.name, verified: false },
+  };
 }

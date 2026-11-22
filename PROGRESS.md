@@ -303,9 +303,36 @@ Pendiente de estas vistas:
 - La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
 - Sin probar en Safari ni en un teléfono real.
 
-## Fase 11 · Voz en las pantallas — en curso (falta Plan B y chequeo previo)
+## Fase 11 · Producto web en `/t` y `/c`
 
-### 11a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
+- [x] Las apps dejan de verse como presentación y siguen en `/t` (trabajador) y `/c` (contratista);
+      `/trabajador` y `/contratista` redirigen ahí. La portada enlaza a cada app
+- [x] Trabajador sin marco de teléfono: menú lateral oscuro en escritorio, encabezado y barra inferior en el
+      teléfono. El marco queda solo en `/estilo`
+- [x] **Sin Modo Jurado**: se quita `/demo`; la demo se presenta directo en `/t` y `/c`. Reiniciar datos (conservando
+      o borrando también los registros reales), el bot y "avanzar la obra" pasan a `/admin/datos`
+- [x] Acceso del trabajador: crear el perfil **hablando con Nivi** (`@elevenlabs/react`, WebRTC con el token y
+      el contexto firmado de `/api/el/token`; la pantalla reclama el perfil por la conversación) o **escribiendo**
+      (`POST /api/workers/register`). Las cuentas de prueba quedan plegadas en "¿Vienes a probar NIVEL?"
+- [x] Acceso del contratista: **registro de empresa** con RIF validado y normalizado (`POST /api/companies/register`),
+      nace sin verificar. Empresas de prueba plegadas igual que en el trabajador
+- [x] Todo registro desde la web es real: nace privado, sobrevive al reset y nadie puede entrar como él desde las
+      cuentas de prueba. Nueva columna `companies.is_real` (la migración la agrega sola)
+- [x] `/api/state` devuelve `activeCompany`, así la web identifica también a una empresa real
+- [x] CSP de páginas: `connect-src` admite solo ElevenLabs (API y LiveKit) además del propio origen
+- [x] Tope de 20 registros por IP cada 10 minutos
+- [x] **Elegir a quién invitar**: cada persona que cumple tiene su casilla; se invita a las elegidas (hasta 10 a
+      la vez) o, de un clic, a las mejores. `POST /api/requests/:id/invite` acepta `{ workerIds }` además de
+      `{ quantity }`. "Reemplazo sugerido" solo aparece si alguien rechazó
+
+Pendiente:
+
+- La voz de registro solo está probada hasta el token: falta una conversación real con micrófono en el Preview.
+- No hay inicio de sesión para volver a una cuenta real desde otro navegador: la sesión vive en la cookie.
+
+## Fase 12 · Voz en las pantallas — en curso
+
+### 12a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
 
 - [x] «Escuchar la oferta» en la tarjeta y en el detalle de la invitación: Nivi lee lo mismo que está escrito
       (empresa, oficio, zona, días, pago diario y total) y recuerda que el contrato es directo con la empresa.
@@ -329,36 +356,32 @@ Pendiente de las notas de voz:
 - Sin probar en Safari (graba en MP4) ni en un teléfono real.
 - Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
 
-### 11b · Hablar con Nivi — listo en código (sin probar aún contra ElevenLabs real)
+### 12b · Hablar con Nivi — listo en código (sin probar aún contra ElevenLabs real)
 
 - [x] `NiviVoice`: un componente y tres modos sobre el mismo agente. **Nota de voz** (el micrófono solo se
       abre mientras se mantiene presionado; también con el teclado), **llamada** (manos libres, con «Colgar»)
       y **texto** (sin micrófono). Orbe con su estado en palabras y la conversación escrita en vivo
 - [x] El modo elegido se recuerda en el teléfono, por separado para el trabajador y la empresa
-- [x] `/t/registro`: hoja de permiso de voz (qué se guarda, «Escuchar antes de aceptar», solo mayores de 18,
-      aviso de prueba con `?real=1`), conversación con Nivi y «Esto entendimos» con «Confirmar y entrar» y
-      «Corregir». «Prefiero escribir» abre la misma conversación en modo texto
 - [x] `/c`: tarjeta «Pídela hablando» en modo llamada; lo que el agente crea aparece en el tablero de al lado
-- [x] El QR del Modo Jurado lleva a `/t/registro?real=1`, y el selector de la demo ofrece «Soy nuevo»
-- [x] SDK `@elevenlabs/client` 1.35.0 (versión exacta). Sus worklets se sirven desde `public/elevenlabs`
-      para no abrir la CSP a scripts `blob:`; una prueba avisa si dejan de coincidir con el paquete
-- [x] CSP: `connect-src` permite solo la propia app y `*.elevenlabs.io` (señalización y WebRTC)
-- [x] La app con sesión pasa al grupo de rutas `src/app/t/(app)`; las direcciones no cambian
-- [x] 698 pruebas; cobertura de líneas 99 %
+- [x] El registro por voz es el de la fase 11 (acceso de `/t`, con `@elevenlabs/react`). Aquí solo se le pasan
+      los worklets propios: sin eso el SDK los carga como `blob:`, que la CSP no admite
+- [x] SDK `@elevenlabs/client` 1.37.1, la misma versión que trae `@elevenlabs/react`. Sus worklets se sirven
+      desde `public/elevenlabs`; una prueba avisa si dejan de coincidir con el paquete
+- [x] 690 pruebas; cobertura de líneas 99 %
 
-Recorrido en Chromium (1440 px y 390 px): hoja de permiso, estados de Nivi, selector y panel de la empresa,
+Recorrido en Chromium (1440 px y 390 px) antes de unir con la fase 11: estados de Nivi y panel de la empresa,
 axe sin hallazgos y sin desbordes. Se comprobó en el navegador que el worklet propio carga bajo la CSP real
-y que, con un token de mentira, el SDK se carga e intenta conectar con ElevenLabs sin chocar con la CSP. Los
-recorridos del trabajador, la empresa y el Modo Jurado se repitieron y siguen limpios.
+y que, con un token de mentira, el SDK intenta conectar con ElevenLabs sin chocar con la CSP.
 
 Pendiente de hablar con Nivi:
 
 - **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs: nunca se oyó a Nivi desde estas
-  pantallas. Falta probar en producción el registro completo, el modo nota de voz y el panel de `/c`.
-- «Prefiero escribir» conversa con el mismo agente por texto; no hay un formulario que funcione sin el agente.
-- Si la conversación termina sin que Nivi guarde el perfil, la pantalla sigue esperando sin avisar.
+  pantallas. Falta probar en producción el registro y el panel de `/c`.
+- La pantalla `/t/registro` que traía esta fase (hoja de permiso con audio, tres modos y «Esto entendimos»)
+  se quitó al unir con la fase 11, para no tener dos registros por voz. El registro actual solo tiene llamada.
+- Si ElevenLabs no conecta, el registro muestra el mensaje técnico del SDK en inglés.
 - Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
-- El Plan B (`?planb=1`), el widget de respaldo y `/demo/check` siguen pendientes.
+- El Plan B (`?planb=1`), el widget de respaldo y el chequeo previo siguen pendientes.
 
 ## Decisiones
 

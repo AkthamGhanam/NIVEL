@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+
+import { WorkerGate } from "@/components/worker/worker-gate";
 
 export const metadata: Metadata = { title: { default: "Trabajador", template: "%s · Trabajador · NIVEL" } };
 
-/**
- * Todo `/t` comparte el título. La app con sesión vive en el grupo `(app)`,
- * detrás de su puerta; `/t/registro` queda fuera porque quien se registra aún
- * no tiene sesión.
- */
-export default function WorkerRootLayout({ children }: LayoutProps<"/t">) {
-  return children;
+export default function WorkerLayout({ children }: LayoutProps<"/t">) {
+  // La puerta lee `?demo=1` de la dirección: por eso va dentro de un límite de suspensión.
+  return (
+    <Suspense>
+      <WorkerGate>{children}</WorkerGate>
+    </Suspense>
+  );
 }

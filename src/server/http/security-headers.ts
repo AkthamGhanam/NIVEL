@@ -29,12 +29,14 @@ interface PageCspOptions {
 }
 
 /**
- * Voz en vivo: el navegador habla directo con ElevenLabs (señalización de la
- * conversación y WebRTC). Es el único destino fuera de nuestro origen.
+ * Únicos orígenes externos de las páginas: la conversación con Nivi (ElevenLabs
+ * por WebRTC). La API de NIVEL sigue siendo de nuestro propio origen.
  */
-export const VOICE_CONNECT_SOURCES: readonly string[] = Object.freeze([
-  "https://*.elevenlabs.io",
-  "wss://*.elevenlabs.io",
+export const VOICE_CONNECT_SOURCES = Object.freeze([
+  "https://api.elevenlabs.io",
+  "wss://api.elevenlabs.io",
+  "https://livekit.rtc.elevenlabs.io",
+  "wss://livekit.rtc.elevenlabs.io",
 ]);
 
 const NONCE_PATTERN = /^[A-Za-z0-9+/=_-]{16,}$/;

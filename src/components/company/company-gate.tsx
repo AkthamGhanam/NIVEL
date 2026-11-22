@@ -6,6 +6,7 @@ import { apiRequest, errorMessage } from "@/client/api";
 import {
   type CompanyApi,
   type CompanyPersona,
+  type CompanySignupInput,
   createCompanyApi,
   type RequestBoard,
 } from "@/client/company-api";
@@ -15,7 +16,7 @@ import { LoadingText, Notice } from "@/components/ui/notice";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
-import { CompanyPicker } from "./company-picker";
+import { CompanyAccess } from "./company-access";
 import { CompanyShell } from "./company-shell";
 
 /** Cada cuánto se vuelve a pedir el tablero: se siente en vivo sin cargar el servidor. */
@@ -52,7 +53,8 @@ function GateMessage({ children }: { readonly children: ReactNode }) {
 
 /**
  * Puerta de la vista del contratista. Pregunta al servidor con qué empresa
- * está abierta la sesión; si no hay ninguna, muestra el selector de la demo.
+ * está abierta la sesión; si no hay ninguna, muestra el acceso: registrar la
+ * empresa o entrar con una empresa de prueba.
  * La autorización real la hace el servidor en cada petición.
  */
 export function CompanyGate({ children }: { readonly children: ReactNode }) {
@@ -62,6 +64,11 @@ export function CompanyGate({ children }: { readonly children: ReactNode }) {
   const enter = useAction(async (companyId: string) => {
     await stores.api.enter(companyId);
     // El tablero se pide ya con la empresa nueva: nunca se muestra el de la anterior.
+    await Promise.all([stores.state.refresh(), stores.board.refresh()]);
+    setChoosing(false);
+  });
+  const register = useAction(async (input: CompanySignupInput) => {
+    await stores.api.register(input);
     await Promise.all([stores.state.refresh(), stores.board.refresh()]);
     setChoosing(false);
   });
@@ -85,15 +92,15 @@ export function CompanyGate({ children }: { readonly children: ReactNode }) {
       </GateMessage>
     );
   }
-  const { personas, active } = state.data;
-  const company = personas.companies.find((candidate) => candidate.id === active.companyId);
+  const { personas, activeCompany: company } = state.data;
   if (!company || choosing) {
     return (
-      <CompanyPicker
-        companies={personas.companies}
-        onPick={(companyId) => void enter.invoke(companyId)}
-        pending={enter.pending}
-        error={enter.error}
+      <CompanyAccess
+        demoAccounts={personas.companies}
+        onPickDemo={(companyId) => void enter.invoke(companyId)}
+        onRegister={(input) => void register.invoke(input)}
+        pending={enter.pending || register.pending}
+        error={register.error ?? enter.error}
       />
     );
   }

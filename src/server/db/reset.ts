@@ -60,6 +60,9 @@ function deleteStatements(db: Database, keepRealWorkers: boolean): Statement[] {
   return [...INSERT_ORDER].reverse().map((key) => {
     if (key === "workers" && keepRealWorkers)
       return db.delete(schema.workers).where(eq(schema.workers.isReal, false));
+    // Las empresas que se registraron en la web corren la misma suerte que los perfiles reales.
+    if (key === "companies" && keepRealWorkers)
+      return db.delete(schema.companies).where(eq(schema.companies.isReal, false));
     return db.delete(schema[key] as SQLiteTable);
   });
 }
