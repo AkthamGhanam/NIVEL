@@ -22,7 +22,7 @@ import { NiviCard } from "@/components/voice/nivi-card";
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
 import { ContractGate } from "./contract-gate";
-import { OfferCompany, OfferSummary, OfferVoiceNote } from "./offer-card";
+import { OfferCompany, OfferSummary, OfferVoiceNote, type Speak } from "./offer-card";
 import { useWorker } from "./worker-gate";
 
 /** La consola del trabajador: sus anillos de nivel, qué le falta y la referencia de mercado. */
@@ -78,7 +78,12 @@ export function OpenToWorkSwitch({ open, onChange, pending }: OpenToWorkProps) {
   );
 }
 
-export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] }) {
+interface OfferListProps {
+  readonly offers: readonly WorkerOffer[];
+  readonly speak?: Speak;
+}
+
+export function OfferList({ offers, speak }: OfferListProps) {
   const pending = pendingOffers(offers);
   return (
     <section aria-labelledby="ofertas-titulo" className="flex flex-col gap-3">
@@ -94,7 +99,7 @@ export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] 
               <Card selected className="flex animate-enter flex-col gap-3">
                 <OfferCompany company={offer.company} />
                 <OfferSummary offer={offer} titleAs="h3" />
-                <OfferVoiceNote audioUrl={offer.audioUrl} />
+                <OfferVoiceNote offer={offer} speak={speak} />
                 <ButtonLink href={`/t/oferta/${encodeURIComponent(offer.invitationId)}`} block>
                   Ver oferta
                 </ButtonLink>
@@ -165,7 +170,7 @@ export function HomeScreen() {
       {/* Primero lo que hay que hacer ahora: el trabajo en curso o las ofertas. */}
       {job ? <CurrentJob offer={job} /> : null}
       {offers.loading ? <LoadingText>Nivi está revisando tus ofertas…</LoadingText> : null}
-      {hasOffers && !job ? <OfferList offers={offers.data ?? []} /> : null}
+      {hasOffers && !job ? <OfferList offers={offers.data ?? []} speak={api.speak} /> : null}
       {profile.loading ? <LoadingText>Nivi está buscando tu perfil…</LoadingText> : null}
       {profile.data ? (
         <>
@@ -177,7 +182,7 @@ export function HomeScreen() {
           />
         </>
       ) : null}
-      {offers.data && !hasOffers && !job ? <OfferList offers={offers.data} /> : null}
+      {offers.data && !hasOffers && !job ? <OfferList offers={offers.data} speak={api.speak} /> : null}
       <NiviCard
         title="Habla con Nivi"
         hint="Pregunta por tus ofertas o acéptalas hablando"
@@ -185,7 +190,7 @@ export function HomeScreen() {
         onActivity={refreshOffers}
       />
       <Disclosure title="Más opciones">
-        {offers.data && job ? <OfferList offers={offers.data} /> : null}
+        {offers.data && job ? <OfferList offers={offers.data} speak={api.speak} /> : null}
         <TelegramCard role="worker" />
         <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
       </Disclosure>

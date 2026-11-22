@@ -1,5 +1,6 @@
 import { formatDay, formatRate, formatUsd, plural } from "@/lib/format";
 import { RATING_CATEGORIES } from "@/lib/rating-tags";
+import { sayOffer } from "@/lib/say";
 import { TRADE_LABELS } from "@/lib/trades";
 
 import type { ConsentKind, ContractDetail, LevelStatus, MyData, WorkerOffer } from "./worker-api";
@@ -34,6 +35,23 @@ export function offerFacts(
     `${formatUsd(offer.dailyPayUsd)} al día`,
     `Total ${formatUsd(offer.totalUsd)}`,
   ];
+}
+
+type SpokenOfferTerms = Pick<
+  WorkerOffer,
+  "company" | "trade" | "zone" | "startDate" | "days" | "dailyPayUsd" | "totalUsd"
+>;
+
+/**
+ * Lo que Nivi lee en la nota de voz de una oferta: lo mismo que está escrito
+ * en la tarjeta, más el recordatorio de quién contrata. No promete nada.
+ */
+export function offerSpeech(offer: SpokenOfferTerms): string {
+  const invitation = sayOffer({ ...offer, companyName: offer.company.name });
+  return (
+    `${invitation} En total son ${Math.round(offer.totalUsd)} dólares. ` +
+    "El contrato es directo con la empresa: NIVEL no es tu patrono."
+  );
 }
 
 /** "Paga a tiempo 96 %". Solo existe con 5 o más contrataciones terminadas: es un hecho, no una opinión. */

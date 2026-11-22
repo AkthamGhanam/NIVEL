@@ -7,6 +7,7 @@ import {
   SAY_UNDERAGE,
   sayInvited,
   sayLegalCost,
+  sayOffer,
   sayOfferAnswered,
   sayOffers,
   sayProfileCreated,
@@ -91,6 +92,13 @@ describe("otras frases del contratista", () => {
 describe("frases del trabajador", () => {
   it("lee la fecha como se dice en Venezuela", () => {
     expect(spokenDate("2026-11-24")).toBe("martes, 24 de noviembre");
+  });
+
+  it("una invitación cabe en una frase, con un día en singular", () => {
+    expect(sayOffer({ ...OFFER, days: 1 })).toBe(
+      "Constructora Los Guayos te invita como soldador en Los Guayos: " +
+        "1 día desde el martes, 24 de noviembre, a 25 dólares diarios.",
+    );
   });
 
   it("cuenta la primera invitación y pregunta si la acepta", () => {

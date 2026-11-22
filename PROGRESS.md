@@ -330,6 +330,53 @@ Pendiente:
 - La voz de registro solo está probada hasta el token: falta una conversación real con micrófono en el Preview.
 - No hay inicio de sesión para volver a una cuenta real desde otro navegador: la sesión vive en la cookie.
 
+## Fase 12 · Voz en las pantallas — en curso
+
+### 12a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
+
+- [x] «Escuchar la oferta» en la tarjeta y en el detalle de la invitación: Nivi lee lo mismo que está escrito
+      (empresa, oficio, zona, días, pago diario y total) y recuerda que el contrato es directo con la empresa.
+      El audio se pide solo cuando la persona lo toca, y repetir la misma frase sale de la caché del servidor
+- [x] Reporte por nota de voz en `/t/ayuda`: hasta 60 s, con reloj, «Terminar y enviar» y «Descartar». La nota
+      sube cruda a `/api/voice/transcribe`; la pantalla muestra lo que se entendió y cómo se anotó, y el aviso
+      de revisión humana. El formulario escrito queda siempre debajo
+- [x] El audio de la nota no se guarda en el navegador ni en el servidor, y el micrófono se suelta al terminar,
+      al descartar o al salir de la pantalla
+- [x] Solo se reproduce audio servido por la propia app (`src/client/audio-url.ts`)
+- [x] 661 pruebas; cobertura de líneas 99 %
+
+Recorrido en Chromium a 390 px con el micrófono falso del navegador: 8 estados, axe sin hallazgos, sin
+desbordes y sin errores inesperados. La nota grabada subió de verdad al servidor local (`audio/webm`), que
+respondió 503 porque aquí no hay clave de ElevenLabs; el camino feliz en el navegador se vio interceptando
+solo las dos rutas de voz. Contra las rutas reales, con ElevenLabs sustituido, lo cubren las pruebas.
+
+Pendiente de las notas de voz:
+
+- Probarlas contra ElevenLabs real (TTS y Scribe) en producción: desde este hilo no hay clave ni acceso.
+- Sin probar en Safari (graba en MP4) ni en un teléfono real.
+- Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
+
+### 12b · Worklets de audio propios para Nivi — listo en código (sin probar aún contra ElevenLabs real)
+
+La conversación con Nivi es la de main (`NiviPanel` y `NiviCard`, voz o texto, desde el PR #26). El
+componente `NiviVoice` de tres modos que traía esta fase se quitó para no tener dos conversaciones distintas.
+
+- [x] El Nivi de main abre la conversación con los worklets del SDK servidos desde `public/elevenlabs`. Sin
+      eso el SDK los carga como `blob:`, que la CSP no admite: la conversación sigue, pero el navegador
+      bloquea el análisis del audio de salida y deja un aviso en la consola
+- [x] Una prueba compara esas copias con las del paquete instalado y avisa si el SDK cambia de versión
+- [x] 665 pruebas; cobertura de líneas 99 %
+
+Pendiente:
+
+- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs, así que el arreglo no se vio
+  funcionando: los worklets se cargan solo cuando la conversación ya conectó.
+- El modo de mantener presionado para hablar (nota de voz) que pide la especificación no está: el panel de
+  main tiene voz y texto.
+- Si ElevenLabs no conecta, el panel muestra el mensaje técnico del SDK en inglés.
+- Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
+- El Plan B (`?planb=1`), el widget de respaldo y el chequeo previo siguen pendientes.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

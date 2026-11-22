@@ -7,6 +7,7 @@ import {
   jobStep,
   levelFacts,
   offerFacts,
+  offerSpeech,
   offerTitle,
   paysOnTimeLabel,
   pendingOffers,
@@ -74,6 +75,17 @@ describe("ofertas", () => {
     expect(offerTitle(offer())).toBe("Soldador en Los Guayos");
     expect(offerFacts(offer())).toEqual(["5 días desde mar 24 nov", "$25 al día", "Total $125"]);
     expect(offerFacts(offer({ days: 1, totalUsd: 25 }))[0]).toBe("1 día desde mar 24 nov");
+  });
+
+  it("la nota de voz dice lo mismo que la tarjeta y recuerda quién contrata", () => {
+    const spoken = offerSpeech(offer());
+
+    expect(spoken).toBe(
+      "Constructora Los Guayos te invita como soldador en Los Guayos: 5 días desde el martes, 24 de noviembre, " +
+        "a 25 dólares diarios. En total son 125 dólares. El contrato es directo con la empresa: NIVEL no es tu patrono.",
+    );
+    // El servidor no lee frases de más de 400 caracteres.
+    expect(spoken.length).toBeLessThan(400);
   });
 
   it("la puntualidad de pago solo aparece cuando hay un dato medido", () => {

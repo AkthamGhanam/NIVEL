@@ -25,7 +25,8 @@ const eslintConfig = defineConfig([
     files: ["**/*.test.{ts,tsx}"],
     rules: { "max-lines-per-function": "off" },
   },
-  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),
+  // `public/elevenlabs` son copias exactas de los worklets del SDK de voz: no se editan ni se reformatean.
+  globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts", "public/elevenlabs/**"]),
 ]);
 
 export default eslintConfig;
