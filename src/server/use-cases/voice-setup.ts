@@ -62,6 +62,7 @@ export interface VoiceCheck {
   readonly ok: boolean;
   readonly steps: readonly VoiceCheckStep[];
   readonly said: readonly string[];
+  readonly trace: readonly string[];
 }
 
 const PERSONA =
@@ -109,6 +110,14 @@ function reachDetail({ reached, rejected, failure }: ToolTrace): string {
   return "La llamada de Nivi no llegó al servidor: algo la detiene antes (dirección o protección de Vercel).";
 }
 
+async function readTrace(setup: VoiceSetup, conversationId: string): Promise<string[]> {
+  try {
+    return await setup.admin.toolTrace(conversationId, "guardar_perfil");
+  } catch (error) {
+    return [`No se pudo leer el detalle en ElevenLabs: ${errorDetail(error)}`];
+  }
+}
+
 async function takeTestProfile(context: AppContext, conversationId: string): Promise<boolean> {
   const removed = await context.db
     .delete(workers)
@@ -130,16 +139,17 @@ export async function checkVoice(
     steps.push({ name: "Conversación con Nivi", ok: true, detail: "Nivi respondió." });
   } catch (error) {
     steps.push({ name: "Conversación con Nivi", ok: false, detail: errorDetail(error) });
-    return { ok: false, steps, said: [] };
+    return { ok: false, steps, said: [], trace: [] };
   }
-  const trace = await toolEvents(context, since);
-  const reached = trace.reached;
-  steps.push({ name: "Nivi llama a NIVEL", ok: reached, detail: reachDetail(trace) });
+  const seen = await toolEvents(context, since);
+  const reached = seen.reached;
+  steps.push({ name: "Nivi llama a NIVEL", ok: reached, detail: reachDetail(seen) });
   const saved = await takeTestProfile(context, chat.conversationId);
   steps.push({
     name: "Perfil guardado",
     ok: saved,
     detail: saved ? "El perfil de prueba se creó y ya se borró." : "No se creó ningún perfil.",
   });
-  return { ok: reached && saved, steps, said: chat.said };
+  const trace = reached && saved ? [] : await readTrace(setup, chat.conversationId);
+  return { ok: reached && saved, steps, said: chat.said, trace };
 }

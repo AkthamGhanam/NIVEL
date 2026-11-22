@@ -168,6 +168,11 @@ function VoiceSteps({ check }: { readonly check: VoiceCheck }) {
           </span>
         </li>
       ))}
+      {check.trace.map((note) => (
+        <li key={note} className="rounded-control bg-amber-bg p-3 text-sm break-words text-ink-2">
+          {note}
+        </li>
+      ))}
       {check.said.length > 0 ? (
         <li className="rounded-control bg-line-2 p-3 text-sm text-ink-2">
           <span className="font-bold">Nivi dijo:</span> {check.said.join(" · ")}
