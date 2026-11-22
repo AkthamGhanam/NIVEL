@@ -15,7 +15,10 @@
     "test:coverage": "vitest run --coverage",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
     "db:seed": "tsx scripts/db-reset.ts",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "audio:gen": "tsx scripts/generate-audio.ts",
+    "agents:setup": "tsx scripts/setup-agents.ts",
+    "voice:check": "tsx scripts/check-voice.ts"
   },
   "dependencies": {
     "@libsql/client": "0.18.0",

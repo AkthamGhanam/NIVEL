@@ -33,7 +33,11 @@ beforeAll(async () => {
     demoKey: DEMO_KEY,
     toolSecret: TOOL_SECRET,
     limiter: createRateLimiter(),
-    services: { conversationToken: async (agent) => `token-${agent}` },
+    services: {
+      conversationToken: async (agent) => `token-${agent}`,
+      speaker: () => ({ voice: "voz", speak: async () => new Uint8Array([1]) }),
+      transcribe: async () => "",
+    },
     secureCookies: true,
   };
 });

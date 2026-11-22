@@ -51,8 +51,8 @@ export class PayloadTooLargeError extends AppError {
 export class UnsupportedMediaTypeError extends AppError {
   readonly status = 415;
   readonly code = "formato_no_admitido";
-  constructor() {
-    super("El contenido debe enviarse como JSON.");
+  constructor(message = "El contenido debe enviarse como JSON.") {
+    super(message);
   }
 }
 

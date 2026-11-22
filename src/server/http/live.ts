@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createElevenLabs } from "../adapters/elevenlabs";
+import { createElevenLabs, DYNAMIC_TTS_MODEL } from "../adapters/elevenlabs";
 import { app } from "../app";
 import { requireEnv, serverEnv } from "../config/env";
 import { createApi } from "./api";
@@ -13,12 +13,23 @@ import { createRateLimiter } from "./rate-limit";
  */
 const limiter = createRateLimiter();
 
+const elevenLabs = () => createElevenLabs({ apiKey: requireEnv("ELEVENLABS_API_KEY") });
+
 /** Las variables de ElevenLabs se exigen al usarlas: sin ellas, solo la voz responde 503. */
 const services: Services = {
   conversationToken: async (agent) =>
-    createElevenLabs({ apiKey: requireEnv("ELEVENLABS_API_KEY") }).conversationToken(
+    elevenLabs().conversationToken(
       requireEnv(agent === "worker" ? "EL_AGENT_WORKER_ID" : "EL_AGENT_CONTRACTOR_ID"),
     ),
+  speaker: () => {
+    const client = elevenLabs();
+    const voiceId = requireEnv("EL_VOICE_ID");
+    return {
+      voice: `${voiceId}/${DYNAMIC_TTS_MODEL}`,
+      speak: (text) => client.speak({ text, voiceId, modelId: DYNAMIC_TTS_MODEL }),
+    };
+  },
+  transcribe: (audio) => elevenLabs().transcribe(audio),
 };
 
 async function liveRuntime(): Promise<Runtime> {
