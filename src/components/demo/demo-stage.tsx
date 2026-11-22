@@ -5,9 +5,10 @@ const FRAME_PERMISSIONS = "microphone; autoplay; geolocation";
 
 /**
  * Las dos vistas de la demo lado a lado, cada una en su propio marco del
- * mismo origen: el teléfono del trabajador y la web del contratista.
+ * mismo origen: el teléfono del trabajador y la web del contratista. Con el
+ * plan B, la web del contratista conversa con el guion en vez del agente en vivo.
  */
-export function DemoStage() {
+export function DemoStage({ planB = false }: { readonly planB?: boolean }) {
   return (
     <>
       <section
@@ -34,7 +35,7 @@ export function DemoStage() {
           Contratista · web
         </h2>
         <iframe
-          src="/c"
+          src={planB ? "/c?planb=1" : "/c"}
           title="Web del contratista"
           allow={FRAME_PERMISSIONS}
           className="h-[700px] w-full flex-1 rounded-card border-[1.5px] border-line bg-surface lg:h-auto lg:min-h-0"

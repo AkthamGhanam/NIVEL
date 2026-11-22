@@ -63,15 +63,18 @@ function CrewClock({ events }: { readonly events: readonly EventRow[] }) {
 interface DemoScreenProps {
   /** Enlace público a la app del trabajador, para el QR. Nulo si la demo corre sin dirección pública. */
   readonly joinUrl: string | null;
+  /** La demo abre con el plan B encendido (`/demo?planb=1`). */
+  readonly planB?: boolean;
 }
 
 /** Modo Jurado: las dos vistas lado a lado, la bitácora en vivo y los controles del presentador. */
-export function DemoScreen({ joinUrl }: DemoScreenProps) {
+export function DemoScreen({ joinUrl, planB: startsOnPlanB = false }: DemoScreenProps) {
   const { api, state } = useTeam();
   const [stores] = useState(() => createDemoStores(api));
   // Al reiniciar se vuelven a cargar los dos marcos: muestran los datos recién sembrados.
   const [round, setRound] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [planB, setPlanB] = useState(startsOnPlanB);
   const flags = useLive(state).data?.flags;
   const events = useLive(stores.events).data ?? [];
   const profiles = useLive(stores.profiles).data;
@@ -101,6 +104,8 @@ export function DemoScreen({ joinUrl }: DemoScreenProps) {
         <DemoControls
           bot={flags?.bot ?? false}
           onBot={(on) => void action.invoke(() => work.setBot(on))}
+          planB={planB}
+          onPlanB={setPlanB}
           onFastForward={() => void action.invoke(work.fastForward)}
           onReset={() => void action.invoke(work.reset)}
           pending={action.pending}
@@ -108,7 +113,7 @@ export function DemoScreen({ joinUrl }: DemoScreenProps) {
           error={action.error}
         />
         <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row lg:flex-wrap xl:flex-nowrap">
-          <DemoStage key={round} />
+          <DemoStage key={`${round}-${planB}`} planB={planB} />
           <aside
             aria-label="Bitácora y público"
             className="flex max-h-[32rem] flex-col gap-4 rounded-card border-[1.5px] border-line bg-surface p-4 lg:w-full xl:max-h-none xl:min-h-0 xl:w-64 xl:shrink-0 2xl:w-80"

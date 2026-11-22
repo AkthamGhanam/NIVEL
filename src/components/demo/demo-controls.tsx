@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { type ReactNode, useState } from "react";
 
 import type { RealProfilesToday } from "@/client/team-api";
 import { Button } from "@/components/ui/button";
@@ -50,14 +51,37 @@ export interface DemoControlsProps extends ResetControlProps {
   readonly bot: boolean;
   readonly onBot: (on: boolean) => void;
   readonly onFastForward: () => void;
+  /** Plan B: la voz del contratista sigue el guion, sin depender del agente en vivo. */
+  readonly planB: boolean;
+  readonly onPlanB: (on: boolean) => void;
   /** Resultado de la última acción, en palabras. */
   readonly notice: string | null;
   readonly error: string | null;
 }
 
+interface SwitchTextProps {
+  /** Prefijo de los ids que nombran y describen el interruptor de al lado. */
+  readonly id: string;
+  readonly title: string;
+  readonly children: ReactNode;
+}
+
+function SwitchText({ id, title, children }: SwitchTextProps) {
+  return (
+    <div>
+      <p id={`${id}-titulo`} className="font-extrabold">
+        {title}
+      </p>
+      <p id={`${id}-ayuda`} className="text-sm text-muted">
+        {children}
+      </p>
+    </div>
+  );
+}
+
 /** Controles del presentador: avanzar la obra, reiniciar y el bot que responde por tres personas. */
 export function DemoControls(props: DemoControlsProps) {
-  const { bot, onBot, onFastForward, onReset, pending, notice, error } = props;
+  const { bot, onBot, planB, onPlanB, onFastForward, onReset, pending, notice, error } = props;
   return (
     <section aria-label="Controles de la demo" className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -73,15 +97,22 @@ export function DemoControls(props: DemoControlsProps) {
             describedBy="bot-ayuda"
             disabled={pending}
           />
-          <div>
-            <p id="bot-titulo" className="font-extrabold">
-              Bot de demo
-            </p>
-            <p id="bot-ayuda" className="text-sm text-muted">
-              {bot ? "Rafael, José y Luis responden solos" : "Apagado: nadie responde solo"}
-            </p>
-          </div>
+          <SwitchText id="bot" title="Bot de demo">
+            {bot ? "Rafael, José y Luis responden solos" : "Apagado: nadie responde solo"}
+          </SwitchText>
         </div>
+        <div className="flex items-center gap-3">
+          <Switch checked={planB} onChange={onPlanB} labelledBy="planb-titulo" describedBy="planb-ayuda" />
+          <SwitchText id="planb" title="Plan B de voz">
+            {planB ? "Nivi sigue el guion, sin el agente en vivo" : "Apagado: Nivi conversa en vivo"}
+          </SwitchText>
+        </div>
+        <Link
+          href="/demo/check"
+          className="inline-flex min-h-12 items-center font-semibold text-brand underline decoration-2"
+        >
+          Chequeo previo
+        </Link>
       </div>
       {error ? (
         <Notice tone="alert" urgent>

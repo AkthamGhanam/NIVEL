@@ -109,6 +109,14 @@ async function openMicrophone(microphone: Microphone): Promise<AudioStream> {
   }
 }
 
+/** Comprueba que el micrófono abre (pide el permiso si hace falta) y lo suelta de una vez. */
+export async function testMicrophone(
+  microphone: Microphone | undefined = browserMicrophone(),
+): Promise<void> {
+  if (!microphone) throw new MicrophoneError(MESSAGES.unsupported);
+  release(await openMicrophone(microphone));
+}
+
 interface Waiting {
   readonly resolve: (note: Blob) => void;
   readonly reject: (error: MicrophoneError) => void;

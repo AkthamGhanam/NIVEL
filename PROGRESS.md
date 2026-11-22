@@ -303,7 +303,7 @@ Pendiente de estas vistas:
 - La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
 - Sin probar en Safari ni en un teléfono real.
 
-## Fase 11 · Voz en las pantallas — en curso (falta Plan B y chequeo previo)
+## Fase 11 · Voz en las pantallas — en curso (falta el widget de respaldo y los sonidos de nivel)
 
 ### 11a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
 
@@ -358,7 +358,46 @@ Pendiente de hablar con Nivi:
 - «Prefiero escribir» conversa con el mismo agente por texto; no hay un formulario que funcione sin el agente.
 - Si la conversación termina sin que Nivi guarde el perfil, la pantalla sigue esperando sin avisar.
 - Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
-- El Plan B (`?planb=1`), el widget de respaldo y `/demo/check` siguen pendientes.
+- El widget de respaldo (`?widget=1`) sigue pendiente.
+
+### 11c · Plan B y chequeo previo — listos (el plan B sin audio pregenerado, solo para la empresa)
+
+- [x] **Plan B** en `/c?planb=1`: Nivi sigue el guion del camino dorado (3 soldadores de Nivel 2, 5 días,
+      25 dólares) sin pedir token ni conectarse al agente en vivo. Es el mismo componente y se ve igual. Cada
+      turno ejecuta la acción real por la API de la empresa: crea la solicitud (queda «Pedida por voz») e
+      invita a los mejores, así que el tablero y la bitácora cambian como en una conversación de verdad
+- [x] El guion avanza al soltar el botón (nota de voz), al enviar un texto o, en llamada, unos 5 s después
+      de que Nivi termina. **No escucha el micrófono**: en pantalla aparece la frase del guion, diga lo que
+      diga el presentador
+- [x] La voz del plan B sale de `/api/voice/tts` con su caché en la base, que sobrevive al reinicio de la
+      demo. Sin audio (sin red o sin clave), la frase queda escrita y el guion espera lo que toma leerla
+- [x] Modo Jurado: interruptor «Plan B de voz» y `/demo?planb=1`; cambia el marco del contratista
+- [x] **Chequeo previo** en `/demo/check` (solo el equipo): base de datos, token de cada agente, voz de
+      Nivi, audios pregenerados según su manifiesto, efectos de sonido, y a un toque el micrófono y la
+      salida de audio. Cada prueba dice su estado con palabras y por qué falló. No cambia datos de la demo
+- [x] En una sola columna (teléfono y marco del Modo Jurado) el tablero de `/c` va justo después de la voz,
+      para ver sin bajar lo que Nivi crea
+- [x] `POST /api/requests` acepta `via: "voz" | "web"` (por defecto `web`)
+- [x] 751 pruebas; cobertura de líneas 99 %
+
+Recorrido en Chromium: chequeo previo (1440 px y 390 px), plan B completo en `/c?planb=1` (saludo,
+solicitud, invitaciones) y Modo Jurado con el interruptor; axe sin hallazgos, sin desbordes, cero tokens
+pedidos y cero peticiones fuera de la app durante el plan B. Los recorridos de la empresa y del Modo Jurado
+se repitieron y siguen limpios.
+
+Pendiente del plan B y del chequeo:
+
+- **El plan B no tiene audios pregenerados en `public/audio`** como pide la sección 12: usa la caché del
+  TTS. Hay que ensayarlo una vez con conexión para que las frases queden guardadas; con una base nueva y
+  sin red, Nivi no suena y solo se lee. Aquí no hay clave, así que nunca se oyó.
+- El plan B cubre solo la conversación de la empresa. El registro por voz no tiene plan B: ninguna ruta
+  crea un perfil sin pasar por el agente.
+- El plan B llama a la API de la empresa, no a las herramientas del agente: el resultado en la base es el
+  mismo, pero la bitácora no registra llamadas de herramienta.
+- El chequeo de «Agente de voz de la empresa» necesita que una empresa haya entrado en `/c` en ese
+  navegador. Los efectos de sonido salen en rojo hasta que se integre el PR que los trae.
+- La salida de audio solo comprueba que el navegador reprodujo el archivo; que se oiga lo confirma la persona.
+- El chequeo no revisa `TOOL_SECRET` ni que los agentes publicados apunten a esta dirección.
 
 ## Decisiones
 

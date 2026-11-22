@@ -1,7 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
 import { errorMessage } from "@/client/api";
 import type { RequestBoard, RequestInput } from "@/client/company-api";
+import { contractorScript, PLAN_B_TOKEN } from "@/client/plan-b";
+import { createScriptedAgent } from "@/client/scripted-agent";
+import { createSpeechPlayer } from "@/client/speech-player";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
 import { NiviVoice } from "@/components/voice/nivi-voice";
@@ -55,10 +60,28 @@ export function EmptyBoard() {
 }
 
 /**
+ * Plan B: Nivi sigue el guion del camino dorado sin conectarse al agente en
+ * vivo. Cada turno ejecuta la misma acción real, así que el tablero y la
+ * bitácora cambian igual; la pantalla es la misma.
+ */
+function ScriptedNivi() {
+  const { company, api, board } = useCompany();
+  const [connection] = useState(() => {
+    const player = createSpeechPlayer({ audioUrlFor: api.speak });
+    const script = () => contractorScript({ api, zone: company.zone, refresh: board.refresh });
+    return {
+      fetchToken: async () => PLAN_B_TOKEN,
+      connect: createScriptedAgent({ script, speak: player.speak, stopSpeaking: player.stop }),
+    };
+  });
+  return <NiviVoice agent="contractor" defaultMode="llamada" connection={connection} />;
+}
+
+/**
  * Pedir la cuadrilla hablando con Nivi. Lo que el agente crea o invita aparece
  * en el tablero de al lado, que se actualiza solo; el formulario sigue debajo.
  */
-export function VoiceRequestCard() {
+export function VoiceRequestCard({ planB = false }: { readonly planB?: boolean }) {
   return (
     <Card className="flex flex-col gap-3">
       <div>
@@ -67,13 +90,13 @@ export function VoiceRequestCard() {
           Dile a Nivi qué oficio necesitas, cuántas personas, desde cuándo y cuánto pagas al día.
         </p>
       </div>
-      <NiviVoice agent="contractor" defaultMode="llamada" />
+      {planB ? <ScriptedNivi /> : <NiviVoice agent="contractor" defaultMode="llamada" />}
     </Card>
   );
 }
 
 /** Pantalla principal del contratista: pedir personal, tablero en vivo y costos. */
-export function RequestScreen() {
+export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
   const { company, api, board: store } = useCompany();
   const live = useLive(store);
   const invite = useAction(async (requestId: string, quantity: number) => {
@@ -86,18 +109,14 @@ export function RequestScreen() {
   };
   const board = live.data ?? null;
 
+  // En una sola columna (teléfono, o el marco del Modo Jurado) el tablero va justo después de la voz:
+  // lo que Nivi crea se ve sin bajar. En pantallas anchas, voz y formulario comparten la primera columna.
   return (
-    <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem]">
-      <section aria-labelledby="pedir-titulo" className="flex flex-col gap-4">
-        <VoiceRequestCard />
-        <Card className="flex flex-col gap-4">
-          <h2 id="pedir-titulo" className="display text-2xl">
-            Pide tu cuadrilla
-          </h2>
-          <RequestForm zone={company.zone} onSubmit={publish} />
-        </Card>
-      </section>
-      <div className="flex min-w-0 flex-col gap-4">
+    <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem] xl:grid-rows-[auto_1fr]">
+      <div className="xl:col-start-1 xl:row-start-1">
+        <VoiceRequestCard planB={planB} />
+      </div>
+      <div className="flex min-w-0 flex-col gap-4 xl:col-start-2 xl:row-span-2 xl:row-start-1">
         {live.error !== undefined && !live.loading ? (
           <Notice tone="pending">{errorMessage(live.error)}</Notice>
         ) : null}
@@ -112,7 +131,17 @@ export function RequestScreen() {
         ) : null}
         {!live.loading && !board && live.error === undefined ? <EmptyBoard /> : null}
       </div>
-      <CostPanel board={board} />
+      <section aria-labelledby="pedir-titulo" className="xl:col-start-1 xl:row-start-2">
+        <Card className="flex flex-col gap-4">
+          <h2 id="pedir-titulo" className="display text-2xl">
+            Pide tu cuadrilla
+          </h2>
+          <RequestForm zone={company.zone} onSubmit={publish} />
+        </Card>
+      </section>
+      <div className="xl:col-start-3 xl:row-span-2 xl:row-start-1">
+        <CostPanel board={board} />
+      </div>
     </div>
   );
 }

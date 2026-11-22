@@ -25,6 +25,8 @@ const newRequestSchema = z.strictObject({
   dailyPayUsd: z.number().positive().max(LIMITS.dailyPayUsd),
   contractType: z.enum(CONTRACT_TYPES),
   notes: z.string().trim().max(LIMITS.notes).optional(),
+  /** Cómo se pidió en pantalla: el formulario, o el guion de voz del plan B. */
+  via: z.enum(["voz", "web"]).optional(),
 });
 
 const inviteSchema = z.strictObject({ quantity: z.int().min(1).max(10) });
@@ -32,7 +34,8 @@ const inviteSchema = z.strictObject({ quantity: z.int().min(1).max(10) });
 export const requestRoutes = (runtime: RuntimeProvider) => ({
   create: endpoint(
     { access: "company", body: newRequestSchema },
-    ({ actor, body, context }) => createJobRequest(context, actor, { ...body, createdVia: "web" }),
+    ({ actor, body: { via = "web", ...request }, context }) =>
+      createJobRequest(context, actor, { ...request, createdVia: via }),
     runtime,
   ),
 

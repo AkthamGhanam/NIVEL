@@ -11,6 +11,7 @@ import {
   noteSeconds,
   type RecorderEvents,
   recordVoiceNote,
+  testMicrophone,
 } from "./voice-recorder";
 
 /** Micrófono falso: graba los trozos que se le indiquen y avisa como lo hace el navegador. */
@@ -189,5 +190,27 @@ describe("reloj de la nota", () => {
     expect(noteClock(0)).toBe("0:00 de 1:00");
     expect(noteClock(12)).toBe("0:12 de 1:00");
     expect(noteClock(60)).toBe("1:00 de 1:00");
+  });
+});
+
+describe("probar el micrófono", () => {
+  it("lo abre, lo suelta de una vez y no graba nada", async () => {
+    const { microphone, recorder, track } = fakeMicrophone();
+
+    await testMicrophone(microphone);
+
+    expect(microphone.open).toHaveBeenCalledOnce();
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(recorder.start).not.toHaveBeenCalled();
+  });
+
+  it("sin permiso o sin micrófono falla con un mensaje para la persona", async () => {
+    const denied: Microphone = {
+      ...fakeMicrophone().microphone,
+      open: async () => Promise.reject(named("NotAllowedError")),
+    };
+
+    await expect(testMicrophone(denied)).rejects.toThrow("No tenemos permiso para usar el micrófono");
+    await expect(testMicrophone(undefined)).rejects.toBeInstanceOf(MicrophoneError);
   });
 });

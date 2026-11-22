@@ -53,6 +53,8 @@ const controls = (changes: Partial<Parameters<typeof DemoControls>[0]> = {}) =>
     <DemoControls
       bot
       onBot={noop}
+      planB={false}
+      onPlanB={noop}
       onFastForward={noop}
       onReset={noop}
       pending={false}

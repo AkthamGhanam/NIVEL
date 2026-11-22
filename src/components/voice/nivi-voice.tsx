@@ -4,7 +4,13 @@ import { useEffect, useEffectEvent, useState } from "react";
 
 import { apiRequest } from "@/client/api";
 import { connectElevenLabsAgent } from "@/client/elevenlabs-agent";
-import { type NiviMode, rememberedMode, rememberMode, type VoiceAgent } from "@/client/nivi-session";
+import {
+  type NiviDeps,
+  type NiviMode,
+  rememberedMode,
+  rememberMode,
+  type VoiceAgent,
+} from "@/client/nivi-session";
 import { createVoiceApi, type TokenOptions } from "@/client/voice-api";
 
 import { useNivi } from "../hooks/use-nivi";
@@ -22,14 +28,18 @@ interface NiviVoiceProps {
   readonly remember?: boolean;
   /** Avisa el id de la conversación apenas se abre (para recoger lo que guarden las herramientas). */
   readonly onConversation?: (conversationId: string) => void;
+  /** Otra forma de conversar en lugar del agente en vivo: el guion del plan B. Se toma una sola vez. */
+  readonly connection?: Pick<NiviDeps, "fetchToken" | "connect">;
 }
 
 /** Hablar con Nivi: conecta la vista con el agente real y recuerda el modo elegido en este teléfono. */
-export function NiviVoice({ agent, defaultMode, token, remember = true, onConversation }: NiviVoiceProps) {
+export function NiviVoice(props: NiviVoiceProps) {
+  const { agent, defaultMode, token, remember = true, onConversation, connection } = props;
   const [voice] = useState(() => createVoiceApi(apiRequest));
   const { state, session } = useNivi({
     fetchToken: () => voice.token(agent, token),
     connect: connectElevenLabsAgent,
+    ...connection,
     mode: defaultMode,
   });
   const announce = useEffectEvent((conversationId: string) => onConversation?.(conversationId));
