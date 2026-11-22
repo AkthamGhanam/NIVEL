@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Las apps viven en /t y /c; los nombres largos también llevan ahí.
+  async redirects() {
+    return [
+      { source: "/trabajador/:path*", destination: "/t/:path*", permanent: false },
+      { source: "/contratista/:path*", destination: "/c/:path*", permanent: false },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: toHeaderList(BASE_SECURITY_HEADERS) },

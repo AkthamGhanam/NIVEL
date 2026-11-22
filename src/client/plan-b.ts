@@ -63,7 +63,7 @@ export function contractorScript({ api, zone, refresh }: ContractorScriptDeps): 
         persona: "Sí, invítalos.",
         run: async () => {
           if (!requestId || toInvite === 0) return sayInvited([]);
-          const sent = await api.invite(requestId, toInvite);
+          const sent = await api.invite(requestId, { quantity: toInvite });
           await refresh();
           return sayInvited(sent.map(({ candidate }) => candidate.shortName));
         },

@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { errorMessage } from "@/client/api";
-import type { RequestBoard, RequestInput } from "@/client/company-api";
+import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
 import { contractorScript, PLAN_B_TOKEN } from "@/client/plan-b";
 import { createScriptedAgent } from "@/client/scripted-agent";
 import { createSpeechPlayer } from "@/client/speech-player";
@@ -20,7 +20,7 @@ import { RequestForm } from "./request-form";
 
 interface BoardViewProps {
   readonly board: RequestBoard;
-  readonly onInvite: (quantity: number) => void;
+  readonly onInvite: (choice: InviteSelection) => void;
   readonly pending: boolean;
   readonly error: string | null;
 }
@@ -99,8 +99,8 @@ export function VoiceRequestCard({ planB = false }: { readonly planB?: boolean }
 export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
   const { company, api, board: store } = useCompany();
   const live = useLive(store);
-  const invite = useAction(async (requestId: string, quantity: number) => {
-    await api.invite(requestId, quantity);
+  const invite = useAction(async (requestId: string, choice: InviteSelection) => {
+    await api.invite(requestId, choice);
     await store.refresh();
   });
   const publish = async (input: RequestInput) => {
@@ -109,7 +109,7 @@ export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
   };
   const board = live.data ?? null;
 
-  // En una sola columna (teléfono, o el marco del Modo Jurado) el tablero va justo después de la voz:
+  // En una sola columna (teléfono o ventana angosta) el tablero va justo después de la voz:
   // lo que Nivi crea se ve sin bajar. En pantallas anchas, voz y formulario comparten la primera columna.
   return (
     <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem] xl:grid-rows-[auto_1fr]">
@@ -124,7 +124,7 @@ export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
         {!live.loading && board ? (
           <BoardView
             board={board}
-            onInvite={(quantity) => void invite.invoke(board.request.id, quantity)}
+            onInvite={(choice) => void invite.invoke(board.request.id, choice)}
             pending={invite.pending}
             error={invite.error}
           />

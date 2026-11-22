@@ -4,24 +4,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { createApiRequest } from "@/client/api";
 import { createCompanyApi } from "@/client/company-api";
-import {
-  type AgentConnection,
-  type AgentSession,
-  createNiviSession,
-  type NiviState,
-} from "@/client/nivi-session";
-import {
-  CONSENT_CHOICES,
-  heardFacts,
-  isRealVisitor,
-  REAL_PERSON_NOTICE,
-  VOICE_CONSENT_POINTS,
-} from "@/client/registration-view";
-import { createVoiceApi, waitForProfile } from "@/client/voice-api";
+import type { NiviState } from "@/client/nivi-session";
+import { createVoiceApi } from "@/client/voice-api";
 import { createWorkerApi } from "@/client/worker-api";
 import { VoiceRequestCard } from "@/components/company/request-screen";
-import { ConsentSheet, HeardProfile } from "@/components/registration/registration-views";
-import { FORBIDDEN_WORDS, REFERENCE_BAND_NOTICE } from "@/lib/legal-copy";
+import { FORBIDDEN_WORDS } from "@/lib/legal-copy";
 import { IDS } from "@/server/db/seed/cast";
 import { createBrowserFetch } from "@/server/testing/browser-fetch";
 import { dispatch, type InProcessApi, startInProcessApi } from "@/server/testing/in-process-api";
@@ -30,12 +17,10 @@ import { ApiClient } from "../../../scripts/smoke/client";
 import { MICROPHONE_PROMISE, type NiviActions, NiviVoiceView, Transcript } from "./nivi-voice-view";
 
 /**
- * Hablar con Nivi de punta a punta, sin navegador ni ElevenLabs: la pantalla
- * pide su token a las rutas reales y un agente falso hace lo que haría el de
- * verdad (llamar a la herramienta `guardar_perfil` con el contexto firmado).
+ * Hablar con Nivi sin navegador ni ElevenLabs: la pantalla pide su token a las
+ * rutas reales, y la vista se prueba en cada estado de la conversación.
  */
 
-const CONVERSATION = "conv_registro_voz_01";
 let server: InProcessApi;
 let team: ApiClient;
 
@@ -67,48 +52,6 @@ const state = (changes: Partial<NiviState> = {}): NiviState => ({
   conversationId: null,
   ...changes,
 });
-
-/** El agente de verdad llama a nuestras herramientas con el secreto y el contexto que recibió al conectar. */
-function agentThatSavesProfiles() {
-  const connections: AgentConnection[] = [];
-  const connect = async (connection: AgentConnection): Promise<AgentSession> => {
-    connections.push(connection);
-    return {
-      conversationId: () => CONVERSATION,
-      setMicMuted: noop,
-      sendText: (said) => {
-        void saveProfile(connection, said);
-      },
-      end: idle,
-    };
-  };
-  return { connect, connections };
-}
-
-async function saveProfile(connection: AgentConnection, said: string) {
-  const response = await dispatch(
-    new Request(`${server.baseUrl}/api/tools/guardar_perfil`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-tool-secret": server.toolSecret,
-        "x-nivel-context": connection.dynamicVariables.secret__nivel_contexto ?? "",
-      },
-      body: JSON.stringify({
-        nombre: said,
-        mayor_de_edad: "sí",
-        oficio: "albañil",
-        anos_experiencia: "4",
-        tecnicas: ["frisos", "bloques"],
-        zona: "vivo por Guacara",
-        disponibilidad: "inmediata",
-        conversation_id: CONVERSATION,
-      }),
-    }),
-  );
-  const answer = (await response.json()) as { say: string };
-  connection.callbacks.onMessage({ from: "nivi", text: answer.say });
-}
 
 beforeEach(() => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -162,99 +105,6 @@ describe("permiso para abrir una conversación", () => {
     expect((await voice.token("worker", { registration: true, real: true, consent: true })).token).toBe(
       "token-agente-trabajador",
     );
-  });
-});
-
-describe("registro hablando con Nivi", () => {
-  it("la hoja de permiso dice qué se guarda, deja escucharlo y las dos salidas dicen que se acepta", () => {
-    const sheet = html(<ConsentSheet real={false} onAccept={noop} />);
-    const real = html(<ConsentSheet real onAccept={noop} />);
-
-    for (const point of VOICE_CONSENT_POINTS) expect(sheet).toContain(point);
-    expect(text(sheet)).toContain("NIVEL no guarda el audio");
-    expect(text(sheet)).toContain("Solo para personas mayores de 18 años");
-    expect(sheet).toMatch(
-      /Escuchar antes de aceptar.*<audio controls="" preload="none" src="\/audio\/privacidad\.mp3"/,
-    );
-    expect(sheet).toMatch(/<a [^>]*href="\/legal\/privacidad"/);
-    expect(CONSENT_CHOICES.map((choice) => choice.mode)).toEqual(["nota", "texto"]);
-    for (const choice of CONSENT_CHOICES) expect(choice.label).toMatch(/^Acepto/);
-    expect(sheet).toMatch(
-      /Acepto y quiero hablar con Nivi<\/button>.*Acepto, pero prefiero escribir<\/button>/,
-    );
-    expect(sheet).toMatch(/<a [^>]*href="\/t"[^>]*>Ya tengo perfil<\/a>/);
-    expect(sheet).not.toContain(REAL_PERSON_NOTICE);
-    expect(real).toContain(REAL_PERSON_NOTICE);
-    expect([
-      isRealVisitor("1"),
-      isRealVisitor("true"),
-      isRealVisitor(undefined),
-      isRealVisitor(["1"]),
-    ]).toEqual([true, false, false, false]);
-  });
-
-  it("al guardar Nivi el perfil, la pantalla lo recoge, queda con la sesión abierta y muestra lo que entendió", async () => {
-    const request = browser();
-    const voice = createVoiceApi(request);
-    const agent = agentThatSavesProfiles();
-    const nivi = createNiviSession({
-      fetchToken: () => voice.token("worker", { registration: true, real: true, consent: true }),
-      connect: agent.connect,
-      mode: "texto",
-    });
-    const waiting = new AbortController();
-
-    await nivi.start();
-    const conversationId = nivi.getState().conversationId ?? "";
-    const claimed = waitForProfile(() => voice.claimProfile(conversationId, waiting.signal), {
-      signal: waiting.signal,
-      intervalMs: 5,
-    });
-    nivi.sendText("María Fernanda Gómez");
-    const created = await claimed;
-    const profile = await createWorkerApi(request).profile();
-    const markup = html(<HeardProfile profile={profile} />);
-
-    expect(agent.connections[0]).toMatchObject({ textOnly: true, token: "token-agente-trabajador" });
-    expect(created).toMatchObject({ firstName: "María", level: 1 });
-    await vi.waitFor(() => expect(nivi.getState().lines).toHaveLength(2));
-    expect(nivi.getState().lines[1]?.text).toContain("Tu perfil quedó en Nivel 1");
-    expect(heardFacts(profile)).toEqual([
-      { label: "Nombre", value: "María Fernanda Gómez" },
-      { label: "Oficio", value: profile.tradeLabel },
-      { label: "Experiencia", value: "4 años" },
-      { label: "Técnicas", value: "frisos, bloques" },
-      { label: "Zona", value: "Guacara" },
-      { label: "Disponibilidad", value: "inmediata" },
-    ]);
-    expect(heardFacts({ ...profile, yearsExp: 1, skills: [] }).map((fact) => fact.value)).toEqual(
-      expect.arrayContaining(["1 año", "Sin anotar"]),
-    );
-    expect(text(markup)).toContain("Esto entendimos, María");
-    expect(text(markup)).toContain("Nivel 1 · Aprendiz");
-    expect(markup).toContain(REFERENCE_BAND_NOTICE);
-    expect(markup).toMatch(/<a [^>]*href="\/t"[^>]*>Confirmar y entrar<\/a>/);
-    expect(markup).toMatch(/<a [^>]*href="\/t\/mis-datos"[^>]*>Corregir<\/a>/);
-    // Recién creado, el perfil no se comparte con empresas hasta que la persona lo active.
-    expect(profile.consents.share_profile).toBeNull();
-  });
-
-  it("mientras no hay perfil sigue esperando; deja de preguntar cuando la pantalla se va", async () => {
-    const voice = createVoiceApi(browser());
-    const waiting = new AbortController();
-    const claim = vi.fn(() => voice.claimProfile("conv_que_no_existe", waiting.signal));
-
-    const pending = waitForProfile(claim, { signal: waiting.signal, intervalMs: 5 });
-    await vi.waitFor(() => expect(claim.mock.calls.length).toBeGreaterThan(2));
-    waiting.abort();
-
-    expect(await pending).toBeUndefined();
-    await expect(
-      waitForProfile(() => voice.claimProfile("id malo"), { signal: new AbortController().signal }),
-    ).rejects.toMatchObject({ status: 422 });
-    await expect(
-      waitForProfile(() => Promise.reject(new Error("otra cosa")), { signal: new AbortController().signal }),
-    ).rejects.toThrow("otra cosa");
   });
 });
 

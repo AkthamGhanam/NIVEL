@@ -5,7 +5,6 @@ import {
   BASE_SECURITY_HEADERS,
   buildPageContentSecurityPolicy,
   createNonce,
-  VOICE_CONNECT_SOURCES,
 } from "./security-headers";
 
 const VALID_NONCE = "c29tZS1yYW5kb20tbm9uY2U=";
@@ -19,23 +18,21 @@ describe("buildPageContentSecurityPolicy", () => {
     expect(csp).not.toContain("unsafe-eval");
   });
 
-  it("el navegador solo puede conectarse a la propia app y al servicio de voz", () => {
-    const csp = buildPageContentSecurityPolicy({ nonce: VALID_NONCE, isDevelopment: false });
-    const connect = csp.split("; ").find((directive) => directive.startsWith("connect-src"));
-
-    expect(connect).toBe("connect-src 'self' https://*.elevenlabs.io wss://*.elevenlabs.io");
-    expect(VOICE_CONNECT_SOURCES.every((source) => source.endsWith(".elevenlabs.io"))).toBe(true);
-    // Los scripts y el audio siguen saliendo solo de nuestro origen.
-    expect(csp).toContain("media-src 'self' blob:");
-    expect(csp).not.toMatch(/script-src[^;]*elevenlabs/);
-  });
-
   it("solo deja incrustar la página en el mismo origen y bloquea plugins", () => {
     const csp = buildPageContentSecurityPolicy({ nonce: VALID_NONCE, isDevelopment: false });
 
     expect(csp).toContain("frame-ancestors 'self'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).toContain("base-uri 'self'");
+  });
+
+  it("solo conecta con el propio origen y con la voz de ElevenLabs", () => {
+    const csp = buildPageContentSecurityPolicy({ nonce: VALID_NONCE, isDevelopment: false });
+    const connect = csp.split("; ").find((directive) => directive.startsWith("connect-src "));
+
+    expect(connect).toBe(
+      "connect-src 'self' https://api.elevenlabs.io wss://api.elevenlabs.io https://livekit.rtc.elevenlabs.io wss://livekit.rtc.elevenlabs.io",
+    );
   });
 
   it("añade unsafe-eval únicamente en desarrollo", () => {

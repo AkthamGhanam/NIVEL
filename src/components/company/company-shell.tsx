@@ -72,7 +72,7 @@ export function CompanyIdentity({ company, onSwitch }: Omit<CompanyShellProps, "
         onClick={onSwitch}
         className="min-h-12 self-start rounded-control text-sm font-semibold text-muted-on-ink underline decoration-2 hover:text-white"
       >
-        Cambiar de empresa
+        Cambiar de cuenta
       </button>
     </div>
   );

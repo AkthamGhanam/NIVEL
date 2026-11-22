@@ -68,7 +68,7 @@ describe("guion del plan B para la empresa", () => {
       await steps[1]?.run();
     }
 
-    expect(few.invite).toHaveBeenCalledWith("sol-1", 2);
-    expect(many.invite).toHaveBeenCalledWith("sol-1", 3);
+    expect(few.invite).toHaveBeenCalledWith("sol-1", { quantity: 2 });
+    expect(many.invite).toHaveBeenCalledWith("sol-1", { quantity: 3 });
   });
 });

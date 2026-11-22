@@ -12,7 +12,6 @@ import {
   preflightChecks,
   preflightSummary,
 } from "@/client/preflight";
-import { NivelMark } from "@/components/brand/brand";
 import { Button } from "@/components/ui/button";
 import { Tag, type Tone } from "@/components/ui/tag";
 
@@ -63,44 +62,39 @@ interface PreflightViewProps {
 
 export function PreflightView({ checks, onRun, onRunAll }: PreflightViewProps) {
   return (
-    <div className="flex min-h-dvh flex-1 flex-col bg-canvas">
-      <header className="on-dark flex flex-wrap items-center gap-4 bg-ink px-4 py-3 lg:px-6">
-        <NivelMark tone="white" size={28} />
-        <h1 className="display text-2xl text-white">Chequeo previo</h1>
-      </header>
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6">
-        <p className="text-lg text-ink-2">
+    <div className="flex flex-col gap-4">
+      <div>
+        <h1 className="display text-3xl">Chequeo previo</h1>
+        <p className="mt-1 text-lg text-ink-2">
           Corre esta lista en la laptop del escenario, con su micrófono y sus cornetas, antes de presentar.
         </p>
-        <p role="status" className="text-lg font-extrabold">
-          {preflightSummary(checks)}
-        </p>
-        <ul className="rounded-card border-[1.5px] border-line bg-surface px-4">
-          {checks.map((check) => (
-            <CheckRow key={check.id} check={check} onRun={() => onRun(check.id)} />
-          ))}
-        </ul>
-        <div className="flex flex-wrap items-center gap-4">
-          <Button variant="outline" onClick={onRunAll}>
-            Repetir las pruebas automáticas
-          </Button>
-          <Link
-            href="/demo"
-            className="inline-flex min-h-12 items-center font-semibold text-brand underline decoration-2"
-          >
-            Volver al Modo Jurado
-          </Link>
-        </div>
-        <p className="text-sm text-muted">
-          Si el agente de voz falla y lo demás está listo, la demo sigue con el plan B: actívalo en el Modo
-          Jurado. Ensáyalo una vez con conexión para que las frases de Nivi queden guardadas.
-        </p>
-      </main>
+      </div>
+      <p role="status" className="text-lg font-extrabold">
+        {preflightSummary(checks)}
+      </p>
+      <ul className="rounded-card border-[1.5px] border-line bg-surface px-4">
+        {checks.map((check) => (
+          <CheckRow key={check.id} check={check} onRun={() => onRun(check.id)} />
+        ))}
+      </ul>
+      <Button variant="outline" className="self-start" onClick={onRunAll}>
+        Repetir las pruebas automáticas
+      </Button>
+      <p className="text-sm text-muted">
+        Si el agente de voz falla y lo demás está listo, la demo sigue con el plan B: Nivi sigue un guion sin
+        conectarse al agente en vivo. Ensáyalo una vez con conexión para que sus frases queden guardadas.
+      </p>
+      <Link
+        href="/c?planb=1"
+        className="inline-flex min-h-12 items-center self-start font-semibold text-brand underline decoration-2"
+      >
+        Abrir la web del contratista con el plan B
+      </Link>
     </div>
   );
 }
 
-/** `/demo/check`: corre las pruebas automáticas al abrir y deja las de micrófono y sonido a un toque. */
+/** `/admin/chequeo`: corre las pruebas automáticas al abrir y deja las de micrófono y sonido a un toque. */
 export function PreflightScreen() {
   const [preflight] = useState(() => createPreflight(preflightChecks(browserPreflightDeps(apiRequest))));
   const checks = useSyncExternalStore(preflight.subscribe, preflight.getState, preflight.getState);

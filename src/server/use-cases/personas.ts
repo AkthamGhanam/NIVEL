@@ -9,7 +9,7 @@ import { isDemoFlagOn } from "./demo-state";
 
 /**
  * Selector de persona de la demo. Solo se puede entrar como un personaje de
- * ejemplo del seed: nunca como una persona real registrada en el evento.
+ * ejemplo del seed: nunca como una persona ni una empresa real registrada.
  */
 
 export type PersonaRole = "worker" | "company" | "academy";
@@ -39,7 +39,23 @@ export interface DemoState {
     readonly academyId: string | null;
     readonly admin: boolean;
   };
+  /** Empresa con sesión en este navegador, también si es una real que se registró en la web. */
+  readonly activeCompany: DemoState["personas"]["companies"][number] | null;
   readonly flags: { readonly bot: boolean; readonly simulation: boolean };
+}
+
+async function companyCard(context: AppContext, companyId: string) {
+  const [company] = await context.db
+    .select({
+      id: companies.id,
+      name: companies.name,
+      zone: companies.zone,
+      rif: companies.rif,
+      verified: companies.verified,
+    })
+    .from(companies)
+    .where(eq(companies.id, companyId));
+  return company ?? null;
 }
 
 /** Protagonistas del guion de la demo, en el orden en que aparecen. */
@@ -79,20 +95,27 @@ export async function getDemoState(context: AppContext, sessions: Sessions): Pro
         verified: companies.verified,
       })
       .from(companies)
+      .where(eq(companies.isReal, false))
       .orderBy(asc(companies.id)),
     context.db.select({ id: academies.id, name: academies.name }).from(academies).orderBy(asc(academies.id)),
     isDemoFlagOn(context, "bot"),
     isDemoFlagOn(context, "simulation"),
   ]);
   const { worker, company, academy, admin } = sessions;
+  const companyId = company?.role === "company" ? company.companyId : null;
+  const activeCompany =
+    companyId === null
+      ? null
+      : (companyRows.find((row) => row.id === companyId) ?? (await companyCard(context, companyId)));
   return {
     personas: { workers: starsFirst(workerRows), companies: companyRows, academies: academyRows },
     active: {
       workerId: worker?.role === "worker" ? worker.workerId : null,
-      companyId: company?.role === "company" ? company.companyId : null,
+      companyId,
       academyId: academy?.role === "academy" ? academy.academyId : null,
       admin: admin !== undefined,
     },
+    activeCompany,
     flags: { bot, simulation },
   };
 }
@@ -112,10 +135,11 @@ export async function resolvePersona(context: AppContext, choice: PersonaChoice)
   if (choice.role === "worker") return seedWorker(context, choice.id);
   if (choice.role === "company") {
     const [company] = await context.db
-      .select({ id: companies.id })
+      .select({ id: companies.id, isReal: companies.isReal })
       .from(companies)
       .where(eq(companies.id, choice.id));
     if (!company) throw new NotFoundError("esa empresa");
+    if (company.isReal) throw new ForbiddenError("No se puede entrar como una empresa real.");
     return { role: "company", companyId: company.id };
   }
   const [academy] = await context.db

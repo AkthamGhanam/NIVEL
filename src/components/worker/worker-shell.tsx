@@ -4,10 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { NivelMark } from "@/components/brand/brand";
-import { PhoneFrame } from "@/components/ui/phone-frame";
+import { DemoFooter, NivelMark } from "@/components/brand/brand";
+import { Avatar } from "@/components/ui/avatar";
 import { cx } from "@/lib/cx";
-import { DEMO_FOOTER } from "@/lib/legal-copy";
 
 export const WORKER_NAV = [
   { href: "/t", label: "Inicio" },
@@ -16,46 +15,77 @@ export const WORKER_NAV = [
   { href: "/t/mis-datos", label: "Perfil" },
 ] as const;
 
+/** Sección activa: la más específica que contenga la dirección actual. */
+function activeHref(current: string | null): string | null {
+  if (!current) return null;
+  const matches = WORKER_NAV.filter((item) => current === item.href || current.startsWith(`${item.href}/`));
+  return matches.sort((a, b) => b.href.length - a.href.length)[0]?.href ?? null;
+}
+
+/** Navegación inferior en el teléfono: cuatro secciones al alcance del pulgar. */
 function BottomNav({ current }: { readonly current: string | null }) {
+  const active = activeHref(current);
   return (
-    <nav aria-label="Secciones de la app" className="shrink-0 border-t border-line bg-surface">
+    <nav
+      aria-label="Secciones de la app"
+      className="sticky bottom-0 z-10 shrink-0 border-t border-line bg-surface lg:hidden"
+    >
       <ul className="grid grid-cols-4">
-        {WORKER_NAV.map((item) => {
-          const active = item.href === current;
-          return (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cx(
-                  "flex min-h-14 items-center justify-center border-t-[3px] px-1 text-[0.9375rem] font-bold",
-                  active ? "border-brand text-brand" : "border-transparent text-muted",
-                )}
-              >
-                {item.label}
-              </Link>
-            </li>
-          );
-        })}
+        {WORKER_NAV.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              aria-current={item.href === active ? "page" : undefined}
+              className={cx(
+                "flex min-h-14 items-center justify-center border-t-[3px] px-1 text-[0.9375rem] font-bold",
+                item.href === active ? "border-brand text-brand" : "border-transparent text-muted",
+              )}
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** Menú lateral en escritorio, con el mismo estilo que la web del contratista. */
+function SideNav({ current }: { readonly current: string | null }) {
+  const active = activeHref(current);
+  return (
+    <nav aria-label="Secciones">
+      <ul className="flex flex-col gap-1">
+        {WORKER_NAV.map((item) => (
+          <li key={item.href}>
+            <Link
+              href={item.href}
+              aria-current={item.href === active ? "page" : undefined}
+              className={cx(
+                "flex min-h-12 items-center rounded-control px-3.5 text-[1.0625rem] font-semibold",
+                item.href === active
+                  ? "bg-brand text-white"
+                  : "text-muted-on-ink hover:bg-ink-2 hover:text-white",
+              )}
+            >
+              {item.label}
+            </Link>
+          </li>
+        ))}
       </ul>
     </nav>
   );
 }
 
 /**
- * El teléfono: marco en pantallas grandes, pantalla completa en un teléfono real.
- * El marco es solo dibujo: las regiones de la página (encabezado, contenido, navegación) van dentro.
+ * Fondo de las pantallas sin sesión (acceso, carga, errores): una columna
+ * centrada sobre el gris claro, a pantalla completa en el teléfono.
  */
-export function PhoneStage({
-  children,
-  footer,
-}: {
-  readonly children: ReactNode;
-  readonly footer?: ReactNode;
-}) {
+export function WorkerStage({ children }: { readonly children: ReactNode }) {
   return (
-    <div className="flex flex-1 justify-center md:items-center md:bg-canvas md:py-6">
-      <PhoneFrame footer={footer}>{children}</PhoneFrame>
+    <div className="flex min-h-dvh flex-1 flex-col bg-canvas">
+      <div className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-4 px-4 py-8 sm:py-12">{children}</div>
+      <DemoFooter className="border-t border-line" />
     </div>
   );
 }
@@ -66,25 +96,46 @@ interface WorkerShellProps {
   readonly children: ReactNode;
 }
 
-/** Marco de la app del trabajador: encabezado, contenido y barra inferior de cuatro secciones. */
+/**
+ * App web del trabajador. En el teléfono: encabezado, contenido y barra
+ * inferior. En escritorio: menú oscuro a la izquierda y el contenido centrado.
+ */
 export function WorkerShell({ firstName, onSwitch, children }: WorkerShellProps) {
   const pathname = usePathname();
+  const switchButton = (
+    <button
+      type="button"
+      onClick={onSwitch}
+      className="min-h-12 self-start rounded-control text-sm font-semibold text-muted-on-ink underline decoration-2 hover:text-white"
+    >
+      Cambiar de cuenta
+    </button>
+  );
   return (
-    <PhoneStage footer={<BottomNav current={pathname} />}>
-      <header className="on-dark flex items-center justify-between gap-3 bg-ink px-4 py-2">
+    <div className="flex min-h-dvh flex-1 flex-col lg:flex-row">
+      <header className="on-dark flex items-center justify-between gap-3 bg-ink px-4 py-2 lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:flex-col lg:items-stretch lg:justify-start lg:gap-8 lg:overflow-y-auto lg:px-5 lg:py-7">
         <Link href="/t" aria-label="NIVEL, ir al inicio" className="inline-flex min-h-12 items-center">
           <NivelMark tone="white" size={28} />
         </Link>
-        <button
-          type="button"
-          onClick={onSwitch}
-          className="min-h-12 rounded-control px-1 text-sm font-semibold text-muted-on-ink underline decoration-2"
-        >
-          {firstName} · cambiar
-        </button>
+        <div className="hidden lg:block">
+          <SideNav current={pathname} />
+        </div>
+        <div className="flex items-center gap-3 lg:mt-auto lg:flex-col lg:items-start lg:gap-1">
+          <div className="hidden items-center gap-3 lg:flex">
+            <Avatar name={firstName} tone="gray" />
+            <p className="font-bold text-white">{firstName}</p>
+          </div>
+          <span className="text-sm font-semibold text-white lg:hidden">{firstName}</span>
+          {switchButton}
+        </div>
       </header>
-      <main className="flex flex-1 flex-col gap-4 px-4 py-5">{children}</main>
-      <footer className="px-4 pb-4 text-center text-xs text-muted">{DEMO_FOOTER}</footer>
-    </PhoneStage>
+      <div className="flex min-w-0 flex-1 flex-col bg-canvas">
+        <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-5 lg:py-10">
+          {children}
+        </main>
+        <DemoFooter className="hidden border-t border-line lg:block" />
+        <BottomNav current={pathname} />
+      </div>
+    </div>
   );
 }

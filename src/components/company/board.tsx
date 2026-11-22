@@ -1,4 +1,8 @@
-import type { RequestBoard } from "@/client/company-api";
+"use client";
+
+import { useState } from "react";
+
+import type { InviteSelection, RequestBoard } from "@/client/company-api";
 import {
   candidateFacts,
   crewProgress,
@@ -13,6 +17,7 @@ import { Card, Eyebrow } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { LevelBadge, Tag } from "@/components/ui/tag";
+import { cx } from "@/lib/cx";
 import { tradeCount } from "@/lib/trades";
 
 type Candidate = RequestBoard["candidates"][number];
@@ -115,10 +120,13 @@ export function InvitationList({ invitations }: { readonly invitations: RequestB
 }
 
 interface InviteProps {
-  /** Invita a las siguientes N mejores personas que aún no fueron invitadas. */
-  readonly onInvite: (quantity: number) => void;
+  /** Invita a las personas elegidas, o a las siguientes N mejores que aún no fueron invitadas. */
+  readonly onInvite: (choice: InviteSelection) => void;
   readonly pending: boolean;
 }
+
+/** Tope de personas por invitación: el mismo que pone el servidor. */
+export const MAX_SELECTION = 10;
 
 /** Alguien rechazó y falta gente: el siguiente mejor candidato, a un clic. */
 export function ReplacementCard({
@@ -134,17 +142,20 @@ export function ReplacementCard({
           <CandidateSummary candidate={candidate} />
         </div>
       </div>
-      <Button onClick={() => onInvite(1)} disabled={pending}>
+      <Button onClick={() => onInvite({ workerIds: [candidate.workerId] })} disabled={pending}>
         Invitar<span className="sr-only"> a {candidate.shortName}</span>
       </Button>
     </Card>
   );
 }
 
-const inviteLabel = (count: number, first: boolean) => {
-  if (count === 1) return first ? "Invitar al mejor" : "Invitar a 1 más";
-  return first ? `Invitar a los ${count} mejores` : `Invitar a ${count} más`;
+const bestLabel = (count: number, first: boolean) => {
+  if (count === 1) return first ? "Invitar al mejor" : "Invitar al siguiente mejor";
+  return first ? `Invitar a los ${count} mejores` : `Invitar a los ${count} siguientes`;
 };
+
+const selectedLabel = (count: number) =>
+  count === 1 ? "Invitar a 1 persona elegida" : `Invitar a las ${count} personas elegidas`;
 
 /** "6 personas cumplen" antes de invitar; después, "3 personas más cumplen". */
 const matchingTitle = (count: number, first: boolean) => {
@@ -152,22 +163,141 @@ const matchingTitle = (count: number, first: boolean) => {
   return count === 1 ? `1 persona${more} cumple` : `${count} personas${more} cumplen`;
 };
 
-/** Personas que cumplen y aún no fueron invitadas, las mejores primero. */
+/** Selección de personas de la lista. Se olvida de quien ya no está disponible. */
+function useSelection(available: readonly Candidate[]) {
+  const [chosen, setChosen] = useState<readonly string[]>([]);
+  const ids = new Set(available.map((candidate) => candidate.workerId));
+  const selected = chosen.filter((id) => ids.has(id));
+  const toggle = (workerId: string) =>
+    setChosen((current) =>
+      current.includes(workerId)
+        ? current.filter((id) => id !== workerId)
+        : current.length < MAX_SELECTION
+          ? [...current, workerId]
+          : current,
+    );
+  return { selected, toggle, clear: () => setChosen([]) };
+}
+
+function SelectableCandidate({
+  candidate,
+  checked,
+  disabled,
+  onToggle,
+}: {
+  readonly candidate: Candidate;
+  readonly checked: boolean;
+  readonly disabled: boolean;
+  readonly onToggle: () => void;
+}) {
+  return (
+    <li>
+      <label
+        className={cx(
+          "flex cursor-pointer items-center gap-3 px-4 py-3",
+          checked ? "bg-brand-tint" : "hover:bg-line-2/60",
+          disabled && !checked && "cursor-not-allowed opacity-60",
+        )}
+      >
+        <input
+          type="checkbox"
+          checked={checked}
+          disabled={disabled && !checked}
+          onChange={onToggle}
+          className="size-5 shrink-0 accent-brand"
+        />
+        <span className="sr-only">Elegir a {candidate.shortName}</span>
+        <CandidateSummary candidate={candidate} />
+      </label>
+    </li>
+  );
+}
+
+function SelectableList({
+  candidates,
+  selection,
+  pending,
+}: {
+  readonly candidates: readonly Candidate[];
+  readonly selection: ReturnType<typeof useSelection>;
+  readonly pending: boolean;
+}) {
+  return (
+    <>
+      <p className="text-ink-2">
+        Marca a quien quieras invitar. La primera persona que acepte ocupa el puesto.
+      </p>
+      <Card className="p-0">
+        <ul aria-label="Personas que cumplen" className="divide-y divide-line-2 overflow-hidden rounded-card">
+          {candidates.map((candidate) => (
+            <SelectableCandidate
+              key={candidate.workerId}
+              candidate={candidate}
+              checked={selection.selected.includes(candidate.workerId)}
+              disabled={pending || selection.selected.length >= MAX_SELECTION}
+              onToggle={() => selection.toggle(candidate.workerId)}
+            />
+          ))}
+        </ul>
+      </Card>
+    </>
+  );
+}
+
+/** Barra fija con cuántas personas están elegidas y el botón para invitarlas. */
+function SelectionBar({
+  count,
+  onClear,
+  onInvite,
+  pending,
+}: {
+  readonly count: number;
+  readonly onClear: () => void;
+  readonly onInvite: () => void;
+  readonly pending: boolean;
+}) {
+  return (
+    <div className="sticky bottom-3 flex flex-wrap items-center justify-between gap-3 rounded-card border-[1.5px] border-brand bg-surface p-3 shadow-sm">
+      <p role="status" className="font-bold">
+        {count} elegida{count === 1 ? "" : "s"}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={onClear} disabled={pending}>
+          Quitar selección
+        </Button>
+        <Button onClick={onInvite} disabled={pending}>
+          {selectedLabel(count)}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Personas que cumplen y aún no fueron invitadas, las mejores primero. La
+ * empresa elige a quién invitar marcando la casilla, o invita a las mejores de un clic.
+ */
 export function CandidateList({ board, onInvite, pending }: InviteProps & { readonly board: RequestBoard }) {
   const candidates = uninvitedCandidates(board);
+  const selection = useSelection(candidates);
   const toInvite = Math.min(seatsToFill(board), candidates.length);
   const firstRound = board.invitations.length === 0;
-  // Con un solo puesto por cubrir tras un rechazo, la tarjeta de reemplazo ya ofrece invitar.
-  const showInvite = toInvite > 0 && (board.suggestedReplacement === null || toInvite > 1);
+  // Con un solo puesto tras un rechazo, la tarjeta de reemplazo ya ofrece al siguiente mejor.
+  const showBest =
+    toInvite > 0 && !selection.selected.length && (!board.suggestedReplacement || toInvite > 1);
+  const inviteSelected = () => {
+    onInvite({ workerIds: selection.selected });
+    selection.clear();
+  };
   return (
     <section aria-labelledby="candidatos-titulo" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 id="candidatos-titulo" className="bar-title text-xl font-extrabold">
           {matchingTitle(firstRound ? board.matching : candidates.length, firstRound)}
         </h2>
-        {showInvite ? (
-          <Button onClick={() => onInvite(toInvite)} disabled={pending}>
-            {inviteLabel(toInvite, firstRound)}
+        {showBest ? (
+          <Button variant="outline" onClick={() => onInvite({ quantity: toInvite })} disabled={pending}>
+            {bestLabel(toInvite, firstRound)}
           </Button>
         ) : null}
       </div>
@@ -177,15 +307,15 @@ export function CandidateList({ board, onInvite, pending }: InviteProps & { read
         </Notice>
       ) : null}
       {candidates.length > 0 ? (
-        <Card className="p-0">
-          <ul className="divide-y divide-line-2">
-            {candidates.map((candidate) => (
-              <li key={candidate.workerId} className="flex px-4 py-3">
-                <CandidateSummary candidate={candidate} />
-              </li>
-            ))}
-          </ul>
-        </Card>
+        <SelectableList candidates={candidates} selection={selection} pending={pending} />
+      ) : null}
+      {selection.selected.length > 0 ? (
+        <SelectionBar
+          count={selection.selected.length}
+          onClear={selection.clear}
+          onInvite={inviteSelected}
+          pending={pending}
+        />
       ) : null}
     </section>
   );

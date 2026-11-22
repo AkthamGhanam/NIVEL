@@ -12,7 +12,7 @@ import { dispatch, type InProcessApi, startInProcessApi } from "@/server/testing
 import { ApiClient } from "../../../scripts/smoke/client";
 import { ReceiptView } from "../receipt/receipt-view";
 import { CompanyGate } from "./company-gate";
-import { CompanyPicker } from "./company-picker";
+import { CompanyAccess } from "./company-access";
 import { CompanyIdentity } from "./company-shell";
 import { CostPanel } from "./cost-panel";
 import { FeeStatementView } from "./fee-statement";
@@ -99,21 +99,31 @@ describe("entrada del contratista", () => {
     await expect(company.board()).rejects.toMatchObject({ status: 401, needsSession: true });
   });
 
-  it("el selector muestra las empresas de ejemplo con su RIF y si están verificadas", async () => {
+  it("el acceso invita a registrar la empresa y deja las empresas de prueba a un lado", async () => {
     const state = await company.state();
-    const markup = html(
-      <CompanyPicker companies={state.personas.companies} onPick={noop} pending={false} error={null} />,
-    );
+    const access = (error: string | null, accounts = state.personas.companies) =>
+      html(
+        <CompanyAccess
+          demoAccounts={accounts}
+          onPickDemo={noop}
+          onRegister={noop}
+          pending={false}
+          error={error}
+        />,
+      );
+    const markup = access(null);
 
     expect(state.active.companyId).toBeNull();
+    expect(state.activeCompany).toBeNull();
     expect(state.personas.companies).toHaveLength(4);
+    expect(markup).toContain("Registra tu empresa");
+    expect(markup).toContain('name="rif"');
+    expect(markup).toContain("Entra con una empresa de prueba");
     expect(markup).toContain("Constructora Los Guayos");
     expect(markup).toContain("RIF J-50123456-7");
     expect(markup).toContain("Empresa verificada");
     expect(markup).toContain('Entrar<span class="sr-only"> como Constructora Los Guayos</span>');
-    expect(
-      html(<CompanyPicker companies={[]} onPick={noop} pending error="La clave no es correcta." />),
-    ).toMatch(/role="alert".*La clave no es correcta\./);
+    expect(access("La clave no es correcta.", [])).toMatch(/role="alert".*La clave no es correcta\./);
   });
 
   it("al entrar, el servidor abre la sesión y el encabezado identifica a la empresa", async () => {
@@ -124,7 +134,7 @@ describe("entrada del contratista", () => {
     expect(active?.name).toBe("Constructora Los Guayos");
     expect(markup).toContain("Empresa verificada");
     expect(markup).toContain("RIF J-50123456-7");
-    expect(markup).toContain("Cambiar de empresa");
+    expect(markup).toContain("Cambiar de cuenta");
     expect(html(<CompanyIdentity company={{ ...active!, verified: false }} onSwitch={noop} />)).toContain(
       "Verificación pendiente",
     );
@@ -179,7 +189,7 @@ describe("pedir cuadrilla y tablero en vivo", () => {
   });
 
   it("tras un rechazo sugiere a Carlos como reemplazo, a un clic", async () => {
-    expect(await company.invite(requestId, 3)).toHaveLength(3);
+    expect(await company.invite(requestId, { quantity: 3 })).toHaveLength(3);
     const waiting = boardView(await boardNow());
     expect(waiting.match(/Invitación enviada/g)).toHaveLength(3);
     expect(waiting).toContain("3 personas más cumplen");
@@ -214,7 +224,7 @@ describe("pedir cuadrilla y tablero en vivo", () => {
   });
 
   it("cuando Carlos acepta, la cuadrilla queda completa y lleva a la obra", async () => {
-    await company.invite(requestId, 1);
+    await company.invite(requestId, { quantity: 1 });
     const accepted = await respond(carlos, true);
     contractId = accepted.offer.contractId!;
     await carlos.post(`/api/contracts/${contractId}/sign`, { body: { otp: accepted.otp } });

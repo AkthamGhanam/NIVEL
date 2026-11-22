@@ -185,7 +185,7 @@ describe("pantalla del chequeo previo", () => {
     expect(markup).toMatch(/<h1[^>]*>Chequeo previo<\/h1>/);
     expect(markup).toMatch(/<p role="status"[^>]*>1 de 2 pruebas fallaron/);
     expect(markup.match(/<li /g)).toHaveLength(2);
-    expect(markup).toContain('href="/demo"');
+    expect(markup).toContain('href="/c?planb=1"');
     expect(text(markup)).toContain("la demo sigue con el plan B");
   });
 

@@ -21,6 +21,8 @@ export const companies = sqliteTable("companies", {
   zone: text("zone").notNull(),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
+  /** Empresa real que se registró en la web: el reset no la borra y nadie entra como ella. */
+  isReal: bool("is_real"),
 });
 
 export const academies = sqliteTable("academies", {

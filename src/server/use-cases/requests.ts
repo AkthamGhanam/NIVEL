@@ -144,16 +144,32 @@ export interface InvitationSent {
   readonly candidate: PublicCandidate;
 }
 
-/** Invita a los siguientes N mejores candidatos que aún no fueron invitados. */
+/**
+ * A quién invitar: los siguientes N mejores, o las personas que eligió la
+ * empresa (siempre entre las que cumplen y aún no fueron invitadas).
+ */
+export type InviteChoice =
+  | { readonly requestId: string; readonly quantity: number }
+  | { readonly requestId: string; readonly workerIds: readonly string[] };
+
+const INVITE_RANGE = `Puedes invitar entre 1 y ${MAX_INVITATIONS_PER_CALL} personas a la vez`;
+
+function pickInvitees(available: readonly PublicCandidate[], input: InviteChoice): PublicCandidate[] {
+  if ("quantity" in input) return available.slice(0, input.quantity);
+  const chosen = new Set(input.workerIds);
+  const picked = available.filter((candidate) => chosen.has(candidate.workerId));
+  ensure(picked.length === chosen.size, "Alguna de esas personas ya no está disponible o ya fue invitada.");
+  return picked;
+}
+
+/** Invita a las personas elegidas, o a los siguientes N mejores que aún no fueron invitados. */
 export async function inviteCandidates(
   context: AppContext,
   actor: Actor,
-  input: { readonly requestId: string; readonly quantity: number },
+  input: InviteChoice,
 ): Promise<InvitationSent[]> {
-  ensure(
-    Number.isInteger(input.quantity) && input.quantity >= 1 && input.quantity <= MAX_INVITATIONS_PER_CALL,
-    `Puedes invitar entre 1 y ${MAX_INVITATIONS_PER_CALL} personas a la vez`,
-  );
+  const count = "quantity" in input ? input.quantity : new Set(input.workerIds).size;
+  ensure(Number.isInteger(count) && count >= 1 && count <= MAX_INVITATIONS_PER_CALL, INVITE_RANGE);
   const request = await loadOwnRequest(context, actor, input.requestId);
   if (request.status !== "abierta")
     throw new ConflictError("La cuadrilla de esta solicitud ya está completa.");
@@ -165,9 +181,10 @@ export async function inviteCandidates(
       .where(eq(invitations.requestId, request.id)),
   ]);
   const invitedIds = new Set(alreadyInvited.map((row) => row.workerId));
-  const next = search.candidates
-    .filter((candidate) => !invitedIds.has(candidate.workerId))
-    .slice(0, input.quantity);
+  const next = pickInvitees(
+    search.candidates.filter((candidate) => !invitedIds.has(candidate.workerId)),
+    input,
+  );
   if (next.length === 0) return [];
   const createdAt = context.now().toISOString();
   const rows = next.map((candidate) => ({
@@ -225,7 +242,10 @@ export async function activeRequestBoard(context: AppContext, actor: Actor): Pro
   const invitedIds = new Set(sent.map((invitation) => invitation.workerId));
   const accepted = sent.filter((invitation) => invitation.status === "aceptada").length;
   const pending = sent.filter((invitation) => invitation.status === "enviada").length;
-  const needsReplacement = accepted + pending < request.quantity && sent.length > 0;
+  // Solo hay "reemplazo" si alguien rechazó: si la empresa invitó a menos personas de las que
+  // necesita por elección propia, la lista de candidatos ya le ofrece a quién más invitar.
+  const someoneDeclined = sent.some((invitation) => invitation.status === "rechazada");
+  const needsReplacement = accepted + pending < request.quantity && someoneDeclined;
   return {
     request,
     ...search,

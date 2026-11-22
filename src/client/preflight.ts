@@ -1,12 +1,11 @@
 import { type ApiRequest, errorMessage } from "./api";
 import { SOUNDS } from "./level-up";
 import { CONTRACTOR_OPENING } from "./plan-b";
-import { PRIVACY_AUDIO_URL } from "./registration-view";
 import { playAudio } from "./speech-player";
 import { testMicrophone } from "./voice-recorder";
 
 /**
- * Chequeo previo del Modo Jurado (sección 12): antes de subir al escenario se
+ * Chequeo previo de la demo (sección 12): antes de subir al escenario se
  * comprueba, desde la misma laptop, cada pieza de la que depende la demo. Cada
  * prueba usa las rutas reales; ninguna cambia los datos de la demo.
  */
@@ -40,8 +39,8 @@ export const SOUND_EFFECT_URLS: readonly string[] = Object.freeze(Object.values(
 
 /** Lista de audios pregenerados que publica `npm run audio:gen`. */
 export const AUDIO_MANIFEST_URL = "/audio/manifest.json";
-/** El audio con el que se prueba la salida de sonido. */
-export const SOUND_TEST_URL = PRIVACY_AUDIO_URL;
+/** El audio con el que se prueba la salida de sonido: el resumen de privacidad, que ya viene pregenerado. */
+export const SOUND_TEST_URL = "/audio/privacidad.mp3";
 
 /** Del manifiesto solo se aceptan rutas de audio de la propia app. */
 const isAudioPath = (url: string) => /^\/(audio|sfx)\/[\w./-]+\.mp3$/.test(url) && !url.includes("..");

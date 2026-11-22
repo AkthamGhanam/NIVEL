@@ -18,8 +18,6 @@ import { IDS } from "@/server/db/seed/cast";
 import { createBrowserFetch } from "@/server/testing/browser-fetch";
 import { type InProcessApi, startInProcessApi } from "@/server/testing/in-process-api";
 
-import { DemoControls } from "../demo/demo-controls";
-import { DemoStage } from "../demo/demo-stage";
 import { RequestHeader } from "./board";
 
 /**
@@ -234,34 +232,5 @@ describe("plan B del contratista", () => {
     await expect(request("/api/requests", { as: "company", method: "POST", body })).rejects.toMatchObject({
       status: 422,
     });
-  });
-});
-
-describe("plan B en el Modo Jurado", () => {
-  it("con el plan B, la web del contratista abre con el guion; sin él, con el agente en vivo", () => {
-    expect(renderToStaticMarkup(<DemoStage planB />)).toContain('<iframe src="/c?planb=1"');
-    expect(renderToStaticMarkup(<DemoStage />)).toContain('<iframe src="/c"');
-  });
-
-  it("el presentador lo enciende con un interruptor que dice su estado y tiene a mano el chequeo previo", () => {
-    const controls = (planBOn: boolean) =>
-      renderToStaticMarkup(
-        <DemoControls
-          bot={false}
-          onBot={noop}
-          planB={planBOn}
-          onPlanB={noop}
-          onFastForward={noop}
-          onReset={noop}
-          pending={false}
-          notice={null}
-          error={null}
-        />,
-      );
-
-    expect(controls(true)).toMatch(/role="switch" aria-checked="true" aria-labelledby="planb-titulo"/);
-    expect(controls(true)).toContain("Nivi sigue el guion, sin el agente en vivo");
-    expect(controls(false)).toContain("Apagado: Nivi conversa en vivo");
-    expect(controls(false)).toContain('href="/demo/check"');
   });
 });
