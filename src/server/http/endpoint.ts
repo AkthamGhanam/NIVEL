@@ -19,6 +19,7 @@ import {
 } from "../errors";
 import { log } from "../log";
 import { workerIsActive } from "../repos/accounts";
+import { logEvent } from "../use-cases/events";
 import type { RateLimiter, RateRule } from "./rate-limit";
 import {
   decodeSession,
@@ -149,6 +150,14 @@ function clientIp(request: Request): string {
   return forwarded || request.headers.get("x-real-ip") || "desconocida";
 }
 
+export const TOOL_REJECTED_EVENT = "herramienta_rechazada";
+
+class ToolRejectedError extends UnauthorizedError {
+  constructor() {
+    super("Secreto de herramientas inválido.");
+  }
+}
+
 interface Caller {
   readonly request: Request;
   readonly runtime: Runtime;
@@ -172,8 +181,9 @@ function assertWithinGeneralLimit({ request, runtime }: Caller): void {
 function authenticate(caller: Caller, access: Access, sessions: Sessions): Actor | undefined {
   const { request, runtime } = caller;
   if (access === "tool") {
-    if (secretIsValid(caller, request.headers.get(TOOL_SECRET_HEADER), runtime.toolSecret)) return undefined;
-    throw new UnauthorizedError("Secreto de herramientas inválido.");
+    if (secretIsValid(caller, request.headers.get(TOOL_SECRET_HEADER)?.trim() ?? null, runtime.toolSecret))
+      return undefined;
+    throw new ToolRejectedError();
   }
   assertWithinGeneralLimit(caller);
   if (access === "public") return undefined;
@@ -323,6 +333,20 @@ function successResponse(result: unknown, requestId: string): Response {
   return jsonResponse(result, 200, { "X-Request-ID": requestId });
 }
 
+async function noteRejectedTool(runtime: RuntimeProvider, request: Request): Promise<void> {
+  try {
+    const { context } = await runtime();
+    await logEvent(context, {
+      actor: "Nivi",
+      type: TOOL_REJECTED_EVENT,
+      label: `Herramienta rechazada: la clave no coincide${request.headers.has(TOOL_SECRET_HEADER) ? "" : " (sin clave)"}`,
+      product: "agents",
+    });
+  } catch {
+    return;
+  }
+}
+
 export function endpoint<A extends Access, Schema extends z.ZodType | undefined = undefined>(
   options: EndpointOptions<A, Schema>,
   handler: (input: EndpointInput<BodyOf<Schema>, ActorOf<A>>) => Promise<unknown>,
@@ -368,6 +392,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
     try {
       response = successResponse(await respond(request, route), requestId);
     } catch (error) {
+      if (error instanceof ToolRejectedError) await noteRejectedTool(runtime, request);
       response = errorResponse(error, requestId);
     }
     log("info", "http_request", {
