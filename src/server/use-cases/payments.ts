@@ -7,6 +7,7 @@ import { type FeePaymentMethod, toBolivares } from "@/lib/pricing";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
+import { writeTransaction } from "../db/write-transaction";
 import { companies, contracts, payments, workers } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { getDemoValue } from "./demo-state";
@@ -95,7 +96,7 @@ export async function confirmPayment(
   if (contract.workerId !== workerId) throw new ForbiddenError();
   if (payment.confirmedByWorkerAt) return payment;
   const confirmedAt = context.now().toISOString();
-  const [confirmed] = await context.db.transaction(async (tx) => {
+  const [confirmed] = await writeTransaction(context.db, async (tx) => {
     await tx.update(contracts).set({ status: "completado" }).where(eq(contracts.id, contract.id));
     return tx
       .update(payments)

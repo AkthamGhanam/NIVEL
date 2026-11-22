@@ -17,10 +17,12 @@ import {
   UnsupportedMediaTypeError,
 } from "../errors";
 import { log } from "../log";
+import { workerIsActive } from "../repos/accounts";
 import type { RateLimiter, RateRule } from "./rate-limit";
 import {
   decodeSession,
   encodeSession,
+  expiredSessionCookie,
   parseCookies,
   secretMatches,
   sessionCookie,
@@ -95,6 +97,8 @@ export interface EndpointInput<Body, RequestActor> {
   readonly sessions: Sessions;
   /** Cabecera `Set-Cookie` que abre la sesión del actor indicado. */
   readonly issueSession: (actor: Actor) => string;
+  /** Cabecera `Set-Cookie` que cierra la sesión de un rol (por ejemplo, al borrar la cuenta). */
+  readonly endSession: (role: Role) => string;
   /** ¿Coincide el valor con la clave de demo del servidor? Falso si no está configurada. */
   readonly isDemoKey: (candidate: string | null) => boolean;
   /** Contexto firmado de la conversación de voz que llama a la herramienta, si lo trae. */
@@ -124,7 +128,7 @@ type BodyOf<Schema> = Schema extends z.ZodType ? z.infer<Schema> : undefined;
 export type RouteParams = { readonly params: Promise<Readonly<Record<string, string>>> };
 export type RouteHandler = (request: Request, route?: RouteParams) => Promise<Response>;
 
-function readSessions(request: Request, runtime: Runtime): Sessions {
+async function readSessions(request: Request, runtime: Runtime): Promise<Sessions> {
   const cookies = parseCookies(request.headers.get("cookie"));
   const now = runtime.context.now();
   const sessions: Partial<Record<Role, Actor>> = {};
@@ -132,6 +136,11 @@ function readSessions(request: Request, runtime: Runtime): Sessions {
     const actor = decodeSession(cookies.get(sessionCookieName(role)), runtime.sessionSecret, now);
     // Una cookie válida de un rol no sirve bajo el nombre de otro.
     if (actor?.role === role) sessions[role] = actor;
+  }
+  // La sesión muere con la cuenta: si la persona la borró (o un reinicio se la llevó), ya no vale.
+  const worker = sessions.worker;
+  if (worker?.role === "worker" && !(await workerIsActive(runtime.context.db, worker.workerId))) {
+    delete sessions.worker;
   }
   return sessions;
 }
@@ -314,7 +323,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
     const caller = { request, runtime: resolved };
     const now = resolved.context.now();
     assertSameOrigin(request);
-    const sessions = readSessions(request, resolved);
+    const sessions = await readSessions(request, resolved);
     const actor = authenticate(caller, options.access, sessions) as ActorOf<A>;
     if (options.limit) {
       const wait = resolved.limiter.hit(`${options.limit.bucket}:${clientIp(request)}`, options.limit, now);
@@ -330,6 +339,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
       sessions,
       issueSession: (next) =>
         sessionCookie(next.role, encodeSession(next, resolved.sessionSecret, now), resolved.secureCookies),
+      endSession: (role) => expiredSessionCookie(role, resolved.secureCookies),
       isDemoKey: (candidate) => secretIsValid(caller, candidate, resolved.demoKey),
       toolContext:
         options.access === "tool"

@@ -8,8 +8,10 @@ import type { ContractType, Trade } from "@/lib/trades";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
+import { writeTransaction } from "../db/write-transaction";
 import { companies, contracts, fees, invitations, jobRequests, workers } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
+import { paysOnTimeByCompany } from "../repos/company-reputation";
 import { NOT_EMPLOYER_NOTICE, newOtpCode, otpDigest } from "./contracts";
 import { logEvent } from "./events";
 
@@ -17,7 +19,12 @@ export interface WorkerOffer {
   readonly invitationId: string;
   readonly status: "enviada" | "aceptada" | "rechazada";
   readonly audioUrl: string | null;
-  readonly company: { readonly name: string; readonly verified: boolean };
+  readonly company: {
+    readonly name: string;
+    readonly verified: boolean;
+    /** Porcentaje de trabajos que pagó a tiempo. Nulo si tiene menos de 5 contrataciones terminadas. */
+    readonly paysOnTimePercent: number | null;
+  };
   readonly trade: Trade;
   readonly zone: string;
   readonly startDate: string;
@@ -43,12 +50,18 @@ function offersQuery(context: AppContext) {
 
 type OfferJoin = Awaited<ReturnType<typeof offersQuery>>[number];
 
-function toOffer({ invitation, request, company, contractId }: OfferJoin): WorkerOffer {
+type PaymentRates = ReadonlyMap<string, number | null>;
+
+function toOffer({ invitation, request, company, contractId }: OfferJoin, rates: PaymentRates): WorkerOffer {
   return {
     invitationId: invitation.id,
     status: invitation.status,
     audioUrl: invitation.audioUrl,
-    company: { name: company.name, verified: company.verified },
+    company: {
+      name: company.name,
+      verified: company.verified,
+      paysOnTimePercent: rates.get(company.id) ?? null,
+    },
     trade: request.trade,
     zone: request.zone,
     startDate: request.startDate,
@@ -67,7 +80,11 @@ export async function listMyOffers(context: AppContext, actor: Actor): Promise<W
   const rows = await offersQuery(context)
     .where(eq(invitations.workerId, workerId))
     .orderBy(desc(invitations.createdAt));
-  return rows.map(toOffer);
+  const rates = await paysOnTimeByCompany(
+    context.db,
+    rows.map((row) => row.company.id),
+  );
+  return rows.map((row) => toOffer(row, rates));
 }
 
 export interface InvitationResponse {
@@ -93,7 +110,7 @@ async function acceptInvitation({
   const otp = newOtpCode();
   const respondedAt = context.now().toISOString();
   const fee = hiringFee(worker.level as Level);
-  await context.db.transaction(async (tx) => {
+  await writeTransaction(context.db, async (tx) => {
     const [{ accepted } = { accepted: 0 }] = await tx
       .select({ accepted: count() })
       .from(invitations)
@@ -171,10 +188,10 @@ export async function respondToInvitation(
     detail: { invitationId: row.invitation.id, requestId: row.request.id },
   });
   const status = input.accept ? ("aceptada" as const) : ("rechazada" as const);
-  const offer = toOffer({
-    ...row,
-    invitation: { ...row.invitation, status },
-    contractId: accepted?.contractId ?? null,
-  });
+  const rates = await paysOnTimeByCompany(context.db, [row.company.id]);
+  const offer = toOffer(
+    { ...row, invitation: { ...row.invitation, status }, contractId: accepted?.contractId ?? null },
+    rates,
+  );
   return { offer, otp: accepted?.otp ?? null };
 }

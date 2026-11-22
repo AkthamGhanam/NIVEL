@@ -80,6 +80,41 @@ Sin probar todavía: la conversación real con ElevenLabs. Falta la clave para p
 confirmar que la plataforma envía la variable secreta en la cabecera como dice su documentación.
 El límite de peticiones es por instancia: frena abusos, pero no es un contador global exacto.
 
+## Fase 5a · Datos para las pantallas — lista
+
+- [x] Migración que agrega columnas nuevas a una base ya creada sin perder datos (`ALTER TABLE ADD COLUMN`)
+- [x] "Mis datos": `GET/PATCH/DELETE /api/me`, `POST /api/me/consents`, `GET /api/me/data` (descarga)
+- [x] "Abierto a trabajar" y cada permiso por separado; retirar "compartir perfil" saca de las búsquedas al instante
+- [x] Borrar la cuenta cierra la sesión; una cookie firmada deja de valer cuando la cuenta ya no existe
+- [x] "Mi ruta": `GET /api/courses`, inscripción, avance de lecciones y prueba práctica agendada
+- [x] Panel de academia: `GET /api/academy`, evaluar la prueba práctica y emitir la constancia (ambas recalculan el nivel)
+- [x] Tarifas de NIVEL: `GET /api/fees`, `POST /api/fees/:id/pay` (solo Pago Móvil o transferencia), sugerencia del Plan Obra
+- [x] `GET /api/metrics` y `GET /api/demo/real-profiles` (solo nombre de pila, oficio y zona)
+- [x] El tablero de la empresa trae la última jornada de cada persona; la oferta trae "paga a tiempo" (dato objetivo)
+- [x] Clasificador de reportes por texto, listo para la transcripción de voz
+- [x] Varias personas aceptando a la vez: nadie recibe un error y la cuadrilla nunca se pasa del cupo
+- [x] Una sola inscripción y una sola constancia por persona y curso, aunque lleguen dos toques a la vez
+- [x] 370 pruebas; cobertura de líneas 99 %
+
+Cambios respecto a la especificación, por seguridad y por ley:
+
+- `/api/me` nunca recibe `workerId`: siempre actúa sobre la persona de la sesión.
+- Borrar la cuenta de alguien que ya trabajó no borra los recibos de pago (la empresa debe conservarlos):
+  se borra todo lo demás y el perfil queda vacío y fuera de toda búsqueda. Sin contratos, no queda ni la fila.
+- La constancia no se emite sola al terminar el curso: la emite la academia.
+- Una academia evalúa solo las pruebas de su taller o de sus propios alumnos.
+- "Paga a tiempo" es el porcentaje real de trabajos pagados hasta 3 días después del último día de obra, y solo
+  se muestra con 5 o más contrataciones terminadas. Con el seed actual da 100 %, no el 96 % del guion.
+
+Error corregido de la fase 3: dos personas que aceptaban una invitación en el mismo instante podían recibir
+un error 500 (SQLite admite un solo escritor). Ahora la transacción toma el candado al empezar y reintenta.
+Probado con base local; falta confirmarlo contra Turso remoto.
+
+## Fase 5b · Audio y transcripción — pendiente (necesita `ELEVENLABS_API_KEY`)
+
+- [ ] `POST /api/voice/tts` con caché por texto, `POST /api/voice/transcribe` (Scribe) y sus guiones de audio
+- [ ] `scripts/setup-agents.ts` para publicar los dos agentes y confirmar la variable secreta en la cabecera
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

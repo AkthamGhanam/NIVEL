@@ -53,13 +53,23 @@ describe("smoke del camino dorado por las rutas reales", () => {
 
   it("el tablero de la empresa muestra la cuadrilla con firma, asistencia y pago", async () => {
     const { board } = await clients.company.get<{
-      board: { crew: Array<{ workerId: string; status: string; daysAttended: number; payment: unknown }> };
+      board: {
+        crew: Array<{
+          workerId: string;
+          status: string;
+          daysAttended: number;
+          payment: unknown;
+          lastAttendance: { checkInAt: string | null; checkOutAt: string | null } | null;
+        }>;
+      };
     }>("/api/requests/active");
     const carlos = board.crew.find((member) => member.workerId === IDS.carlos);
 
     expect(board.crew).toHaveLength(3);
     expect(carlos).toMatchObject({ status: "completado", daysAttended: 5, ratedByCompany: true });
     expect(carlos?.payment).not.toBeNull();
+    expect(carlos?.lastAttendance?.checkInAt).not.toBeNull();
+    expect(carlos?.lastAttendance?.checkOutAt).not.toBeNull();
     expect(JSON.stringify(board)).not.toContain("otpHash");
   });
 
@@ -73,6 +83,30 @@ describe("smoke del camino dorado por las rutas reales", () => {
     expect(contract.attendance).toHaveLength(5);
     expect(contract.payment?.confirmedByWorkerAt).not.toBeNull();
     expect(contract).not.toHaveProperty("otpHash");
+  });
+
+  it("las métricas cuentan la obra: tiempo a cuadrilla completa y tarifas por cobrar con IVA", async () => {
+    const metrics = await clients.team.get<{
+      averageMinutesToFullCrew: number | null;
+      requests: { complete: number };
+      income: { pendingTotalUsd: number };
+    }>("/api/metrics", { as: "admin" });
+
+    expect(metrics.averageMinutesToFullCrew).toBeGreaterThanOrEqual(0);
+    expect(metrics.requests.complete).toBeGreaterThanOrEqual(1);
+    // Tres contrataciones: Rafael y José (Nivel 3, $30) y Carlos (Nivel 2, $20), más IVA 16 %.
+    expect(metrics.income.pendingTotalUsd).toBe(92.8);
+  });
+
+  it("la oferta que ve Carlos trae el dato objetivo de pago a tiempo de la empresa", async () => {
+    const carlos = await clients.worker(IDS.carlos);
+    const { offers } = await carlos.get<{
+      offers: Array<{ company: { verified: boolean; paysOnTimePercent: number | null } }>;
+    }>("/api/invitations");
+
+    expect(offers[0]?.company.verified).toBe(true);
+    expect(offers[0]?.company.paysOnTimePercent).toBeGreaterThanOrEqual(0);
+    expect(offers[0]?.company.paysOnTimePercent).toBeLessThanOrEqual(100);
   });
 
   it("el estado público lista personajes del seed y la persona activa de cada vista", async () => {

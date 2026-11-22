@@ -4,6 +4,7 @@ import { ensure } from "@/lib/errors";
 
 import type { Actor } from "../actor";
 import type { AppContext } from "../context";
+import { writeTransaction } from "../db/write-transaction";
 import { contracts, ratings } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
@@ -82,7 +83,7 @@ export async function submitRating(
     throw new ConflictError("Ya calificaste este trabajo.");
   const submittedAt = context.now().toISOString();
   const bothRated = existing.length > 0;
-  await context.db.transaction(async (tx) => {
+  await writeTransaction(context.db, async (tx) => {
     await tx.insert(ratings).values({
       id: context.newId("ra"),
       contractId: contract.id,

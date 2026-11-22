@@ -54,3 +54,24 @@ export function createTableSql(table: SQLiteTable): string {
 }
 
 export const tableName = (table: SQLiteTable): string => getTableConfig(table).name;
+
+/** Nombres de las columnas de una tabla según el esquema. */
+export const columnNames = (table: SQLiteTable): string[] =>
+  getTableConfig(table).columns.map((column) => column.name);
+
+/**
+ * `ALTER TABLE … ADD COLUMN` para una columna que el esquema tiene y la base
+ * todavía no. SQLite solo puede agregar columnas opcionales o con valor por
+ * defecto, y nunca claves ni UNIQUE: en esos casos se falla con un error claro
+ * en vez de dejar la base a medias.
+ */
+export function addColumnSql(table: SQLiteTable, columnName: string): string {
+  const config = getTableConfig(table);
+  const column = config.columns.find((candidate) => candidate.name === columnName);
+  if (!column) throw new Error(`La tabla ${config.name} no tiene la columna ${columnName}`);
+  const addable = !column.primary && !column.isUnique && (!column.notNull || column.hasDefault);
+  if (!addable) {
+    throw new Error(`La columna ${config.name}.${columnName} no se puede agregar a una tabla que ya existe`);
+  }
+  return `ALTER TABLE ${quoteIdentifier(config.name)} ADD COLUMN ${columnSql(column)}`;
+}

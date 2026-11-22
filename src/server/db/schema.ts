@@ -47,6 +47,10 @@ export const workers = sqliteTable("workers", {
   createdVia: text("created_via", { enum: ["voz", "texto", "seed"] }).notNull(),
   /** Persona real registrada durante el evento: el reset no la borra. */
   isReal: bool("is_real"),
+  /** "Abierto a trabajar": si lo apaga, no aparece en búsquedas de empresas. */
+  openToWork: integer("open_to_work", { mode: "boolean" }).notNull().default(true),
+  /** Cuenta borrada a petición de la persona: sus datos personales ya no están. */
+  deletedAt: text("deleted_at"),
   conversationId: text("conversation_id"),
   consentVoiceAt: text("consent_voice_at"),
   consentSelfieAt: text("consent_selfie_at"),

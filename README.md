@@ -52,6 +52,9 @@ del servidor. Reinicia la demo al empezar y al terminar; con `-- --keep` deja el
   contexto firmado por el servidor, no el modelo de lenguaje.
 - Límite de peticiones por IP, con bloqueo temporal tras varios secretos errados.
 - Un perfil real nace privado: no aparece en búsquedas hasta que la persona acepta compartirlo.
+- "Mis datos": cada persona ve, descarga, corrige y borra lo suyo, y da o retira cada permiso por separado.
+  La sesión deja de valer en cuanto la cuenta se borra.
+- Cada empresa y academia ve y paga solo sus tarifas; una academia evalúa solo a sus alumnos o en su taller.
 - El código de firma se guarda como HMAC, con 5 intentos; la bitácora no guarda reportes ni datos personales.
 - Los errores inesperados responden un mensaje genérico con un `requestId`; el detalle queda en el log.
 - CI: formato, lint, tipos, pruebas con cobertura, build, `npm audit` y `gitleaks`.
