@@ -6,6 +6,7 @@ import { resetDemo, type ResetSummary } from "../db/reset";
 import { contracts, jobRequests } from "../db/schema";
 import { ConflictError } from "../errors";
 import { fastForwardAttendance } from "./attendance";
+import { setDemoValue } from "./demo-state";
 import { logEvent } from "./events";
 
 /**
@@ -54,4 +55,20 @@ export async function fastForwardActiveRequest(
   const target = requestId ?? (await latestActiveRequestId(context));
   if (!target) throw new ConflictError("No hay una obra activa con contratos firmados.");
   return { requestId: target, daysAdded: await fastForwardAttendance(context, actor, target) };
+}
+
+/** Enciende o apaga el bot que responde por los personajes fuera del escenario. */
+export async function setDemoBot(
+  context: AppContext,
+  actor: Actor,
+  on: boolean,
+): Promise<{ readonly bot: boolean }> {
+  requireRole(actor, "admin");
+  await setDemoValue(context, "bot", on ? "on" : "off");
+  await logEvent(context, {
+    actor: "Modo Jurado",
+    type: "bot_demo",
+    label: on ? "Bot de demo encendido" : "Bot de demo apagado",
+  });
+  return { bot: on };
 }

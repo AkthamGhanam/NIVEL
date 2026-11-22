@@ -4,6 +4,7 @@ import type { Level } from "@/lib/level";
 import { shortName } from "@/lib/matching";
 import { round2 } from "@/lib/money";
 import { hiringFee } from "@/lib/pricing";
+import type { ContractType, Trade } from "@/lib/trades";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
@@ -17,13 +18,13 @@ export interface WorkerOffer {
   readonly status: "enviada" | "aceptada" | "rechazada";
   readonly audioUrl: string | null;
   readonly company: { readonly name: string; readonly verified: boolean };
-  readonly trade: string;
+  readonly trade: Trade;
   readonly zone: string;
   readonly startDate: string;
   readonly days: number;
   readonly dailyPayUsd: number;
   readonly totalUsd: number;
-  readonly contractType: string;
+  readonly contractType: ContractType;
   readonly contractId: string | null;
   readonly notice: string;
 }

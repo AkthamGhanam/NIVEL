@@ -1,10 +1,11 @@
 import { and, asc, eq } from "drizzle-orm";
 
+import { normalizeSpanish } from "@/lib/dates";
 import { ensure } from "@/lib/errors";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
-import { reports } from "../db/schema";
+import { companies, reports } from "../db/schema";
 import { ConflictError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
 
@@ -36,6 +37,7 @@ export interface NewReport {
 
 const MAX_REPORT_TEXT_LENGTH = 2000;
 const MAX_REVIEWER_NOTE_LENGTH = 1000;
+const MIN_COMPANY_NAME_LENGTH = 4;
 
 export interface ReportCreated {
   readonly reportId: string;
@@ -53,12 +55,25 @@ export async function createReport(
   input: NewReport,
 ): Promise<ReportCreated> {
   const { workerId } = requireRole(actor, "worker");
+  return openReport(context, workerId, input);
+}
+
+/**
+ * Guarda el reporte. `reporterWorkerId` es nulo cuando alguien reporta por voz
+ * antes de tener perfil: un reporte de abuso no exige registrarse primero.
+ * Quien llama ya autenticó el origen (sesión del trabajador o secreto de herramientas).
+ */
+export async function openReport(
+  context: AppContext,
+  reporterWorkerId: string | null,
+  input: NewReport,
+): Promise<ReportCreated> {
   const body = input.text ?? input.transcript ?? "";
   ensure(body.length <= MAX_REPORT_TEXT_LENGTH, "El reporte es demasiado largo. Resúmelo en unas líneas.");
   const id = context.newId("re");
   await context.db.insert(reports).values({
     id,
-    reporterWorkerId: workerId,
+    reporterWorkerId,
     companyId: input.companyId ?? null,
     kind: input.kind,
     text: input.text?.trim() || null,
@@ -79,6 +94,17 @@ export async function createReport(
     message: REPORT_RECEIVED_MESSAGE,
     guidance: input.kind === "inseguridad" ? INPSASEL_GUIDANCE : null,
   };
+}
+
+/** Empresa a la que se refiere quien reporta de palabra ("la constructora de Los Guayos"), si la reconocemos. */
+export async function findCompanyByName(context: AppContext, spoken: string): Promise<string | undefined> {
+  const wanted = normalizeSpanish(spoken);
+  if (wanted.length < MIN_COMPANY_NAME_LENGTH) return undefined;
+  const all = await context.db.select({ id: companies.id, name: companies.name }).from(companies);
+  return all.find((company) => {
+    const name = normalizeSpanish(company.name);
+    return name.includes(wanted) || wanted.includes(name);
+  })?.id;
 }
 
 /** Cola de revisión humana, de la más antigua a la más nueva. Solo el equipo de NIVEL. */
