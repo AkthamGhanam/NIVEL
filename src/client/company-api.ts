@@ -17,7 +17,10 @@ import type { ApiRequest } from "./api";
 
 export type { DemoState, FeeStatement, PaymentRow, Receipt, RequestBoard };
 export type CompanyPersona = DemoState["personas"]["companies"][number];
-export type RequestInput = Omit<NewJobRequest, "createdVia">;
+export type RequestInput = Omit<NewJobRequest, "createdVia"> & {
+  /** Cómo se pidió. Sin indicarlo, el servidor la registra como pedida por formulario. */
+  readonly via?: "voz" | "web";
+};
 export type RatingInput = NewRating;
 
 export type { CompanyCreated };
@@ -68,6 +71,9 @@ export function createCompanyApi(request: ApiRequest) {
       post<unknown>(`/api/fees/${segment(feeId)}/pay`, { method }),
 
     rate: (input: RatingInput) => post<RatingSubmitted>("/api/ratings", input),
+
+    /** Dirección del audio de una frase en la voz de Nivi (las repetidas salen de la caché). */
+    speak: async (text: string) => (await post<{ url: string }>("/api/voice/tts", { text })).url,
   };
 }
 

@@ -35,6 +35,24 @@ describe("cliente de la API", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "DELETE", body: "{}" });
   });
 
+  it("una nota de voz viaja cruda, con su propio tipo y siempre por POST", async () => {
+    const { request, fetchMock } = clientWith(json({ reportId: "re-1" }));
+    const note = new Blob([new Uint8Array(64)], { type: "audio/webm" });
+    await request("/api/voice/transcribe", { as: "worker", upload: note });
+    await request("/api/voice/transcribe", { upload: new Blob([new Uint8Array(8)]) });
+
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect(init).toMatchObject({ method: "POST", body: note });
+    expect(init?.headers).toEqual({
+      accept: "application/json",
+      "x-nivel-role": "worker",
+      "content-type": "audio/webm",
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+      "content-type": "application/octet-stream",
+    });
+  });
+
   it("un rechazo del servidor llega como ApiError con código, campos y requestId", async () => {
     const { request } = clientWith(
       json(
@@ -107,5 +125,9 @@ describe("cliente de la API", () => {
     expect(errorMessage(new Error("interno: tabla workers"))).toBe(
       "Algo falló de nuestro lado. Intenta de nuevo.",
     );
+    const microphone = Object.assign(new Error("Sin permiso para el micrófono."), {
+      name: "MicrophoneError",
+    });
+    expect(errorMessage(microphone)).toBe("Sin permiso para el micrófono.");
   });
 });

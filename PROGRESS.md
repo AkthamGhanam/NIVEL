@@ -330,6 +330,103 @@ Pendiente:
 - La voz de registro solo está probada hasta el token: falta una conversación real con micrófono en el Preview.
 - No hay inicio de sesión para volver a una cuenta real desde otro navegador: la sesión vive en la cookie.
 
+## Fase 12 · Voz en las pantallas — lista en código salvo el widget de respaldo (sin probar con ElevenLabs real)
+
+### 12a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
+
+- [x] «Escuchar la oferta» en la tarjeta y en el detalle de la invitación: Nivi lee lo mismo que está escrito
+      (empresa, oficio, zona, días, pago diario y total) y recuerda que el contrato es directo con la empresa.
+      El audio se pide solo cuando la persona lo toca, y repetir la misma frase sale de la caché del servidor
+- [x] Reporte por nota de voz en `/t/ayuda`: hasta 60 s, con reloj, «Terminar y enviar» y «Descartar». La nota
+      sube cruda a `/api/voice/transcribe`; la pantalla muestra lo que se entendió y cómo se anotó, y el aviso
+      de revisión humana. El formulario escrito queda siempre debajo
+- [x] El audio de la nota no se guarda en el navegador ni en el servidor, y el micrófono se suelta al terminar,
+      al descartar o al salir de la pantalla
+- [x] Solo se reproduce audio servido por la propia app (`src/client/audio-url.ts`)
+- [x] 661 pruebas; cobertura de líneas 99 %
+
+Recorrido en Chromium a 390 px con el micrófono falso del navegador: 8 estados, axe sin hallazgos, sin
+desbordes y sin errores inesperados. La nota grabada subió de verdad al servidor local (`audio/webm`), que
+respondió 503 porque aquí no hay clave de ElevenLabs; el camino feliz en el navegador se vio interceptando
+solo las dos rutas de voz. Contra las rutas reales, con ElevenLabs sustituido, lo cubren las pruebas.
+
+Pendiente de las notas de voz:
+
+- Probarlas contra ElevenLabs real (TTS y Scribe) en producción: desde este hilo no hay clave ni acceso.
+- Sin probar en Safari (graba en MP4) ni en un teléfono real.
+- Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
+
+### 12b · Worklets de audio propios para Nivi — listo en código (sin probar aún contra ElevenLabs real)
+
+La conversación con Nivi es la de main (`NiviPanel` y `NiviCard`, voz o texto, desde el PR #26). El
+componente `NiviVoice` de tres modos que traía esta fase se quitó para no tener dos conversaciones distintas.
+
+- [x] El Nivi de main abre la conversación con los worklets del SDK servidos desde `public/elevenlabs`. Sin
+      eso el SDK los carga como `blob:`, que la CSP no admite: la conversación sigue, pero el navegador
+      bloquea el análisis del audio de salida y deja un aviso en la consola
+- [x] Una prueba compara esas copias con las del paquete instalado y avisa si el SDK cambia de versión
+- [x] 665 pruebas; cobertura de líneas 99 %
+
+Pendiente:
+
+- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs, así que el arreglo no se vio
+  funcionando: los worklets se cargan solo cuando la conversación ya conectó.
+- El modo de mantener presionado para hablar (nota de voz) que pide la especificación no está: el panel de
+  main tiene voz y texto.
+- Si ElevenLabs no conecta, el panel muestra el mensaje técnico del SDK en inglés.
+- Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
+- El widget de respaldo (`?widget=1`) sigue pendiente.
+
+### 12c · Plan B y chequeo previo — listos (el plan B sin audio pregenerado, solo para la empresa)
+
+- [x] **Plan B** en `/c?planb=1`: Nivi sigue el guion del camino dorado (3 soldadores de Nivel 2, 5 días,
+      25 dólares) sin pedir token ni conectarse al agente en vivo. Se pinta con el mismo panel de Nivi de
+      main (`NiviPanel`), así que se ve igual. Cada
+      turno ejecuta la acción real por la API de la empresa: crea la solicitud (queda «Pedida por voz») e
+      invita a los mejores, así que el tablero y la bitácora cambian como en una conversación de verdad
+- [x] Con «Hablar con Nivi» el guion avanza solo, unos 5 s después de que Nivi termina cada frase; con
+      «Escribirle a Nivi» avanza con cada mensaje. Un mensaje enviado mientras Nivi habla la interrumpe.
+      **No escucha el micrófono** (ni lo pide): hablando, en pantalla aparece la frase del guion, diga lo
+      que diga el presentador
+- [x] La voz del plan B sale de `/api/voice/tts` con su caché en la base, que sobrevive al reinicio de la
+      demo. Sin audio (sin red o sin clave), la frase queda escrita y el guion espera lo que toma leerla
+- [x] **Chequeo previo** en `/admin/chequeo` (solo el equipo), con un enlace para abrir `/c?planb=1`: base de datos, token de cada agente, voz de
+      Nivi, audios pregenerados según su manifiesto, efectos de sonido, y a un toque el micrófono y la
+      salida de audio. Cada prueba dice su estado con palabras y por qué falló. No cambia datos de la demo
+- [x] Dos arreglos al panel de Nivi de main que salieron en el recorrido: en un teléfono, `/c` ya no se
+      desborda a lo ancho con la conversación abierta, y la conversación escrita se puede recorrer con el
+      teclado
+- [x] `POST /api/requests` acepta `via: "voz" | "web"` (por defecto `web`)
+- [x] **Subir de nivel** (`/t/nivel?subiste=1`): suena el efecto y la felicitación de Nivi, que también
+      queda escrita con «Escuchar la felicitación». La de Carlos a Nivel 3 usa el audio pregenerado; para
+      cualquier otra persona la frase se pide al TTS. Al salir de la pantalla se calla
+- [x] En `/c`, una conversación abierta con Nivi se queda en su sitio cuando aparece la solicitud. Antes la
+      tarjeta cambiaba de lugar al aparecer el tablero, se desmontaba y la conversación se cortaba justo
+      después de crear la solicitud (pasaba también con el Nivi de verdad). En plan B la tarjeta va siempre arriba
+- [x] 802 pruebas tras unir con main (PR #33); cobertura de líneas 96 %
+
+Recorrido en Chromium, ya unido con main tras el PR #33: chequeo previo en `/admin/chequeo` (1440 px y
+390 px) y plan B completo en `/c?planb=1` (saludo, solicitud, invitaciones, cierre y terminar); axe sin
+hallazgos en lo de esta fase, sin desbordes, cero tokens pedidos y cero peticiones fuera de la app durante el
+plan B. Los recorridos completos de la empresa y del trabajador no se repitieron tras unir con main.
+
+Pendiente del plan B y del chequeo:
+
+- **El plan B no tiene audios pregenerados en `public/audio`** como pide la sección 12: usa la caché del
+  TTS. Hay que ensayarlo una vez con conexión para que las frases queden guardadas; con una base nueva y
+  sin red, Nivi no suena y solo se lee. Aquí no hay clave, así que nunca se oyó.
+- El plan B cubre solo la conversación de la empresa. El registro por voz no tiene plan B: ninguna ruta
+  crea un perfil sin pasar por el agente.
+- El plan B llama a la API de la empresa, no a las herramientas del agente: el resultado en la base es el
+  mismo, pero la bitácora no registra llamadas de herramienta.
+- El chequeo de «Agente de voz de la empresa» necesita que una empresa haya entrado en `/c` en ese
+  navegador. Los efectos de sonido salen en rojo hasta que se integre el PR que los trae.
+- La salida de audio solo comprueba que el navegador reprodujo el archivo; que se oiga lo confirma la persona.
+- El chequeo no revisa `TOOL_SECRET` ni que los agentes publicados apunten a esta dirección.
+- El efecto de subir de nivel (`/sfx/subir-nivel.mp3`) no está en esta rama: hasta que se integre, la
+  pantalla pide un archivo que responde 404 y solo suena la voz. El navegador puede bloquear el sonido
+  automático; para eso está el botón. Los sonidos de notificación y de éxito no se usan en ninguna pantalla.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

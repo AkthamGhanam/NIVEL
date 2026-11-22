@@ -39,6 +39,7 @@ const newRequestSchema = z.strictObject({
   contractType: z.enum(CONTRACT_TYPES),
   notes: z.string().trim().max(LIMITS.notes).optional(),
   site: geoFixSchema.optional(),
+  via: z.enum(["voz", "web"]).optional(),
 });
 
 const inviteSchema = z.union([
@@ -49,7 +50,8 @@ const inviteSchema = z.union([
 export const requestRoutes = (runtime: RuntimeProvider) => ({
   create: endpoint(
     { access: "company", body: newRequestSchema },
-    ({ actor, body, context }) => createJobRequest(context, actor, { ...body, createdVia: "web" }),
+    ({ actor, body: { via = "web", ...request }, context }) =>
+      createJobRequest(context, actor, { ...request, createdVia: via }),
     runtime,
   ),
 

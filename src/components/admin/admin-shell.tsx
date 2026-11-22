@@ -12,6 +12,7 @@ export const ADMIN_NAV = [
   { href: "/admin", label: "Métricas" },
   { href: "/admin/revision", label: "Revisión de reportes" },
   { href: "/admin/datos", label: "Datos de la demo" },
+  { href: "/admin/chequeo", label: "Chequeo previo" },
 ] as const;
 
 function AdminNav({ current }: { readonly current: string }) {

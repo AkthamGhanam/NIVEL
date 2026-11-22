@@ -5,6 +5,7 @@ import { useConversation } from "@elevenlabs/react";
 import { useEffect, useState } from "react";
 
 import { errorMessage } from "@/client/api";
+import { WORKLET_PATHS } from "@/client/voice-worklets";
 import type { OrbState } from "@/components/ui/voice-orb";
 
 export interface NiviSession {
@@ -77,6 +78,7 @@ function useNiviSession(openSession: () => Promise<NiviSession>) {
         connectionType: "webrtc",
         textOnly: next === "texto",
         dynamicVariables: { ...session.dynamicVariables },
+        workletPaths: { ...WORKLET_PATHS },
       });
     } catch (error) {
       setProblem(error instanceof DOMException ? MIC_DENIED : errorMessage(error));

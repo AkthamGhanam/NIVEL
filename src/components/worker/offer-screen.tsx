@@ -11,7 +11,7 @@ import { CONTRACT_TYPE_LABELS } from "@/lib/trades";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
-import { OfferCompany, OfferSummary, OfferVoiceNote } from "./offer-card";
+import { OfferCompany, OfferSummary, OfferVoiceNote, type Speak } from "./offer-card";
 import { useWorker } from "./worker-gate";
 
 interface OfferViewProps {
@@ -19,15 +19,16 @@ interface OfferViewProps {
   readonly onRespond: (accept: boolean) => void;
   readonly pending: boolean;
   readonly error: string | null;
+  readonly speak?: Speak;
 }
 
 /** Detalle de una oferta: quién invita, qué trabajo es, y aceptar o rechazar. */
-export function OfferView({ offer, onRespond, pending, error }: OfferViewProps) {
+export function OfferView({ offer, onRespond, pending, error, speak }: OfferViewProps) {
   return (
     <>
       <OfferCompany company={offer.company} />
       <OfferSummary offer={offer} titleAs="h1" />
-      <OfferVoiceNote audioUrl={offer.audioUrl} />
+      <OfferVoiceNote offer={offer} speak={speak} />
       <Card className="flex flex-col gap-1">
         <p className="text-sm font-bold text-ink-2">Tipo de contrato</p>
         <p>{CONTRACT_TYPE_LABELS[offer.contractType]}</p>
@@ -91,6 +92,7 @@ export function OfferScreen({ invitationId }: { readonly invitationId: string })
       onRespond={(accept) => void respond.invoke(accept)}
       pending={respond.pending}
       error={respond.error}
+      speak={api.speak}
     />
   );
 }

@@ -1,5 +1,7 @@
+import { sameSiteAudio } from "@/client/audio-url";
 import type { WorkerOffer } from "@/client/worker-api";
-import { offerFacts, offerTitle, paysOnTimeLabel } from "@/client/worker-view";
+import { offerFacts, offerSpeech, offerTitle, paysOnTimeLabel } from "@/client/worker-view";
+import { NotePlayer, SpokenNote } from "@/components/ui/spoken-note";
 import { Tag } from "@/components/ui/tag";
 
 /** Quién invita: nombre, si está verificada y su puntualidad de pago, que es un hecho medido. */
@@ -40,16 +42,23 @@ export function OfferSummary({
   );
 }
 
+/** Pide el audio de una frase en la voz de Nivi y devuelve su dirección dentro de la app. */
+export type Speak = (text: string) => Promise<string>;
+
+interface OfferVoiceNoteProps {
+  readonly offer: WorkerOffer;
+  /** Sin esta función (por ejemplo, sin servicio de voz) la oferta se queda solo en texto. */
+  readonly speak?: Speak | undefined;
+}
+
 /**
  * Nota de voz de la invitación. Siempre va con el texto de la oferta al lado:
- * nadie depende del audio para entenderla.
+ * nadie depende del audio para entenderla. Si la invitación ya trae su audio
+ * se muestra de una vez; si no, Nivi la lee cuando la persona lo pide.
  */
-export function OfferVoiceNote({ audioUrl }: { readonly audioUrl: string | null }) {
-  if (!audioUrl) return null;
-  return (
-    <figure className="flex flex-col gap-1">
-      <figcaption className="text-sm font-semibold text-ink-2">Nota de voz de Nivi</figcaption>
-      <audio controls preload="none" src={audioUrl} className="w-full" />
-    </figure>
-  );
+export function OfferVoiceNote({ offer, speak }: OfferVoiceNoteProps) {
+  const recorded = sameSiteAudio(offer.audioUrl);
+  if (recorded) return <NotePlayer label="Nota de voz de Nivi" audioUrl={recorded} />;
+  if (!speak) return null;
+  return <SpokenNote text={offerSpeech(offer)} action="Escuchar la oferta" speak={speak} />;
 }

@@ -24,6 +24,7 @@ function Transcript({ bubbles }: { readonly bubbles: readonly NiviBubble[] }) {
     <ol
       aria-label="Conversación con Nivi"
       aria-live="polite"
+      tabIndex={0}
       className="flex max-h-80 flex-col gap-2 overflow-y-auto pr-1"
     >
       {bubbles.map((bubble) => (

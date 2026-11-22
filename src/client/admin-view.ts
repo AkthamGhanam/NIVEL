@@ -2,6 +2,7 @@ import { formatDateTime, plural } from "@/lib/format";
 import { LEVEL_NAMES, type Level } from "@/lib/level";
 import type { PriceWithIva } from "@/lib/pricing";
 
+import { sameSiteAudio } from "./audio-url";
 import type { DemoState, Metrics, ReportOutcome, ReportRow } from "./team-api";
 
 /**
@@ -82,10 +83,6 @@ export interface ReportView {
   readonly audioUrl: string | null;
   readonly safetyReminder: boolean;
 }
-
-/** Solo se reproduce audio servido por la propia app: nunca una dirección externa guardada en un dato. */
-export const sameSiteAudio = (url: string | null): string | null =>
-  url !== null && /^\/(?![/\\])/.test(url) ? url : null;
 
 function deadline(createdAt: string, now: Date): Pick<ReportView, "deadline" | "overdue"> {
   const elapsedHours = (now.getTime() - Date.parse(createdAt)) / MS_PER_HOUR;

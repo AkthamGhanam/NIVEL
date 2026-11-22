@@ -94,6 +94,15 @@ export interface SpokenOffer {
   readonly dailyPayUsd: number;
 }
 
+/** Una invitación en una frase: quién invita, para qué, dónde, cuándo y cuánto paga al día. */
+export function sayOffer(offer: SpokenOffer): string {
+  const span = offer.days === 1 ? "1 día" : `${offer.days} días`;
+  return (
+    `${offer.companyName} te invita como ${TRADE_LABELS[offer.trade].singular} en ${offer.zone}: ` +
+    `${span} desde el ${spokenDate(offer.startDate)}, a ${dollars(offer.dailyPayUsd)} diarios.`
+  );
+}
+
 export function sayOffers(offers: readonly SpokenOffer[]): string {
   const [first] = offers;
   if (!first) return "No tienes invitaciones abiertas por ahora. Te aviso cuando llegue una.";
@@ -101,11 +110,7 @@ export function sayOffers(offers: readonly SpokenOffer[]): string {
     offers.length === 1
       ? "Tienes 1 invitación."
       : `Tienes ${offers.length} invitaciones. Te cuento la primera.`;
-  const span = first.days === 1 ? "1 día" : `${first.days} días`;
-  return (
-    `${count} ${first.companyName} te invita como ${TRADE_LABELS[first.trade].singular} en ${first.zone}: ` +
-    `${span} desde el ${spokenDate(first.startDate)}, a ${dollars(first.dailyPayUsd)} diarios. ¿La aceptas?`
-  );
+  return `${count} ${sayOffer(first)} ¿La aceptas?`;
 }
 
 export function sayOfferAnswered(accepted: boolean, companyName: string): string {

@@ -1,7 +1,7 @@
 // Tarjeta plegable para conversar con Nivi desde la app (ofertas del trabajador o pedido del contratista).
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { Card } from "@/components/ui/card";
 import { ChevronIcon, MicIcon } from "@/components/ui/icons";
@@ -15,6 +15,8 @@ interface NiviCardProps {
   readonly hint: string;
   readonly openSession: () => Promise<NiviSession>;
   readonly onActivity?: () => void;
+  /** Avisa cuando la persona abre o cierra la conversación, para que la pantalla no la desmonte a medias. */
+  readonly onOpenChange?: (open: boolean) => void;
 }
 
 function Talk({ openSession, onActivity }: Pick<NiviCardProps, "openSession" | "onActivity">) {
@@ -26,14 +28,22 @@ function Talk({ openSession, onActivity }: Pick<NiviCardProps, "openSession" | "
   return <NiviPanel nivi={nivi} />;
 }
 
-export function NiviCard({ title, hint, openSession, onActivity }: NiviCardProps) {
+interface NiviCardFrameProps extends Pick<NiviCardProps, "title" | "hint" | "onOpenChange"> {
+  readonly children: ReactNode;
+}
+
+export function NiviCardFrame({ title, hint, onOpenChange, children }: NiviCardFrameProps) {
   const [open, setOpen] = useState(false);
+  const toggle = () => {
+    setOpen(!open);
+    onOpenChange?.(!open);
+  };
   return (
     <Card className="flex flex-col gap-4">
       <button
         type="button"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
+        onClick={toggle}
         className="flex min-h-14 w-full items-center gap-3 text-left"
       >
         <span aria-hidden="true" className="relative grid size-16 shrink-0 place-items-center">
@@ -57,13 +67,17 @@ export function NiviCard({ title, hint, openSession, onActivity }: NiviCardProps
           <ChevronIcon />
         </span>
       </button>
-      {open ? (
-        <div className="animate-enter">
-          <NiviProvider>
-            <Talk openSession={openSession} onActivity={onActivity} />
-          </NiviProvider>
-        </div>
-      ) : null}
+      {open ? <div className="animate-enter">{children}</div> : null}
     </Card>
+  );
+}
+
+export function NiviCard({ title, hint, openSession, onActivity, onOpenChange }: NiviCardProps) {
+  return (
+    <NiviCardFrame title={title} hint={hint} onOpenChange={onOpenChange}>
+      <NiviProvider>
+        <Talk openSession={openSession} onActivity={onActivity} />
+      </NiviProvider>
+    </NiviCardFrame>
   );
 }

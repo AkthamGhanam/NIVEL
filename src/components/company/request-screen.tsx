@@ -1,17 +1,22 @@
 // Pantalla principal del contratista: pedir cuadrilla (formulario o Nivi), tablero y costos.
 "use client";
 
-import { type ReactNode, useCallback } from "react";
+import { type ReactNode, useCallback, useState } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
+import { contractorScript } from "@/client/plan-b";
+import { createScriptedNivi } from "@/client/scripted-nivi";
+import { createSpeechPlayer } from "@/client/speech-player";
 import { Card } from "@/components/ui/card";
 import { CrewIcon } from "@/components/ui/icons";
 import { Disclosure } from "@/components/ui/disclosure";
 import { LoadingText, NotEmployerNotice, Notice } from "@/components/ui/notice";
 import { SeatRing } from "@/components/ui/rings";
 import { TelegramCard } from "@/components/telegram/telegram-card";
-import { NiviCard } from "@/components/voice/nivi-card";
+import { NiviCard, NiviCardFrame } from "@/components/voice/nivi-card";
+import { NiviPanel } from "@/components/voice/nivi-panel";
+import { useScriptedNivi } from "@/components/voice/use-scripted-nivi";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
@@ -65,6 +70,21 @@ export function EmptyBoard() {
   );
 }
 
+const NIVI_CARD = { title: "Pídela con Nivi", hint: "Dile qué personal necesitas" } as const;
+
+function ScriptedTalk() {
+  const { company, api, board } = useCompany();
+  const nivi = useScriptedNivi(() => {
+    const player = createSpeechPlayer({ audioUrlFor: api.speak });
+    return createScriptedNivi({
+      script: () => contractorScript({ api, zone: company.zone, refresh: board.refresh }),
+      speak: player.speak,
+      stopSpeaking: player.stop,
+    });
+  });
+  return <NiviPanel nivi={nivi} />;
+}
+
 /** Con una solicitud activa, lo único en primer plano es la cuadrilla; costos y otro pedido quedan plegados. */
 function ActiveRequest({ again, ...view }: BoardViewProps & { readonly again: ReactNode }) {
   return (
@@ -78,7 +98,7 @@ function ActiveRequest({ again, ...view }: BoardViewProps & { readonly again: Re
   );
 }
 
-export function RequestScreen() {
+export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
   const { company, api, board: store } = useCompany();
   const live = useLive(store);
   const invite = useAction(async (requestId: string, choice: InviteSelection) => {
@@ -93,39 +113,40 @@ export function RequestScreen() {
   const board = live.data ?? null;
 
   const form = <RequestForm key="formulario" zone={company.zone} onSubmit={publish} />;
-  const nivi = (
-    <NiviCard
-      key="nivi"
-      title="Pídela con Nivi"
-      hint="Dile qué personal necesitas"
-      openSession={api.voice}
-      onActivity={refreshBoard}
-    />
+  const [talking, setTalking] = useState(false);
+  const niviCard = { ...NIVI_CARD, onOpenChange: setTalking };
+  const nivi = planB ? (
+    <NiviCardFrame key="nivi" {...niviCard}>
+      <ScriptedTalk />
+    </NiviCardFrame>
+  ) : (
+    <NiviCard key="nivi" {...niviCard} openSession={api.voice} onActivity={refreshBoard} />
   );
+  // Una conversación abierta se queda en su sitio aunque aparezca el tablero: si la tarjeta cambiara de
+  // lugar se desmontaría y Nivi se cortaría justo al crear la solicitud. En plan B siempre va arriba.
+  const niviOnTop = !board || talking || planB;
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       {live.error !== undefined && !live.loading ? (
         <Notice tone="pending">{errorMessage(live.error)}</Notice>
       ) : null}
       {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
+      {!live.loading && !board ? (
+        <h1 id="pedir-titulo" className="display text-3xl sm:text-4xl">
+          Pide tu cuadrilla
+        </h1>
+      ) : null}
+      {!live.loading && niviOnTop ? nivi : null}
       {!live.loading && board ? (
         <ActiveRequest
           board={board}
           onInvite={(choice) => void invite.invoke(board.request.id, choice)}
           pending={invite.pending}
           error={invite.error}
-          again={[nivi, form]}
+          again={niviOnTop ? [form] : [nivi, form]}
         />
       ) : null}
-      {!live.loading && !board ? (
-        <>
-          <h1 id="pedir-titulo" className="display text-3xl sm:text-4xl">
-            Pide tu cuadrilla
-          </h1>
-          {nivi}
-          <Card>{form}</Card>
-        </>
-      ) : null}
+      {!live.loading && !board ? <Card>{form}</Card> : null}
       <Disclosure title="Más opciones">
         <TelegramCard role="company" />
         <NotEmployerNotice />

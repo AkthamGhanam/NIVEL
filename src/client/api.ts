@@ -40,25 +40,37 @@ export interface RequestOptions {
   readonly as?: ViewRole;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
+  readonly upload?: Blob;
 }
 
 export type ApiRequest = <T>(path: string, options?: RequestOptions) => Promise<T>;
 
 export const REQUEST_TIMEOUT_MS = 15_000;
+/** Subir y transcribir una nota de 60 s tarda más que una petición corriente. */
+export const UPLOAD_TIMEOUT_MS = 30_000;
+const UNKNOWN_UPLOAD_TYPE = "application/octet-stream";
 const OFFLINE_MESSAGE = "No pudimos conectar. Revisa tu conexión e intenta de nuevo.";
 const UNEXPECTED_MESSAGE = "Algo falló de nuestro lado. Intenta de nuevo.";
 
+function bodyOf(options: RequestOptions, method: string): { body: BodyInit | null; type?: string } {
+  if (options.upload) return { body: options.upload, type: options.upload.type || UNKNOWN_UPLOAD_TYPE };
+  if (method === "GET") return { body: null };
+  return { body: JSON.stringify(options.body ?? {}), type: "application/json" };
+}
+
 function buildInit(options: RequestOptions): RequestInit {
-  const method = options.method ?? "GET";
+  const method = options.upload ? "POST" : (options.method ?? "GET");
   const headers: Record<string, string> = { accept: "application/json" };
   if (options.as) headers["x-nivel-role"] = options.as;
-  const hasBody = method !== "GET";
-  if (hasBody) headers["content-type"] = "application/json";
-  const timeout = AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS);
+  const { body, type } = bodyOf(options, method);
+  if (type) headers["content-type"] = type;
+  const timeout = AbortSignal.timeout(
+    options.timeoutMs ?? (options.upload ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
+  );
   return {
     method,
     headers,
-    body: hasBody ? JSON.stringify(options.body ?? {}) : null,
+    body,
     credentials: "same-origin",
     cache: "no-store",
     signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
@@ -107,7 +119,10 @@ export function createApiRequest(fetchImpl: typeof fetch): ApiRequest {
 
 export const apiRequest: ApiRequest = (path, options) => createApiRequest(fetch)(path, options);
 
+const FRIENDLY_ERROR_NAMES: readonly string[] = ["LocationError", "MicrophoneError"];
+
 export function errorMessage(error: unknown): string {
-  const friendly = error instanceof ApiError || (error instanceof Error && error.name === "LocationError");
+  const friendly =
+    error instanceof ApiError || (error instanceof Error && FRIENDLY_ERROR_NAMES.includes(error.name));
   return friendly ? (error as Error).message : UNEXPECTED_MESSAGE;
 }
