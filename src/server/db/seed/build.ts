@@ -15,7 +15,10 @@ import { LESSONS, lessonAudioUrl } from "./lessons";
 type Insert<K extends keyof typeof schema> = (typeof schema)[K]["$inferInsert"];
 
 /** Tablas con datos de la demo. La caché de voz y los chats de Telegram no lo son: el seed no los toca. */
-export type DemoTable = Exclude<keyof typeof schema, "voiceClips" | "telegramLinks" | "telegramCodes">;
+export type DemoTable = Exclude<
+  keyof typeof schema,
+  "voiceClips" | "telegramLinks" | "telegramCodes" | "telegramSignups"
+>;
 export type SeedRows = { [K in DemoTable]: Array<Insert<K>> };
 
 export const EXAMPLE_RATE_BS_PER_USD = 36.5;
@@ -97,6 +100,12 @@ interface HistoricalJob {
   readonly today: IsoDate;
 }
 
+/**
+ * El historial que respalda los niveles viene de otras empresas. La empresa de
+ * la demo arranca limpia: sin contrataciones, pagos ni tarifas anteriores.
+ */
+const PAST_EMPLOYERS = COMPANIES.filter((company) => company.id !== IDS.activeCompany);
+
 type JobRows = Pick<SeedRows, "jobRequests" | "contracts" | "attendance" | "payments" | "fees">;
 
 interface JobContext {
@@ -113,7 +122,7 @@ function jobContext({ person, jobIndex, sequence, today }: HistoricalJob): JobCo
     key: `${person.id}-${pad(jobIndex + 1, 2)}`,
     person,
     sequence,
-    company: COMPANIES[sequence % COMPANIES.length] ?? COMPANIES[0],
+    company: PAST_EMPLOYERS[sequence % PAST_EMPLOYERS.length] ?? COMPANIES[1],
     startDate: addDays(today, -(HISTORY.firstJobDaysAgo + HISTORY.daysBetweenJobs * jobIndex)),
     dailyPayUsd: HISTORY.baseDailyPayUsd + HISTORY.dailyPayPerLevelUsd * person.level,
   };

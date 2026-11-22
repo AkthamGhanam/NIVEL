@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import type { RequestBoard } from "@/client/company-api";
 import { Card, Eyebrow } from "@/components/ui/card";
-import { NotEmployerNotice, Notice } from "@/components/ui/notice";
+import { Notice } from "@/components/ui/notice";
 import { cx } from "@/lib/cx";
 import { formatUsd, plural } from "@/lib/format";
 import { FEE_PAYMENT_NOTICE, SEARCH_GUARANTEE_NOTICE } from "@/lib/legal-copy";
@@ -63,15 +63,12 @@ export function LegalCostCard({ legalCost, days }: { readonly legalCost: LegalCo
   return (
     <Card>
       <Eyebrow>Costo legal estimado</Eyebrow>
-      <p className="mt-1 text-sm text-ink-2">
-        Lo que cuesta cada persona contratada en regla. No es una factura: lo pagas tú como patrono, directo.
-        Nada de esto es de NIVEL.
-      </p>
+      <p className="mt-1 text-sm text-ink-2">No es una factura. Lo pagas tú, directo. Nada es de NIVEL.</p>
       <dl className="mt-3 flex flex-col gap-2">
         <Destination
           tone="worker"
           title="Va al trabajador"
-          hint="Su salario ahora y lo que la ley le reconoce además."
+          hint="Salario y beneficios de ley."
           subtotal={flow.toWorker}
           rows={[
             [`Salario (${plural(days, "día", "días")})`, perWorker.salary],
@@ -83,7 +80,7 @@ export function LegalCostCard({ legalCost, days }: { readonly legalCost: LegalCo
         <Destination
           tone="state"
           title="Va al Estado"
-          hint="Aportes que hace el patrono a la seguridad social."
+          hint="Seguridad social."
           subtotal={flow.toState}
           rows={[
             ["Contribución de pensiones", perWorker.pensiones],
@@ -113,9 +110,7 @@ export function FeeRangeCard({ feeRange }: { readonly feeRange: FeeRange }) {
   return (
     <Card selected>
       <Eyebrow className="text-brand">Lo único que cobra NIVEL</Eyebrow>
-      <p className="mt-1 text-sm text-ink-2">
-        Una tarifa por cada persona que acepta. Si nadie acepta, no pagas nada.
-      </p>
+      <p className="mt-1 text-sm text-ink-2">Solo si alguien acepta.</p>
       <dl className="mt-2 flex flex-col gap-1 text-[0.9375rem]">
         <div className={ROW}>
           <dt className="text-ink-2">Tarifa de NIVEL por contratación</dt>
@@ -130,9 +125,7 @@ export function FeeRangeCard({ feeRange }: { readonly feeRange: FeeRange }) {
           <dd className="text-lg font-extrabold tabular-nums">{range(min.total, max.total)}</dd>
         </div>
       </dl>
-      <p className="mt-2 text-sm text-muted">
-        Depende del nivel de cada persona y se cobra solo cuando acepta. {FEE_PAYMENT_NOTICE}
-      </p>
+      <p className="mt-2 text-sm text-muted">{FEE_PAYMENT_NOTICE}</p>
     </Card>
   );
 }
@@ -152,12 +145,8 @@ export function VouchersCard() {
     <Card>
       <Eyebrow>Tus comprobantes</Eyebrow>
       <ul className="mt-2 flex flex-col gap-2">
-        <Voucher title="Recibo de pago del trabajador">
-          Lo emites tú al registrar su pago. Detalla el salario y cada persona recibe el suyo.
-        </Voucher>
-        <Voucher title="Factura de NIVEL">
-          Una por cada contratación, con la tarifa y el IVA aparte. La paga tu empresa a NIVEL.
-        </Voucher>
+        <Voucher title="Recibo de pago del trabajador">Lo emites tú al registrar su pago.</Voucher>
+        <Voucher title="Factura de NIVEL">Una por contratación: tarifa más IVA.</Voucher>
       </ul>
       <Link
         href="/c/pagos"
@@ -177,7 +166,6 @@ export function CostPanel({ board }: { readonly board: RequestBoard | null }) {
       {board?.feeRange ? <FeeRangeCard feeRange={board.feeRange} /> : null}
       {board ? <VouchersCard /> : null}
       <Notice title="Garantía de búsqueda">{SEARCH_GUARANTEE_NOTICE}</Notice>
-      <NotEmployerNotice />
     </aside>
   );
 }

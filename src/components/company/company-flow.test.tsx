@@ -112,7 +112,8 @@ describe("entrada del contratista", () => {
 
     expect(state.active.companyId).toBeNull();
     expect(state.activeCompany).toBeNull();
-    expect(state.personas.companies).toHaveLength(4);
+    // Una sola empresa de ejemplo: las del historial de los trabajadores no se ofrecen para entrar.
+    expect(state.personas.companies).toHaveLength(1);
     expect(create).toContain("Registrar mi empresa");
     expect(create).toContain('name="rif"');
     expect(enter).toContain("Cuentas de demostración");
@@ -190,7 +191,6 @@ describe("pedir cuadrilla y tablero en vivo", () => {
     expect(plain).toContain("Factura de NIVEL");
     expect(plain).toContain("Pago Móvil o transferencia");
     expect(plain).toContain("Garantía de búsqueda de 7 días");
-    expect(plain).toContain(NOT_EMPLOYER_NOTICE);
     expect(text(html(<CostPanel board={null} />))).not.toContain("Costo legal estimado");
   });
 

@@ -26,6 +26,8 @@ export interface TelegramApi {
   readonly sendMessage: (chatId: string, text: string, options?: TelegramMessageOptions) => Promise<void>;
   readonly answerCallback: (callbackId: string, text?: string) => Promise<void>;
   readonly setWebhook: (url: string, secret: string) => Promise<void>;
+  /** Descarga un archivo que la persona envió al bot (una nota de voz). Tiene tope de tamaño. */
+  readonly downloadFile: (fileId: string) => Promise<Blob>;
   /** Nombre de usuario del bot, sin arroba. Se pide una vez y se recuerda. */
   readonly botUsername: () => Promise<string>;
 }
@@ -104,6 +106,36 @@ function createCall(options: TelegramOptions): Call {
   };
 }
 
+/** Una nota de voz de un minuto pesa mucho menos; el tope evita descargar archivos enormes. */
+export const MAX_FILE_BYTES = 2 * 1024 * 1024;
+const FILE_PATH = /^[A-Za-z0-9_\-./]{1,200}$/;
+
+async function download(options: TelegramOptions, call: Call, fileId: string): Promise<Blob> {
+  const info = (await call("getFile", { file_id: fileId })) as {
+    file_path?: unknown;
+    file_size?: unknown;
+  } | null;
+  const path = info?.file_path;
+  if (typeof path !== "string" || !FILE_PATH.test(path) || path.includes("..")) {
+    throw new TelegramError("getFile", 200, "ruta inesperada");
+  }
+  if (typeof info?.file_size === "number" && info.file_size > MAX_FILE_BYTES) {
+    throw new TelegramError("getFile", 200, "archivo demasiado grande");
+  }
+  let response: Response;
+  try {
+    response = await (options.fetch ?? fetch)(`${TELEGRAM_API_BASE}/file/bot${options.token}/${path}`, {
+      signal: AbortSignal.timeout(options.timeoutMs ?? TELEGRAM_TIMEOUT_MS),
+    });
+  } catch (error) {
+    throw new TelegramError("download", undefined, error instanceof Error ? error.name : "sin respuesta");
+  }
+  if (!response.ok) throw new TelegramError("download", response.status, "no se pudo descargar");
+  const audio = await response.blob();
+  if (audio.size > MAX_FILE_BYTES) throw new TelegramError("download", 200, "archivo demasiado grande");
+  return new Blob([audio], { type: "audio/ogg" });
+}
+
 async function fetchUsername(call: Call): Promise<string> {
   const result = await call("getMe", {});
   const name = (result as { username?: unknown } | null)?.username;
@@ -135,6 +167,7 @@ export function createTelegram(options: TelegramOptions): TelegramApi {
         drop_pending_updates: true,
       });
     },
+    downloadFile: (fileId) => download(options, call, fileId),
     botUsername: () => {
       username ??= fetchUsername(call).catch((error: unknown) => {
         username = undefined; // Un fallo pasajero no debe quedar recordado.
