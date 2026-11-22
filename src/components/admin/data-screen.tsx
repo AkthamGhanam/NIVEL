@@ -182,6 +182,33 @@ function VoiceSteps({ check }: { readonly check: VoiceCheck }) {
   );
 }
 
+function TelegramSetupCard({ onDone }: { readonly onDone: (message: string) => void }) {
+  const { api } = useTeam();
+  const connect = useAction(async () => {
+    const { bot } = await api.connectTelegram();
+    onDone(`Telegram conectado: el bot @${bot} ya responde.`);
+  });
+  return (
+    <Card className="flex flex-col gap-4 lg:col-span-2">
+      <h2 className="text-xl font-extrabold">Bot de Telegram</h2>
+      <p className="text-ink-2">
+        Conecta el bot con este servidor. Hazlo una vez después de poner el token, y de nuevo si cambia la
+        dirección de la app.
+      </p>
+      <div>
+        <Button disabled={connect.pending} onClick={() => void connect.invoke()}>
+          {connect.pending ? "Conectando…" : "Conectar el bot de Telegram"}
+        </Button>
+      </div>
+      {connect.error ? (
+        <Notice tone="alert" urgent>
+          {connect.error}
+        </Notice>
+      ) : null}
+    </Card>
+  );
+}
+
 function VoiceCard({ onDone }: { readonly onDone: (message: string) => void }) {
   const { api } = useTeam();
   const [check, setCheck] = useState<VoiceCheck | null>(null);
@@ -230,6 +257,7 @@ export function DataScreen() {
         <ResetCard onDone={setMessage} />
         <DemoHelpersCard onDone={setMessage} />
         <VoiceCard onDone={setMessage} />
+        <TelegramSetupCard onDone={setMessage} />
       </div>
     </div>
   );

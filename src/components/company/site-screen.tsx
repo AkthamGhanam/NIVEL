@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import type { RequestBoard } from "@/client/company-api";
 import {
   attendanceLine,
@@ -18,6 +20,8 @@ import { formatDay } from "@/lib/format";
 import { REPLACEMENT_WARNING, SEARCH_GUARANTEE_NOTICE } from "@/lib/legal-copy";
 
 import { BoardGate } from "./board-gate";
+import { useCompany } from "./company-gate";
+import { SitePin } from "./site-pin";
 
 function AttendanceCard({ member }: { readonly member: CrewMember }) {
   const status = contractStatus(member.status);
@@ -45,9 +49,9 @@ function AttendanceCard({ member }: { readonly member: CrewMember }) {
       ) : (
         <p className="text-muted">Aún no ha marcado su entrada.</p>
       )}
-      {last && !last.insideGeofence ? (
-        <Tag tone="alert" className="self-start">
-          Marcó fuera del área de la obra
+      {last ? (
+        <Tag tone={last.insideGeofence ? "ok" : "alert"} className="self-start">
+          {last.insideGeofence ? "Llegada verificada en la obra" : "Marcó sin verificar la ubicación"}
         </Tag>
       ) : null}
       {last?.note ? <p className="text-ink-2">Motivo: {last.note}</p> : null}
@@ -92,7 +96,7 @@ function SiteLog({ crew }: { readonly crew: readonly CrewMember[] }) {
 }
 
 /** Obra en curso: quién llegó, a qué hora real y cuántos días lleva cada persona. */
-export function SiteView({ board }: { readonly board: RequestBoard }) {
+export function SiteView({ board, pin }: { readonly board: RequestBoard; readonly pin?: ReactNode }) {
   const [, ...facts] = requestFacts(board.request);
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -101,6 +105,14 @@ export function SiteView({ board }: { readonly board: RequestBoard }) {
         <h1 className="display mt-1 text-3xl sm:text-4xl">Obra en {board.request.zone}</h1>
         <p className="mt-2 text-lg text-ink-2">{facts.join(" · ")}</p>
       </header>
+      {pin ? (
+        <section aria-labelledby="ubicacion-titulo">
+          <h2 id="ubicacion-titulo" className="bar-title text-xl font-extrabold">
+            Dónde es la obra
+          </h2>
+          <Card className="mt-3">{pin}</Card>
+        </section>
+      ) : null}
       {board.crew.length === 0 ? (
         <Card className="flex flex-col items-start gap-3 p-6">
           <p className="text-lg text-ink-2">
@@ -134,6 +146,19 @@ export function SiteView({ board }: { readonly board: RequestBoard }) {
   );
 }
 
+function BoardSitePin({ board }: { readonly board: RequestBoard }) {
+  const { api, board: store } = useCompany();
+  return (
+    <SitePin
+      pinned={board.request.sitePinnedAt !== null}
+      onFix={async (site) => {
+        await api.pinSite(board.request.id, site);
+        await store.refresh();
+      }}
+    />
+  );
+}
+
 export function SiteScreen() {
-  return <BoardGate>{(board) => <SiteView board={board} />}</BoardGate>;
+  return <BoardGate>{(board) => <SiteView board={board} pin={<BoardSitePin board={board} />} />}</BoardGate>;
 }

@@ -11,8 +11,8 @@ export function Card({ selected = false, className, ...rest }: CardProps) {
   return (
     <div
       className={cx(
-        "rounded-card border-[1.5px] bg-surface p-4 shadow-soft",
-        selected ? "border-brand shadow-[inset_0_0_0_1px_var(--color-brand)]" : "border-line",
+        "rounded-card border bg-surface p-5 shadow-soft",
+        selected ? "border-brand shadow-[inset_0_0_0_1.5px_var(--color-brand)]" : "border-line",
         className,
       )}
       {...rest}

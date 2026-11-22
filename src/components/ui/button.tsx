@@ -12,8 +12,9 @@ const BASE =
   "enabled:active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-55";
 
 const VARIANTS: Readonly<Record<ButtonVariant, string>> = {
-  primary: "bg-brand text-white hover:bg-brand-2 hover:shadow-glow",
-  outline: "border-2 border-line bg-surface text-ink hover:border-ink-2",
+  primary:
+    "bg-brand text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.14)] hover:bg-brand-2 hover:shadow-glow",
+  outline: "border-2 border-line bg-surface text-ink hover:border-brand hover:text-brand",
   ink: "bg-ink text-white hover:bg-ink-2",
   danger: "border-2 border-danger-line bg-surface text-danger hover:border-danger",
 };

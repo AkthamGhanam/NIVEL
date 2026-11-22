@@ -5,8 +5,11 @@ import { useCallback } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
-import { Card, Eyebrow } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { CrewIcon } from "@/components/ui/icons";
 import { LoadingText, Notice } from "@/components/ui/notice";
+import { SeatRing } from "@/components/ui/rings";
+import { TelegramCard } from "@/components/telegram/telegram-card";
 import { NiviCard } from "@/components/voice/nivi-card";
 
 import { useAction } from "../hooks/use-action";
@@ -45,14 +48,19 @@ export function BoardView({ board, onInvite, pending, error }: BoardViewProps) {
 
 export function EmptyBoard() {
   return (
-    <Card className="flex flex-col gap-2 p-6">
-      <Eyebrow className="text-brand">Sin solicitudes activas</Eyebrow>
-      <h1 className="display text-3xl">Arma tu cuadrilla en minutos</h1>
-      <p className="text-lg text-ink-2">
-        Di qué oficio necesitas, cuántas personas, desde cuándo y cuánto pagas al día. Verás quién cumple,
-        cuánto cuesta contratar en regla y quién aceptó.
-      </p>
-    </Card>
+    <section className="console flex flex-col items-center gap-6 rounded-panel p-6 text-center sm:flex-row sm:p-8 sm:text-left">
+      <SeatRing filled={0} total={4} className="w-36 shrink-0 opacity-90">
+        <CrewIcon size={36} />
+      </SeatRing>
+      <div className="flex flex-col gap-2">
+        <p className="eyebrow text-signal">Sin solicitudes activas</p>
+        <h1 className="display text-3xl sm:text-4xl">Arma tu cuadrilla en minutos</h1>
+        <p className="text-lg text-muted-on-ink">
+          Di qué oficio necesitas, cuántas personas, desde cuándo y cuánto pagas al día. Verás quién cumple,
+          cuánto cuesta contratar en regla y quién aceptó.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -71,7 +79,7 @@ export function RequestScreen() {
   const board = live.data ?? null;
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem]">
+    <div className="grid items-start gap-6 lg:grid-cols-[21rem_minmax(0,1fr)]">
       <section aria-labelledby="pedir-titulo" className="flex flex-col gap-4">
         <div>
           <NiviCard
@@ -87,23 +95,26 @@ export function RequestScreen() {
           </h2>
           <RequestForm zone={company.zone} onSubmit={publish} />
         </Card>
+        <TelegramCard role="company" />
       </section>
-      <div className="flex min-w-0 flex-col gap-4">
-        {live.error !== undefined && !live.loading ? (
-          <Notice tone="pending">{errorMessage(live.error)}</Notice>
-        ) : null}
-        {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
-        {!live.loading && board ? (
-          <BoardView
-            board={board}
-            onInvite={(choice) => void invite.invoke(board.request.id, choice)}
-            pending={invite.pending}
-            error={invite.error}
-          />
-        ) : null}
-        {!live.loading && !board && live.error === undefined ? <EmptyBoard /> : null}
+      <div className="order-first grid min-w-0 items-start gap-6 lg:order-none 2xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {live.error !== undefined && !live.loading ? (
+            <Notice tone="pending">{errorMessage(live.error)}</Notice>
+          ) : null}
+          {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
+          {!live.loading && board ? (
+            <BoardView
+              board={board}
+              onInvite={(choice) => void invite.invoke(board.request.id, choice)}
+              pending={invite.pending}
+              error={invite.error}
+            />
+          ) : null}
+          {!live.loading && !board && live.error === undefined ? <EmptyBoard /> : null}
+        </div>
+        <CostPanel board={board} />
       </div>
-      <CostPanel board={board} />
     </div>
   );
 }

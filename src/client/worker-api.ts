@@ -1,5 +1,5 @@
 // Todo lo que la app del trabajador le pide al servidor, con sus tipos.
-import type { GeoPoint } from "@/lib/geo";
+import type { GeoFix } from "@/lib/geo";
 import type { AttendanceRow } from "@/server/use-cases/attendance";
 import type { ContractDetail, PublicContract } from "@/server/use-cases/contracts";
 import type { InvitationResponse, WorkerOffer } from "@/server/use-cases/invitations";
@@ -38,7 +38,7 @@ export type WorkerRatingInput = NewRating;
 export interface AttendanceInput {
   readonly contractId: string;
 
-  readonly position?: GeoPoint;
+  readonly position?: GeoFix;
 
   readonly simulated?: boolean;
 }

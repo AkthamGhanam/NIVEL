@@ -19,6 +19,8 @@ import {
   practicalTests,
   ratings,
   reports,
+  telegramCodes,
+  telegramLinks,
   workers,
 } from "../db/schema";
 import { NotFoundError } from "../errors";
@@ -311,6 +313,8 @@ export async function deleteMyAccount(context: AppContext, actor: Actor): Promis
     db.delete(enrollments).where(eq(enrollments.workerId, id)),
     db.delete(practicalTests).where(eq(practicalTests.workerId, id)),
     db.delete(incidents).where(eq(incidents.workerId, id)),
+    db.delete(telegramLinks).where(and(eq(telegramLinks.role, "worker"), eq(telegramLinks.subjectId, id))),
+    db.delete(telegramCodes).where(and(eq(telegramCodes.role, "worker"), eq(telegramCodes.subjectId, id))),
     db.delete(ratings).where(and(eq(ratings.toId, id), eq(ratings.fromRole, "empresa"))),
     // Los reportes siguen en revisión, pero ya no dicen quién los hizo.
     db.update(reports).set({ reporterWorkerId: null }).where(eq(reports.reporterWorkerId, id)),

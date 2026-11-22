@@ -98,6 +98,79 @@ function ForCompanies() {
   );
 }
 
+function WhereMoneyGoes() {
+  return (
+    <LegalSection title="A dónde va el dinero">
+      <LegalList
+        items={[
+          "El salario va directo de la empresa al trabajador. Nunca pasa por NIVEL ni NIVEL lo retiene.",
+          "El costo legal estimado (utilidades, vacaciones, prestaciones y aportes) no es un cobro de NIVEL: es lo que la ley le exige a la empresa como patrono. Una parte la recibe el trabajador y otra va a la seguridad social.",
+          "Lo único que cobra NIVEL a la empresa es la tarifa por contratación o su plan, más IVA. El IVA se entrega al SENIAT: no es ingreso de NIVEL.",
+          "Por cada pago de salario la empresa emite un recibo al trabajador (LOTTT, art. 106). Por cada tarifa, NIVEL emite una factura a la empresa.",
+        ]}
+      />
+    </LegalSection>
+  );
+}
+
+function FairOffers() {
+  return (
+    <LegalSection title="Ofertas en regla">
+      <LegalList
+        items={[
+          "Solo publican empresas registradas con su RIF. La verificación la hace el equipo de NIVEL.",
+          "Ninguna oferta puede pedir edad, sexo, nacionalidad, religión, estado civil, embarazo, discapacidad ni «buena presencia». La app bloquea esos requisitos.",
+          "Está prohibido pedirle dinero a una persona por darle trabajo.",
+          "El tipo de contrato lo acuerdan la empresa y el trabajador: por obra determinada, por tiempo determinado o servicio independiente, según corresponda a la relación real.",
+          "El contrato se firma en la app con un código de un solo uso. Queda registro de la fecha y la hora de la firma.",
+          "Por ahora NIVEL solo admite trabajos dentro de Venezuela.",
+        ]}
+      />
+    </LegalSection>
+  );
+}
+
+function Channels() {
+  return (
+    <LegalSection title="Nivi y Telegram">
+      <LegalList
+        items={[
+          "Nivi actúa solo por la persona que abrió la sesión. Nadie puede pedirle que actúe por otra cuenta, y antes de guardar, aceptar o invitar repite el dato y espera tu confirmación.",
+          "Conectar Telegram es opcional. Lo que hagas desde el chat (aceptar una oferta, pedir personal) vale igual que en la app y sigue las mismas reglas.",
+          "Puedes desconectar Telegram cuando quieras desde la app.",
+        ]}
+      />
+    </LegalSection>
+  );
+}
+
+const LEGAL_BASES: readonly string[] = [
+  "LOTTT, arts. 47 a 49 y 53: NIVEL no suministra personal ni dirige el trabajo; el patrono es la empresa.",
+  "LOTTT, arts. 62 a 64 y 87: tipos de contrato y estabilidad.",
+  "LOTTT, art. 106: recibo de cada pago de salario.",
+  "LOTTT, arts. 131, 142, 190 y 192: utilidades, prestaciones, vacaciones y bono vacacional, que la app estima.",
+  "Decreto 5.070 de inamovilidad, vigente hasta el 31/12/2026: NIVEL no retira a nadie de una obra.",
+  "Constitución, arts. 21, 28 y 60, y sentencia 1318/2011 del TSJ: igualdad, acceso y corrección de los datos propios, y privacidad.",
+  "LOPCYMAT, art. 53: derecho a reportar condiciones inseguras sin represalias.",
+  "LOPNNA, art. 96: NIVEL es solo para mayores de 18 años.",
+  "Ley de Mensajes de Datos y Firmas Electrónicas: validez de la firma en la app.",
+  "Providencias del SENIAT sobre facturación digital e IVA: precios más IVA, en bolívares.",
+  "Ley de Protección de las Pensiones y aportes al IVSS, FAOV e INCES: parte del costo legal estimado.",
+];
+
+function LegalBases() {
+  return (
+    <LegalSection title="Bases legales">
+      <p>Estas son las normas venezolanas con las que se diseñó cada función de NIVEL:</p>
+      <LegalList items={LEGAL_BASES} />
+      <p>
+        Este resumen no es asesoría legal. Antes del lanzamiento, un abogado laboral venezolano debe revisar
+        estos términos, la política de privacidad y los contratos.
+      </p>
+    </LegalSection>
+  );
+}
+
 function ForAcademies() {
   return (
     <LegalSection title="Para academias">
@@ -106,6 +179,8 @@ function ForAcademies() {
           `NIVEL cobra a la academia una comisión de ${formatRate(ACADEMY_COMMISSION_RATE)} del precio del curso, más IVA.`,
           "El curso se paga directo a la academia. Las cuotas, si las hay, las ofrece la academia y no NIVEL.",
           "La constancia la emite la academia. Dice el nombre, el curso, la fecha y la academia, y nunca la cédula.",
+          "Es una constancia de habilidad verificada, no un título oficial.",
+          "Cada nivel se puede alcanzar sin pagar un curso: los cursos ayudan, pero no son requisito para recibir ofertas.",
         ]}
       />
     </LegalSection>
@@ -147,11 +222,15 @@ export default function TermsPage() {
       <NotEmployer />
       <ForWorkers />
       <ForCompanies />
+      <WhereMoneyGoes />
+      <FairOffers />
       <LegalSection title="Reemplazos">
         <p>{REPLACEMENT_WARNING}</p>
       </LegalSection>
       <ForAcademies />
       <RatingsAndReports />
+      <Channels />
+      <LegalBases />
       <DemoNotice />
     </LegalPage>
   );

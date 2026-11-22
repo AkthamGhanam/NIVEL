@@ -2,7 +2,7 @@
 import { and, eq, gte, inArray } from "drizzle-orm";
 
 import type { ChatResult, ElevenLabsAdmin } from "../adapters/elevenlabs-admin";
-import { AGENTS } from "../agents/definitions";
+import { AGENTS, dynamicDefaults } from "../agents/definitions";
 import { AGENT_TAG, agentPayload, toolPayload } from "../agents/platform";
 import type { AppContext } from "../context";
 import { events, workers } from "../db/schema";
@@ -75,11 +75,16 @@ const TOOL_FAILED = "herramienta_fallo";
 
 const errorDetail = (error: unknown) => (error instanceof Error ? error.message : "fallo desconocido");
 
+function workerDefaults(): Readonly<Record<string, string>> {
+  const worker = AGENTS.find((agent) => agent.key === "worker");
+  return worker ? dynamicDefaults(worker) : {};
+}
+
 async function talk(setup: VoiceSetup, toolContext: string): Promise<ChatResult> {
   if (!setup.agentIds.worker) throw new Error("Falta EL_AGENT_WORKER_ID");
   return setup.admin.chat({
     agentId: setup.agentIds.worker,
-    dynamicVariables: { secret__nivel_contexto: toolContext },
+    dynamicVariables: { ...workerDefaults(), secret__nivel_contexto: toolContext },
     messages: [PERSONA, CONFIRMATION, CONFIRMATION],
   });
 }

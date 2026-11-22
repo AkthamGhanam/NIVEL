@@ -36,7 +36,7 @@ export function addBubble(list: readonly NiviBubble[], from: NiviBubble["from"],
   return [...list, { id: `${list.length}-${from}`, from, text: clean }];
 }
 
-export function useNivi(openSession: () => Promise<NiviSession>) {
+function useNiviSession(openSession: () => Promise<NiviSession>) {
   const [starting, setStarting] = useState(false);
   const [mode, setMode] = useState<NiviMode>("voz");
   const [problem, setProblem] = useState<string | null>(null);
@@ -81,16 +81,26 @@ export function useNivi(openSession: () => Promise<NiviSession>) {
     setBubbles((current) => addBubble(current, "tu", text));
     conversation.sendUserMessage(text.trim());
   };
+  return { ...conversation, start, send, starting, mode, problem, bubbles, conversationId, ended };
+}
 
-  const { status, isSpeaking } = conversation;
+export function useNivi(openSession: () => Promise<NiviSession>) {
+  const session = useNiviSession(openSession);
+  const { start, send, starting, mode, problem, bubbles, conversationId, ended } = session;
+
+  const { status, isSpeaking, isMuted, setMuted } = session;
   return {
+    /** Micrófono en pausa: Nivi no oye nada hasta que la persona lo reactiva. Útil con mucho ruido alrededor. */
+    muted: isMuted,
+    toggleMute: () => setMuted(!isMuted),
     start,
     send,
-    stop: conversation.endSession,
+    stop: session.endSession,
     mode,
     live: status === "connected" || status === "connecting",
     connected: status === "connected",
     orb: orbState(status, isSpeaking, starting),
+    voice: mode === "voz",
     starting,
     problem,
     bubbles,

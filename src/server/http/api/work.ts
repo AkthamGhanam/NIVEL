@@ -4,6 +4,7 @@ import { checkIn, checkOut } from "../../use-cases/attendance";
 import { getContract, issueContractOtp, signContract } from "../../use-cases/contracts";
 import { listMyOffers, respondToInvitation } from "../../use-cases/invitations";
 import { endpoint, type RuntimeProvider } from "../endpoint";
+import { geoFixSchema } from "./requests";
 import { emptyBody, idSchema, pathId } from "./schemas";
 
 const respondSchema = z.strictObject({ accept: z.boolean() });
@@ -11,9 +12,7 @@ const signSchema = z.strictObject({ otp: z.string().regex(/^\d{6}$/, "el código
 
 const markSchema = z.strictObject({
   contractId: idSchema,
-  position: z
-    .strictObject({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
-    .optional(),
+  position: geoFixSchema.optional(),
   simulated: z.boolean().optional(),
 });
 

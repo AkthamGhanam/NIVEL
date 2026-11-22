@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createTelegram } from "./adapters/telegram";
 import { requireEnv, serverEnv } from "./config/env";
 import { type AppContext, createContext } from "./context";
 import { type DatabaseHandle, migrate, openDatabase } from "./db/client";
@@ -23,7 +24,14 @@ async function start(): Promise<App> {
     authToken: serverEnv().TURSO_AUTH_TOKEN,
   });
   await migrate(handle);
-  return { handle, context: createContext({ db: handle.db, secret: requireEnv("SESSION_SECRET") }) };
+  const env = serverEnv();
+  const telegram = env.TELEGRAM_BOT_TOKEN
+    ? { api: createTelegram({ token: env.TELEGRAM_BOT_TOKEN }), appUrl: env.NEXT_PUBLIC_APP_URL }
+    : undefined;
+  return {
+    handle,
+    context: createContext({ db: handle.db, secret: requireEnv("SESSION_SECRET"), telegram }),
+  };
 }
 
 export function app(): Promise<App> {
