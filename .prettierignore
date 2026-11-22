@@ -5,3 +5,4 @@ package-lock.json
 next-env.d.ts
 docs/spec.md
 AGENTS.md
+public/elevenlabs/

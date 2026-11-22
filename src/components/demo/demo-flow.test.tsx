@@ -268,10 +268,12 @@ describe("público y escena", () => {
   });
 
   it("el QR se dibuja en la página, con nombre accesible, y sin enlace público lo explica", () => {
-    const withUrl = html(<JoinCode joinUrl="https://nivel.example/t" />);
+    const withUrl = html(<JoinCode joinUrl="https://nivel.example/t/registro?real=1" />);
 
-    expect(withUrl).toMatch(/<svg role="img" aria-label="Código QR de la app del trabajador"/);
-    expect(withUrl).toContain("https://nivel.example/t");
+    expect(withUrl).toMatch(
+      /<svg role="img" aria-label="Código QR para registrarte en la app del trabajador"/,
+    );
+    expect(withUrl).toContain("https://nivel.example/t/registro?real=1");
     expect(withUrl).not.toMatch(/<img|https?:\/\/(?!nivel\.example)/);
     expect(html(<JoinCode joinUrl={null} />)).toContain("El QR aparece cuando la demo está publicada");
     expect(html(<QrCode value="hola" label="Prueba" />)).toMatch(/<path d="M4 4h1v1h-1z/);

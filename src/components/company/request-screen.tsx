@@ -4,6 +4,7 @@ import { errorMessage } from "@/client/api";
 import type { RequestBoard, RequestInput } from "@/client/company-api";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
+import { NiviVoice } from "@/components/voice/nivi-voice";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
@@ -53,6 +54,24 @@ export function EmptyBoard() {
   );
 }
 
+/**
+ * Pedir la cuadrilla hablando con Nivi. Lo que el agente crea o invita aparece
+ * en el tablero de al lado, que se actualiza solo; el formulario sigue debajo.
+ */
+export function VoiceRequestCard() {
+  return (
+    <Card className="flex flex-col gap-3">
+      <div>
+        <h2 className="display text-2xl">Pídela hablando</h2>
+        <p className="text-[0.9375rem] text-ink-2">
+          Dile a Nivi qué oficio necesitas, cuántas personas, desde cuándo y cuánto pagas al día.
+        </p>
+      </div>
+      <NiviVoice agent="contractor" defaultMode="llamada" />
+    </Card>
+  );
+}
+
 /** Pantalla principal del contratista: pedir personal, tablero en vivo y costos. */
 export function RequestScreen() {
   const { company, api, board: store } = useCompany();
@@ -69,7 +88,8 @@ export function RequestScreen() {
 
   return (
     <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem]">
-      <section aria-labelledby="pedir-titulo">
+      <section aria-labelledby="pedir-titulo" className="flex flex-col gap-4">
+        <VoiceRequestCard />
         <Card className="flex flex-col gap-4">
           <h2 id="pedir-titulo" className="display text-2xl">
             Pide tu cuadrilla

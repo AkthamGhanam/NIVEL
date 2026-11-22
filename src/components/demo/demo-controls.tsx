@@ -121,16 +121,20 @@ export function RealProfiles({ data }: { readonly data: RealProfilesToday | unde
   );
 }
 
-/** QR para que el público abra la app del trabajador en su teléfono. Sin enlace público, lo dice. */
+/** QR para que el público cree su perfil con Nivi en su teléfono. Sin enlace público, lo dice. */
 export function JoinCode({ joinUrl }: { readonly joinUrl: string | null }) {
   return (
     <section aria-labelledby="qr-titulo" className="flex flex-col gap-2">
       <h2 id="qr-titulo" className="text-sm font-bold text-ink-2">
-        Ábrela en tu teléfono
+        Regístrate con tu voz
       </h2>
       {joinUrl ? (
         <>
-          <QrCode value={joinUrl} label="Código QR de la app del trabajador" className="size-28" />
+          <QrCode
+            value={joinUrl}
+            label="Código QR para registrarte en la app del trabajador"
+            className="size-28"
+          />
           <p className="text-sm break-all text-muted">{joinUrl}</p>
         </>
       ) : (

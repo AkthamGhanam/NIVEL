@@ -28,6 +28,15 @@ interface PageCspOptions {
   readonly isDevelopment: boolean;
 }
 
+/**
+ * Voz en vivo: el navegador habla directo con ElevenLabs (señalización de la
+ * conversación y WebRTC). Es el único destino fuera de nuestro origen.
+ */
+export const VOICE_CONNECT_SOURCES: readonly string[] = Object.freeze([
+  "https://*.elevenlabs.io",
+  "wss://*.elevenlabs.io",
+]);
+
 const NONCE_PATTERN = /^[A-Za-z0-9+/=_-]{16,}$/;
 
 /**
@@ -48,7 +57,7 @@ export function buildPageContentSecurityPolicy({ nonce, isDevelopment }: PageCsp
     ["img-src", "'self' blob: data:"],
     ["font-src", "'self'"],
     ["media-src", "'self' blob:"],
-    ["connect-src", "'self'"],
+    ["connect-src", ["'self'", ...VOICE_CONNECT_SOURCES].join(" ")],
     ["object-src", "'none'"],
     ["base-uri", "'self'"],
     ["form-action", "'self'"],

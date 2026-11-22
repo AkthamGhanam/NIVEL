@@ -1,7 +1,7 @@
 import type { WorkerPersona } from "@/client/worker-api";
 import { NivelMark } from "@/components/brand/brand";
 import { Avatar } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import { Eyebrow } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { LevelBadge } from "@/components/ui/tag";
@@ -54,6 +54,9 @@ export function WorkerPicker({ workers, onPick, pending, error }: WorkerPickerPr
         ))}
       </ul>
       {workers.length === 0 ? <Notice tone="pending">Aún no hay personas de ejemplo cargadas.</Notice> : null}
+      <ButtonLink href="/t/registro" block>
+        Soy nuevo: crear mi perfil con Nivi
+      </ButtonLink>
       <p className="text-center text-xs text-muted">{DEMO_FOOTER}</p>
     </main>
   );

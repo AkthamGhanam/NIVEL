@@ -303,7 +303,7 @@ Pendiente de estas vistas:
 - La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
 - Sin probar en Safari ni en un teléfono real.
 
-## Fase 11 · Voz en las pantallas — en curso
+## Fase 11 · Voz en las pantallas — en curso (falta Plan B y chequeo previo)
 
 ### 11a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
 
@@ -328,6 +328,37 @@ Pendiente de las notas de voz:
 - Probarlas contra ElevenLabs real (TTS y Scribe) en producción: desde este hilo no hay clave ni acceso.
 - Sin probar en Safari (graba en MP4) ni en un teléfono real.
 - Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
+
+### 11b · Hablar con Nivi — listo en código (sin probar aún contra ElevenLabs real)
+
+- [x] `NiviVoice`: un componente y tres modos sobre el mismo agente. **Nota de voz** (el micrófono solo se
+      abre mientras se mantiene presionado; también con el teclado), **llamada** (manos libres, con «Colgar»)
+      y **texto** (sin micrófono). Orbe con su estado en palabras y la conversación escrita en vivo
+- [x] El modo elegido se recuerda en el teléfono, por separado para el trabajador y la empresa
+- [x] `/t/registro`: hoja de permiso de voz (qué se guarda, «Escuchar antes de aceptar», solo mayores de 18,
+      aviso de prueba con `?real=1`), conversación con Nivi y «Esto entendimos» con «Confirmar y entrar» y
+      «Corregir». «Prefiero escribir» abre la misma conversación en modo texto
+- [x] `/c`: tarjeta «Pídela hablando» en modo llamada; lo que el agente crea aparece en el tablero de al lado
+- [x] El QR del Modo Jurado lleva a `/t/registro?real=1`, y el selector de la demo ofrece «Soy nuevo»
+- [x] SDK `@elevenlabs/client` 1.35.0 (versión exacta). Sus worklets se sirven desde `public/elevenlabs`
+      para no abrir la CSP a scripts `blob:`; una prueba avisa si dejan de coincidir con el paquete
+- [x] CSP: `connect-src` permite solo la propia app y `*.elevenlabs.io` (señalización y WebRTC)
+- [x] La app con sesión pasa al grupo de rutas `src/app/t/(app)`; las direcciones no cambian
+- [x] 696 pruebas; cobertura de líneas 99 %
+
+Recorrido en Chromium (1440 px y 390 px): hoja de permiso, estados de Nivi, selector y panel de la empresa,
+axe sin hallazgos y sin desbordes. Se comprobó en el navegador que el worklet propio carga bajo la CSP real
+y que, con un token de mentira, el SDK se carga e intenta conectar con ElevenLabs sin chocar con la CSP. Los
+recorridos del trabajador, la empresa y el Modo Jurado se repitieron y siguen limpios.
+
+Pendiente de hablar con Nivi:
+
+- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs: nunca se oyó a Nivi desde estas
+  pantallas. Falta probar en producción el registro completo, el modo nota de voz y el panel de `/c`.
+- «Prefiero escribir» conversa con el mismo agente por texto; no hay un formulario que funcione sin el agente.
+- Si la conversación termina sin que Nivi guarde el perfil, la pantalla sigue esperando sin avisar.
+- Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
+- El Plan B (`?planb=1`), el widget de respaldo y `/demo/check` siguen pendientes.
 
 ## Decisiones
 
