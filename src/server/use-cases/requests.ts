@@ -15,6 +15,7 @@ import { companies, invitations, jobRequests } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { loadWorkerFacts, toCandidate } from "../repos/worker-facts";
 import { type CrewMember, loadCrew } from "./crew";
+import { runDemoBot } from "./demo-bot";
 import { logEvent } from "./events";
 
 export interface NewJobRequest {
@@ -50,7 +51,7 @@ export interface JobRequestCreated extends CandidateSearch {
 const MAX_INVITATIONS_PER_CALL = 10;
 
 async function findCandidates(context: AppContext, request: JobRequestRow): Promise<CandidateSearch> {
-  const facts = await loadWorkerFacts(context.db, { trade: request.trade });
+  const facts = await loadWorkerFacts(context.db, { trade: request.trade, shareableOnly: true });
   const ranked = rankCandidates(
     facts.map((worker) => toCandidate(worker, request.id)),
     {
@@ -214,6 +215,7 @@ export async function activeRequestBoard(context: AppContext, actor: Actor): Pro
     .orderBy(desc(jobRequests.createdAt))
     .limit(1);
   if (!request) return null;
+  await runDemoBot(context, request.id);
   const [search, sent, crew] = await Promise.all([
     findCandidates(context, request),
     context.db.select().from(invitations).where(eq(invitations.requestId, request.id)),

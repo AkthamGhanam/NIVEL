@@ -54,8 +54,31 @@ Cambios respecto a la sección 9 de la especificación, todos por seguridad:
 - `GET /api/events` y `GET /api/reports` exigen sesión de equipo o `x-demo-key`.
 - `contracts.otp_attempts`: el código de firma se bloquea tras 5 intentos.
 
-Pendiente a propósito para la fase 4: límite de peticiones por IP, y que un perfil real solo entre a las
-búsquedas si la persona aceptó compartirlo.
+## Fase 4 · Herramientas de los agentes de voz — lista (sin probar aún con ElevenLabs real)
+
+- [x] Las 7 herramientas en `/api/tools/*` con `x-tool-secret`; cada una responde `say`, la frase que Nivi lee
+- [x] Registro por voz: perfil en Nivel 1, solo mayores de 18, con el permiso aceptado en pantalla
+- [x] `GET /api/el/token`: token de conversación (8 s de espera, 1 reintento) más el contexto firmado
+- [x] `GET /api/workers/by-conversation/:id`: la pantalla que habló recoge su perfil y su sesión
+- [x] Bot de demo (`POST /api/demo/bot`): Rafael y José aceptan a los 3 s, Luis rechaza a los 6 s, nunca Carlos
+- [x] Límite de peticiones por IP: general, por token de voz y bloqueo tras 10 secretos errados
+- [x] Un perfil real no entra a las búsquedas hasta que la persona acepta compartirlo
+- [x] Agentes como código en `src/server/agents/definitions.ts` (prompts y herramientas)
+- [x] 310 pruebas; cobertura de líneas 98 %
+
+Cambios respecto a la sección 7 de la especificación, todos por seguridad:
+
+- Las herramientas no aceptan `worker_id` ni `company_id` del modelo. En nombre de quién actúan sale de un
+  contexto que firma el servidor y viaja como variable secreta del agente (`secret__nivel_contexto`) en la
+  cabecera `x-nivel-context`. Nadie puede hacerse pasar por otra persona hablando con Nivi.
+- No hay `POST /api/events` para transcripciones: la bitácora registra cada herramienta con su latencia,
+  sin nombres ni lo que se dijo.
+- El código de firma nunca se dice en voz alta: solo aparece en la pantalla del trabajador.
+- El bot no usa temporizadores (no sobreviven en serverless): avanza cuando la empresa consulta su tablero.
+
+Sin probar todavía: la conversación real con ElevenLabs. Falta la clave para publicar los agentes y
+confirmar que la plataforma envía la variable secreta en la cabecera como dice su documentación.
+El límite de peticiones es por instancia: frena abusos, pero no es un contador global exacto.
 
 ## Decisiones
 
@@ -66,3 +89,6 @@ búsquedas si la persona aceptó compartirlo.
 
 - HUMANO: crear el proyecto en Vercel conectado a ese repositorio.
 - HUMANO: confirmar créditos de ElevenLabs (Agents, TTS, STT, Sound Effects).
+- HUMANO: crear la base en Turso y poner en Vercel `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `SESSION_SECRET`,
+  `DEMO_RESET_KEY`, `TOOL_SECRET` y `NEXT_PUBLIC_APP_URL` (ver `.env.example`).
+- HUMANO: poner `ELEVENLABS_API_KEY` en Vercel y en el entorno de trabajo para publicar los agentes (fase 5).

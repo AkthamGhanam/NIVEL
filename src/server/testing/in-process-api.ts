@@ -61,6 +61,7 @@ export async function dispatch(request: Request): Promise<Response> {
 export interface InProcessApi {
   readonly baseUrl: string;
   readonly demoKey: string;
+  readonly toolSecret: string;
   readonly dispose: () => void;
 }
 
@@ -69,12 +70,15 @@ export function startInProcessApi(): InProcessApi {
   const directory = mkdtempSync(join(tmpdir(), "nivel-api-"));
   vi.stubEnv("TURSO_DATABASE_URL", `file:${join(directory, "api.db")}`);
   const demoKey = ephemeralSecret();
+  const toolSecret = ephemeralSecret();
+  vi.stubEnv("TOOL_SECRET", toolSecret);
   vi.stubEnv("SESSION_SECRET", ephemeralSecret());
   vi.stubEnv("DEMO_RESET_KEY", demoKey);
   vi.stubEnv("NEXT_PUBLIC_APP_URL", "");
   return {
     baseUrl: "http://localhost:3000",
     demoKey,
+    toolSecret,
     dispose: () => {
       vi.unstubAllEnvs();
       rmSync(directory, { recursive: true, force: true });

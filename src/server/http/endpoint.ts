@@ -17,6 +17,7 @@ import {
   UnsupportedMediaTypeError,
 } from "../errors";
 import { log } from "../log";
+import type { RateLimiter, RateRule } from "./rate-limit";
 import {
   decodeSession,
   encodeSession,
@@ -25,6 +26,7 @@ import {
   sessionCookie,
   sessionCookieName,
 } from "./session";
+import { decodeToolContext, encodeToolContext, TOOL_CONTEXT_HEADER, type ToolContext } from "./tool-context";
 
 /**
  * Envoltorio común de todas las rutas de la API: autenticación en servidor
@@ -37,6 +39,12 @@ export const MAX_BODY_BYTES = 64 * 1024;
 /** Con varias personas activas en el mismo navegador, indica con cuál se hace la petición. */
 export const ROLE_HEADER = "x-nivel-role";
 export const DEMO_KEY_HEADER = "x-demo-key";
+export const TOOL_SECRET_HEADER = "x-tool-secret";
+
+/** Tope general por IP. Holgado: en el evento muchas personas comparten la misma red. */
+export const GENERAL_LIMIT: RateRule = Object.freeze({ limit: 1200, windowSeconds: 60 });
+/** Intentos fallidos de un secreto (clave de demo o de herramientas) por IP: frena la fuerza bruta. */
+export const SECRET_FAILURE_LIMIT: RateRule = Object.freeze({ limit: 10, windowSeconds: 300 });
 
 const ROLES = ["worker", "company", "academy", "admin"] as const satisfies readonly Role[];
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9-]{8,64}$/;
@@ -46,19 +54,31 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
  * Quién puede llamar la ruta:
  * - un rol o una lista de roles: exige la cookie firmada de uno de ellos;
  * - si incluye "admin": también vale la clave de demo en `x-demo-key`;
+ * - "tool": un agente de voz, con el secreto de herramientas en `x-tool-secret`;
  * - "public": cualquiera (solo para datos no sensibles).
  */
-export type Access = "public" | Role | readonly [Role, ...Role[]];
+export type Access = "public" | "tool" | Role | readonly [Role, ...Role[]];
 
 type RolesOf<A extends Access> = A extends Role ? A : A extends readonly Role[] ? A[number] : never;
 
 /** Actor que recibe el manejador: indefinido solo en rutas públicas. */
-export type ActorOf<A extends Access> = A extends "public" ? undefined : Extract<Actor, { role: RolesOf<A> }>;
+export type ActorOf<A extends Access> = A extends "public" | "tool"
+  ? undefined
+  : Extract<Actor, { role: RolesOf<A> }>;
+
+/** Servicios externos que usan las rutas. Se inyectan para poder sustituirlos en las pruebas. */
+export interface Services {
+  /** Token de corta vida para abrir una conversación con un agente de voz. */
+  readonly conversationToken: (agent: "worker" | "contractor") => Promise<string>;
+}
 
 export interface Runtime {
   readonly context: AppContext;
   readonly sessionSecret: string;
   readonly demoKey: string | undefined;
+  readonly toolSecret: string | undefined;
+  readonly limiter: RateLimiter;
+  readonly services: Services;
   /** Marca las cookies como `Secure` (todo despliegue por https). */
   readonly secureCookies: boolean;
 }
@@ -77,6 +97,11 @@ export interface EndpointInput<Body, RequestActor> {
   readonly issueSession: (actor: Actor) => string;
   /** ¿Coincide el valor con la clave de demo del servidor? Falso si no está configurada. */
   readonly isDemoKey: (candidate: string | null) => boolean;
+  /** Contexto firmado de la conversación de voz que llama a la herramienta, si lo trae. */
+  readonly toolContext: ToolContext | undefined;
+  /** Firma el contexto que acompañará a una conversación de voz. */
+  readonly issueToolContext: (context: ToolContext) => string;
+  readonly services: Services;
 }
 
 /** Resultado con cabeceras extra (por ejemplo `Set-Cookie`) o un código distinto de 200. */
@@ -90,6 +115,8 @@ export class ApiResponse {
 interface EndpointOptions<A extends Access, Schema extends z.ZodType | undefined> {
   readonly access: A;
   readonly body?: Schema;
+  /** Tope propio de la ruta por IP, además del general (por ejemplo, lo que cuesta dinero). */
+  readonly limit?: RateRule & { readonly bucket: string };
 }
 
 type BodyOf<Schema> = Schema extends z.ZodType ? z.infer<Schema> : undefined;
@@ -109,19 +136,54 @@ function readSessions(request: Request, runtime: Runtime): Sessions {
   return sessions;
 }
 
-const isDemoKey = (runtime: Runtime, candidate: string | null): boolean =>
-  runtime.demoKey !== undefined && secretMatches(candidate, runtime.demoKey);
+/** IP del cliente según el proxy de la plataforma. Solo se usa para limitar peticiones. */
+function clientIp(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  return forwarded || request.headers.get("x-real-ip") || "desconocida";
+}
 
-function authenticate(request: Request, access: Access, found: { runtime: Runtime; sessions: Sessions }) {
+interface Caller {
+  readonly request: Request;
+  readonly runtime: Runtime;
+}
+
+/**
+ * Compara un secreto en tiempo constante y cuenta los fallos por IP: tras
+ * varios intentos errados esa IP queda bloqueada unos minutos.
+ */
+function secretIsValid({ request, runtime }: Caller, candidate: string | null, expected: string | undefined) {
+  const key = `secreto:${clientIp(request)}`;
+  const now = runtime.context.now();
+  const blocked = runtime.limiter.blockedFor(key, SECRET_FAILURE_LIMIT, now);
+  if (blocked > 0) throw new RateLimitedError(blocked);
+  if (expected !== undefined && secretMatches(candidate, expected)) return true;
+  runtime.limiter.hit(key, SECRET_FAILURE_LIMIT, now);
+  return false;
+}
+
+function assertWithinGeneralLimit({ request, runtime }: Caller): void {
+  const wait = runtime.limiter.hit(`general:${clientIp(request)}`, GENERAL_LIMIT, runtime.context.now());
+  if (wait > 0) throw new RateLimitedError(wait);
+}
+
+function authenticate(caller: Caller, access: Access, sessions: Sessions): Actor | undefined {
+  const { request, runtime } = caller;
+  if (access === "tool") {
+    // Los agentes llaman desde pocas IP compartidas: no entran en el tope general.
+    if (secretIsValid(caller, request.headers.get(TOOL_SECRET_HEADER), runtime.toolSecret)) return undefined;
+    throw new UnauthorizedError("Secreto de herramientas inválido.");
+  }
+  assertWithinGeneralLimit(caller);
   if (access === "public") return undefined;
   const allowed: readonly Role[] = typeof access === "string" ? [access] : access;
-  if (allowed.includes("admin") && isDemoKey(found.runtime, request.headers.get(DEMO_KEY_HEADER))) {
-    return { role: "admin" } as const;
+  const demoKey = request.headers.get(DEMO_KEY_HEADER);
+  if (allowed.includes("admin") && demoKey !== null && secretIsValid(caller, demoKey, runtime.demoKey)) {
+    return { role: "admin" };
   }
   const preferred = request.headers.get(ROLE_HEADER);
   const candidates = preferred ? allowed.filter((role) => role === preferred) : allowed;
   for (const role of candidates) {
-    const actor = found.sessions[role];
+    const actor = sessions[role];
     if (actor) return actor;
   }
   throw new UnauthorizedError();
@@ -249,9 +311,15 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
 ): RouteHandler {
   const respond = async (request: Request, route: RouteParams | undefined): Promise<unknown> => {
     const resolved = await runtime();
+    const caller = { request, runtime: resolved };
+    const now = resolved.context.now();
     assertSameOrigin(request);
     const sessions = readSessions(request, resolved);
-    const actor = authenticate(request, options.access, { runtime: resolved, sessions }) as ActorOf<A>;
+    const actor = authenticate(caller, options.access, sessions) as ActorOf<A>;
+    if (options.limit) {
+      const wait = resolved.limiter.hit(`${options.limit.bucket}:${clientIp(request)}`, options.limit, now);
+      if (wait > 0) throw new RateLimitedError(wait);
+    }
     const body = await readBody(request, options.body as Schema);
     return handler({
       actor,
@@ -260,11 +328,15 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
       url: new URL(request.url),
       context: resolved.context,
       sessions,
-      issueSession: (next) => {
-        const token = encodeSession(next, resolved.sessionSecret, resolved.context.now());
-        return sessionCookie(next.role, token, resolved.secureCookies);
-      },
-      isDemoKey: (candidate) => isDemoKey(resolved, candidate),
+      issueSession: (next) =>
+        sessionCookie(next.role, encodeSession(next, resolved.sessionSecret, now), resolved.secureCookies),
+      isDemoKey: (candidate) => secretIsValid(caller, candidate, resolved.demoKey),
+      toolContext:
+        options.access === "tool"
+          ? decodeToolContext(request.headers.get(TOOL_CONTEXT_HEADER), resolved.sessionSecret, now)
+          : undefined,
+      issueToolContext: (context) => encodeToolContext(context, resolved.sessionSecret, now),
+      services: resolved.services,
     });
   };
   return async (request, route) => {

@@ -1,24 +1,14 @@
 import type { GeoPoint } from "@/lib/geo";
 import type { Level } from "@/lib/level";
 import type { Trade } from "@/lib/trades";
+import { type ZoneKey, ZONES } from "@/lib/zones";
 
 /**
  * Elenco y lugares del seed canónico (docs/spec.md, sección 5.2).
  * Todo es de ejemplo: nombres, empresas y cifras inventados para la demo.
  */
 
-export const ZONES = {
-  valencia: { name: "Valencia", point: { lat: 10.162, lng: -68.007 } },
-  losGuayos: { name: "Los Guayos", point: { lat: 10.186, lng: -67.938 } },
-  sanDiego: { name: "San Diego", point: { lat: 10.258, lng: -67.954 } },
-  naguanagua: { name: "Naguanagua", point: { lat: 10.257, lng: -68.012 } },
-  guacara: { name: "Guacara", point: { lat: 10.232, lng: -67.877 } },
-  tocuyito: { name: "Tocuyito", point: { lat: 10.104, lng: -68.073 } },
-  puertoCabello: { name: "Puerto Cabello", point: { lat: 10.473, lng: -68.012 } },
-  moron: { name: "Morón", point: { lat: 10.488, lng: -68.2 } },
-} as const satisfies Record<string, { name: string; point: GeoPoint }>;
-
-export type ZoneKey = keyof typeof ZONES;
+export { ZONES, type ZoneKey };
 
 export const SITE = {
   name: "Obra Los Guayos",

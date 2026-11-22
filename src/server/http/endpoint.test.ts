@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
@@ -8,9 +10,11 @@ import { ConfigError } from "../config/env";
 import { ConflictError, RateLimitedError } from "../errors";
 import { createTestApp, DEMO_NOW, type TestApp, TEST_SECRET } from "../testing/test-app";
 import { ApiResponse, endpoint, MAX_BODY_BYTES, type Runtime } from "./endpoint";
+import { createRateLimiter } from "./rate-limit";
 import { encodeSession, sessionCookieName } from "./session";
 
-const DEMO_KEY = "clave-de-demo-de-pruebas-de-32-caracteres";
+const DEMO_KEY = randomBytes(32).toString("hex");
+const TOOL_SECRET = randomBytes(32).toString("hex");
 const URL_BASE = "http://localhost:3000/api/prueba";
 const CARLOS: Actor = { role: "worker", workerId: "w-carlos" };
 const COMPANY: Actor = { role: "company", companyId: "co-guayos" };
@@ -21,7 +25,15 @@ let errorLog: ReturnType<typeof vi.spyOn>;
 
 beforeAll(async () => {
   app = await createTestApp();
-  runtime = { context: app.context, sessionSecret: TEST_SECRET, demoKey: DEMO_KEY, secureCookies: true };
+  runtime = {
+    context: app.context,
+    sessionSecret: TEST_SECRET,
+    demoKey: DEMO_KEY,
+    toolSecret: TOOL_SECRET,
+    limiter: createRateLimiter(),
+    services: { conversationToken: async (agent) => `token-${agent}` },
+    secureCookies: true,
+  };
 });
 
 afterAll(() => app.close());
