@@ -10,7 +10,7 @@ Plan aprobado: https://claude.ai/artifact/GSnQHsdYHduT8bpe6sQPD2 (backend fases 
 - [x] Entorno validado con zod (`src/server/config/env.ts`)
 - [x] `GET /api/health`
 - [x] CI de GitHub Actions y Dependabot
-- [ ] CI en verde en GitHub
+- [x] CI en verde en GitHub (AkthamGhanam/NIVEL, run 44996534113)
 - [ ] Despliegue en Vercel con `/api/health` en 200
 
 ## Fase 1 · Dominio puro — lista
@@ -29,6 +29,5 @@ Plan aprobado: https://claude.ai/artifact/GSnQHsdYHduT8bpe6sQPD2 (backend fases 
 
 ## HUMANO
 
-- HUMANO: crear el repositorio vacío `nivel` en GitHub (sin README) y avisar.
 - HUMANO: crear el proyecto en Vercel conectado a ese repositorio.
 - HUMANO: confirmar créditos de ElevenLabs (Agents, TTS, STT, Sound Effects).
