@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { cx } from "@/lib/cx";
+
 /**
  * Marco de teléfono de 390 × 844 para ver la app del trabajador en una
  * pantalla grande (Modo Jurado). En un teléfono real no dibuja nada: el
@@ -11,14 +13,19 @@ interface PhoneFrameProps {
   readonly label?: string;
   /** Barra fija al pie (la navegación de la app): queda fuera de la zona que se desplaza. */
   readonly footer?: ReactNode;
+  /** Ocupa el alto que le deje su contenedor, hasta el tamaño real. Sin esto mide siempre 868 px. */
+  readonly fit?: boolean;
 }
 
-export function PhoneFrame({ children, label, footer }: PhoneFrameProps) {
+export function PhoneFrame({ children, label, footer, fit = false }: PhoneFrameProps) {
   return (
     <div
       role={label ? "group" : undefined}
       aria-label={label}
-      className="relative flex h-dvh w-full flex-col bg-surface md:h-[868px] md:min-h-0 md:w-[414px] md:rounded-[56px] md:bg-[#0b1117] md:p-3 md:shadow-phone md:ring-2 md:ring-ink-2 md:ring-inset"
+      className={cx(
+        "relative flex h-dvh w-full flex-col bg-surface md:min-h-0 md:w-[414px] md:rounded-[56px] md:bg-[#0b1117] md:p-3 md:shadow-phone md:ring-2 md:ring-ink-2 md:ring-inset",
+        fit ? "md:h-auto md:max-h-[868px] md:flex-1" : "md:h-[868px]",
+      )}
     >
       <span
         aria-hidden="true"
