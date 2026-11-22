@@ -46,6 +46,7 @@ export interface ElevenLabsAdmin {
   readonly soundEffect: (prompt: string, seconds: number) => Promise<Uint8Array>;
   /** Conversación de texto con un agente publicado: ejecuta sus herramientas de verdad. */
   readonly chat: (request: ChatRequest) => Promise<ChatResult>;
+  readonly toolTrace: (conversationId: string, toolName: string) => Promise<string[]>;
 }
 
 export interface ChatRequest {
@@ -211,6 +212,29 @@ async function chat({ sendJson }: Api, request: ChatRequest): Promise<ChatResult
   return { conversationId, said };
 }
 
+const TRACE_LIMIT = 400;
+const brief = (value: unknown) =>
+  (typeof value === "string" ? value : JSON.stringify(value ?? "")).slice(0, TRACE_LIMIT);
+
+async function toolTrace({ getJson }: Api, conversationId: string, toolName: string): Promise<string[]> {
+  const notes: string[] = [];
+  const listed = await getJson(TOOLS.path, { search: toolName, page_size: PAGE_SIZE });
+  const tool = asList(listed.tools).find((item) => TOOLS.matches(item, toolName));
+  const schema = asRecord(asRecord(tool?.tool_config).api_schema);
+  notes.push(
+    `Dirección publicada: ${brief(schema.url)} · cabeceras: ${Object.keys(asRecord(schema.request_headers)).join(", ")}`,
+  );
+  const detail = await getJson(`/v1/convai/conversations/${encodeURIComponent(conversationId)}`);
+  for (const turn of asList(detail.transcript)) {
+    for (const result of asList(turn.tool_results)) {
+      notes.push(
+        `Resultado de ${brief(result.tool_name)}: error=${brief(result.is_error)} · ${brief(result.result_value ?? result.error ?? result)}`,
+      );
+    }
+  }
+  return notes;
+}
+
 export function createElevenLabsAdmin(options: ElevenLabsHttpOptions): ElevenLabsAdmin {
   const http = createElevenLabsHttp({ timeoutMs: ADMIN_TIMEOUT_MS, ...options });
   const api: Api = {
@@ -235,5 +259,6 @@ export function createElevenLabsAdmin(options: ElevenLabsHttpOptions): ElevenLab
     },
     ...voiceOperations(api),
     chat: (request) => chat(api, request),
+    toolTrace: (conversationId, toolName) => toolTrace(api, conversationId, toolName),
   };
 }

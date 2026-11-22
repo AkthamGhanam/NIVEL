@@ -36,6 +36,7 @@ function fakeAdmin(chat: ElevenLabsAdmin["chat"]): { admin: ElevenLabsAdmin; cal
     speak: unused,
     soundEffect: unused,
     chat,
+    toolTrace: async () => ["Dirección publicada: https://nivel.example"],
   };
   return { admin, calls };
 }
@@ -124,6 +125,7 @@ describe("probar la voz", () => {
     expect(check.ok).toBe(false);
     expect(check.steps[1]).toMatchObject({ ok: false });
     expect(check.steps[1]?.detail).toContain("no llegó al servidor");
+    expect(check.trace).toEqual(["Dirección publicada: https://nivel.example"]);
   });
 
   it("si el servidor rechazó la clave, sugiere reconectar", async () => {
