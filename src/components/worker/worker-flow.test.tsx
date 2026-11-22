@@ -42,7 +42,7 @@ import { WorkerAccess } from "./worker-access";
 import { WorkerShell } from "./worker-shell";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/trabajador",
+  usePathname: () => "/t",
   useRouter: () => ({ push: () => undefined }),
   useSearchParams: () => new URLSearchParams("demo=1"),
 }));
@@ -178,7 +178,7 @@ describe("entrada del trabajador", () => {
     expect(shell).toContain("Carlos");
     expect(shell).toContain("Cambiar de cuenta");
     expect(shell).not.toContain("md:rounded-[56px]");
-    expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/trabajador"[^>]*>Inicio<\/a>/);
+    expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/t"[^>]*>Inicio<\/a>/);
     // Las mismas cuatro secciones en el menú lateral (escritorio) y en la barra inferior (teléfono).
     expect(shell.match(/<li>/g)).toHaveLength(8);
     expect(shell).toContain(DEMO_FOOTER);
@@ -233,7 +233,7 @@ describe("oferta y contrato", () => {
     expect(offer.status).toBe("enviada");
     expect(text(list)).toContain("Constructora Los Guayos Empresa verificada");
     expect(text(list)).toContain("Soldador en Los Guayos 5 días desde mar 24 nov $25 al día Total $125");
-    expect(list).toContain(`href="/trabajador/oferta/${invitationId}"`);
+    expect(list).toContain(`href="/t/oferta/${invitationId}"`);
     expect(text(detail)).toContain("Tipo de contrato Por obra determinada");
     expect(detail).toContain(NOT_EMPLOYER_NOTICE);
     expect(detail).toMatch(/<h1[^>]*>Soldador en Los Guayos<\/h1>/);
@@ -266,7 +266,7 @@ describe("oferta y contrato", () => {
     expect(markup).toContain('autoComplete="one-time-code"');
     expect(markup).toContain("Firmar contrato");
     expect(html(<OfferView offer={mine!} onRespond={noop} pending={false} error={null} />)).toMatch(
-      /Aceptaste esta oferta.*href="\/trabajador\/contrato\/[^"]+"[^>]*>Ver mi contrato/,
+      /Aceptaste esta oferta.*href="\/t\/contrato\/[^"]+"[^>]*>Ver mi contrato/,
     );
     expect(html(<NextStep action={stepAction(jobStep(contract), contract.id)} />)).toContain(
       "Firmar mi contrato",
@@ -290,7 +290,7 @@ describe("oferta y contrato", () => {
 
     expect(signed.status).toBe("activo");
     expect(text(markup)).toMatch(/Firmado el \w{3} \d{1,2} \w{3}, \d{1,2}:\d{2} [ap]\. m\./);
-    expect(markup).toMatch(/<a [^>]*href="\/trabajador\/obra"[^>]*>Marcar mi entrada<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/t\/obra"[^>]*>Marcar mi entrada<\/a>/);
     expect(markup).not.toContain("Firmar contrato");
     await expect(worker.sign(contractId, otp)).rejects.toMatchObject({ status: 409 });
   });
@@ -306,7 +306,7 @@ describe("entrada y salida de la obra", () => {
     expect(normal).toContain("Llegué a la obra");
     expect(normal).toContain("Usamos tu ubicación solo en este momento");
     expect(normal).not.toContain("Simular");
-    expect(normal).toContain('href="/trabajador/ayuda?tipo=inseguridad"');
+    expect(normal).toContain('href="/t/ayuda?tipo=inseguridad"');
     expect(jury).toContain("Simular que estoy en la obra (demo)");
   });
 
@@ -365,7 +365,7 @@ describe("fin de obra", () => {
     expect(markup).toContain("¿Recibiste tu pago de $125?");
     expect(markup).toContain(`href="/recibo/${paymentId}?vista=trabajador"`);
     expect(markup).toContain("Sí, lo recibí");
-    expect(markup).toMatch(/<a [^>]*href="\/trabajador\/ayuda\?tipo=no_pago"[^>]*>No lo he recibido<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/t\/ayuda\?tipo=no_pago"[^>]*>No lo he recibido<\/a>/);
     expect(markup).not.toContain("Califica a la empresa");
   });
 
@@ -488,7 +488,7 @@ describe("ayuda", () => {
     expect(markup).toContain("Reporte recibido");
     expect(markup).toContain(HUMAN_REVIEW_NOTICE);
     expect(markup).toContain(receipt.message);
-    expect(markup).toMatch(/<a [^>]*href="\/trabajador"[^>]*>Volver al inicio<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/t"[^>]*>Volver al inicio<\/a>/);
     expect((await worker.level()).level).toBe(before.level);
     expect((await company.board())?.request.status).toBe("completa");
     await expect(worker.report({ kind: "otro", text: "x".repeat(2001) })).rejects.toMatchObject({

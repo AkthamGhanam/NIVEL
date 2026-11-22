@@ -71,12 +71,12 @@ export interface StepAction {
 export function stepAction(step: JobStep, contractId: string): StepAction {
   const id = encodeURIComponent(contractId);
   const actions: Record<JobStep, StepAction> = {
-    firmar: { label: "Firmar mi contrato", href: `/trabajador/contrato/${id}` },
-    marcar_entrada: { label: "Marcar mi entrada", href: "/trabajador/obra" },
-    marcar_salida: { label: "Marcar mi salida", href: "/trabajador/obra" },
+    firmar: { label: "Firmar mi contrato", href: `/t/contrato/${id}` },
+    marcar_entrada: { label: "Marcar mi entrada", href: "/t/obra" },
+    marcar_salida: { label: "Marcar mi salida", href: "/t/obra" },
     esperar_pago: { label: "Terminaste la obra. Falta que la empresa registre tu pago.", href: null },
-    confirmar_pago: { label: "Confirmar si recibí mi pago", href: `/trabajador/fin/${id}` },
-    calificar: { label: "Calificar a la empresa", href: `/trabajador/fin/${id}` },
+    confirmar_pago: { label: "Confirmar si recibí mi pago", href: `/t/fin/${id}` },
+    calificar: { label: "Calificar a la empresa", href: `/t/fin/${id}` },
     terminado: { label: "Trabajo terminado y confirmado.", href: null },
     cerrado: { label: "Este contrato terminó.", href: null },
   };

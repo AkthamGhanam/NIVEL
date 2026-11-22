@@ -37,7 +37,7 @@ export function BoardGate({ children, emptyTitleAs: EmptyTitle = "h1" }: BoardGa
           <p className="text-lg text-ink-2">
             Cuando armes tu cuadrilla, aquí verás la obra, los pagos y las calificaciones.
           </p>
-          <ButtonLink href="/contratista">Pedir cuadrilla</ButtonLink>
+          <ButtonLink href="/c">Pedir cuadrilla</ButtonLink>
         </Card>
       ) : null}
     </div>

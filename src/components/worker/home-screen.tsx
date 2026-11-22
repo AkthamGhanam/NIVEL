@@ -31,7 +31,7 @@ export function LevelCard({ level }: { readonly level: MyProfile["level"] }) {
         De {formatUsd(level.referenceBand.min)} a {formatUsd(level.referenceBand.max)} al mes.{" "}
         {REFERENCE_BAND_NOTICE}
       </p>
-      <ButtonLink href="/trabajador/nivel" variant="outline" block>
+      <ButtonLink href="/t/nivel" variant="outline" block>
         Ver mi nivel
       </ButtonLink>
     </Card>
@@ -78,7 +78,7 @@ export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] 
                 <OfferCompany company={offer.company} />
                 <OfferSummary offer={offer} titleAs="h3" />
                 <OfferVoiceNote audioUrl={offer.audioUrl} />
-                <ButtonLink href={`/trabajador/oferta/${encodeURIComponent(offer.invitationId)}`} block>
+                <ButtonLink href={`/t/oferta/${encodeURIComponent(offer.invitationId)}`} block>
                   Ver oferta
                 </ButtonLink>
               </Card>
@@ -159,7 +159,7 @@ export function HomeScreen() {
       {job ? <CurrentJob offer={job} /> : null}
       {offers.loading ? <LoadingText>Nivi está revisando tus ofertas…</LoadingText> : null}
       {offers.data ? <OfferList offers={offers.data} /> : null}
-      <HelpLink href="/trabajador/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
+      <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
     </>
   );
 }

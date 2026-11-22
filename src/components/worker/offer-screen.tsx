@@ -53,7 +53,7 @@ export function OfferView({ offer, onRespond, pending, error }: OfferViewProps) 
             {offer.status === "aceptada" ? "Aceptaste esta oferta" : "Rechazaste esta oferta"}
           </Tag>
           {offer.contractId ? (
-            <ButtonLink href={`/trabajador/contrato/${encodeURIComponent(offer.contractId)}`} block>
+            <ButtonLink href={`/t/contrato/${encodeURIComponent(offer.contractId)}`} block>
               Ver mi contrato
             </ButtonLink>
           ) : null}
@@ -70,11 +70,7 @@ export function OfferScreen({ invitationId }: { readonly invitationId: string })
   const respond = useAction(async (accept: boolean) => {
     const { offer } = await api.respond(invitationId, accept);
     await store.refresh();
-    router.push(
-      accept && offer.contractId
-        ? `/trabajador/contrato/${encodeURIComponent(offer.contractId)}`
-        : "/trabajador",
-    );
+    router.push(accept && offer.contractId ? `/t/contrato/${encodeURIComponent(offer.contractId)}` : "/t");
   });
   const offer = live.data?.find((candidate) => candidate.invitationId === invitationId);
 
@@ -83,7 +79,7 @@ export function OfferScreen({ invitationId }: { readonly invitationId: string })
     return (
       <>
         <Notice tone="pending">No encontramos esa oferta. Puede que ya no esté disponible.</Notice>
-        <ButtonLink href="/trabajador" variant="outline" block>
+        <ButtonLink href="/t" variant="outline" block>
           Volver al inicio
         </ButtonLink>
       </>

@@ -233,7 +233,7 @@ describe("pedir cuadrilla y tablero en vivo", () => {
 
     expect(board.request.status).toBe("completa");
     expect(markup).toContain("Cuadrilla completa · 3 de 3");
-    expect(markup).toMatch(/<a [^>]*href="\/contratista\/obra"[^>]*>Ver la obra<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/c\/obra"[^>]*>Ver la obra<\/a>/);
     expect(markup).not.toContain("personas más cumplen");
     expect(markup).not.toContain("Reemplazo sugerido");
   });
@@ -275,7 +275,7 @@ describe("obra en curso", () => {
     const markup = html(<SiteView board={{ ...board, crew: [] }} />);
 
     expect(markup).toContain("Aún no hay nadie contratado.");
-    expect(markup).toMatch(/<a [^>]*href="\/contratista"/);
+    expect(markup).toMatch(/<a [^>]*href="\/c"/);
   });
 });
 

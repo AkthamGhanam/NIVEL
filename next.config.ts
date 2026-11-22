@@ -17,11 +17,11 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  // Las apps se llamaban /t y /c: los enlaces y QR viejos siguen funcionando.
+  // Las apps viven en /t y /c; los nombres largos también llevan ahí.
   async redirects() {
     return [
-      { source: "/t/:path*", destination: "/trabajador/:path*", permanent: false },
-      { source: "/c/:path*", destination: "/contratista/:path*", permanent: false },
+      { source: "/trabajador/:path*", destination: "/t/:path*", permanent: false },
+      { source: "/contratista/:path*", destination: "/c/:path*", permanent: false },
     ];
   },
   async headers() {

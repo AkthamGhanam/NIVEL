@@ -303,10 +303,10 @@ Pendiente de estas vistas:
 - La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
 - Sin probar en Safari ni en un teléfono real.
 
-## Fase 11 · Producto web: `/trabajador` y `/contratista`
+## Fase 11 · Producto web en `/t` y `/c`
 
-- [x] Las apps dejan de verse como presentación: `/t` pasa a `/trabajador` y `/c` a `/contratista` (los enlaces
-      y QR viejos redirigen con 307). La portada enlaza a cada app
+- [x] Las apps dejan de verse como presentación y siguen en `/t` (trabajador) y `/c` (contratista);
+      `/trabajador` y `/contratista` redirigen ahí. La portada enlaza a cada app
 - [x] Trabajador sin marco de teléfono: menú lateral oscuro en escritorio, encabezado y barra inferior en el
       teléfono. El marco queda solo para el Modo Jurado y `/estilo`
 - [x] Acceso del trabajador: crear el perfil **hablando con Nivi** (`@elevenlabs/react`, WebRTC con el token y

@@ -33,7 +33,7 @@ export function ReportConfirmation({ receipt }: { readonly receipt: ReportReceip
           {receipt.guidance}
         </Notice>
       ) : null}
-      <ButtonLink href="/trabajador" variant="outline" block>
+      <ButtonLink href="/t" variant="outline" block>
         Volver al inicio
       </ButtonLink>
     </>

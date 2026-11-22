@@ -9,10 +9,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { cx } from "@/lib/cx";
 
 export const WORKER_NAV = [
-  { href: "/trabajador", label: "Inicio" },
-  { href: "/trabajador/aprender", label: "Mi ruta" },
-  { href: "/trabajador/obra", label: "Trabajos" },
-  { href: "/trabajador/mis-datos", label: "Perfil" },
+  { href: "/t", label: "Inicio" },
+  { href: "/t/aprender", label: "Mi ruta" },
+  { href: "/t/obra", label: "Trabajos" },
+  { href: "/t/mis-datos", label: "Perfil" },
 ] as const;
 
 /** Sección activa: la más específica que contenga la dirección actual. */
@@ -114,11 +114,7 @@ export function WorkerShell({ firstName, onSwitch, children }: WorkerShellProps)
   return (
     <div className="flex min-h-dvh flex-1 flex-col lg:flex-row">
       <header className="on-dark flex items-center justify-between gap-3 bg-ink px-4 py-2 lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:flex-col lg:items-stretch lg:justify-start lg:gap-8 lg:overflow-y-auto lg:px-5 lg:py-7">
-        <Link
-          href="/trabajador"
-          aria-label="NIVEL, ir al inicio"
-          className="inline-flex min-h-12 items-center"
-        >
+        <Link href="/t" aria-label="NIVEL, ir al inicio" className="inline-flex min-h-12 items-center">
           <NivelMark tone="white" size={28} />
         </Link>
         <div className="hidden lg:block">

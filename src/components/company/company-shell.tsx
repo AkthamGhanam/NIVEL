@@ -10,10 +10,10 @@ import { Avatar } from "@/components/ui/avatar";
 import { cx } from "@/lib/cx";
 
 export const COMPANY_NAV = [
-  { href: "/contratista", label: "Pedir cuadrilla" },
-  { href: "/contratista/obra", label: "Obra" },
-  { href: "/contratista/pagos", label: "Pagos" },
-  { href: "/contratista/calificar", label: "Calificar" },
+  { href: "/c", label: "Pedir cuadrilla" },
+  { href: "/c/obra", label: "Obra" },
+  { href: "/c/pagos", label: "Pagos" },
+  { href: "/c/calificar", label: "Calificar" },
 ] as const;
 
 interface CompanyShellProps {
@@ -87,11 +87,7 @@ export function CompanyShell({ company, onSwitch, children }: CompanyShellProps)
   return (
     <div className="flex min-h-full flex-1 flex-col lg:flex-row">
       <header className="on-dark flex flex-col gap-4 bg-ink px-4 py-4 lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:gap-8 lg:overflow-y-auto lg:px-5 lg:py-7">
-        <Link
-          href="/contratista"
-          aria-label="NIVEL, pedir cuadrilla"
-          className="inline-flex min-h-12 items-center"
-        >
+        <Link href="/c" aria-label="NIVEL, pedir cuadrilla" className="inline-flex min-h-12 items-center">
           <NivelMark tone="white" />
         </Link>
         <CompanyNav current={pathname} />

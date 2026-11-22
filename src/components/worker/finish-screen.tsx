@@ -47,7 +47,7 @@ export function PaymentQuestion({ payment, onConfirm, pending, error }: PaymentQ
       <Button block disabled={pending} onClick={onConfirm}>
         Sí, lo recibí
       </Button>
-      <ButtonLink href="/trabajador/ayuda?tipo=no_pago" variant="danger" block>
+      <ButtonLink href="/t/ayuda?tipo=no_pago" variant="danger" block>
         No lo he recibido
       </ButtonLink>
     </Card>
@@ -94,7 +94,7 @@ export function FinishView({ contract, onConfirm, confirming, error, onRate }: F
       {step === "terminado" ? (
         <>
           <Notice title="Calificación enviada">{BLIND_RATING_NOTICE}</Notice>
-          <ButtonLink href="/trabajador/nivel" block>
+          <ButtonLink href="/t/nivel" block>
             Ver mi nivel
           </ButtonLink>
         </>
@@ -123,7 +123,7 @@ function FinishControls({ contract, refresh }: FinishControlsProps) {
     // Con el trabajo confirmado por ambas partes, la fórmula pública vuelve a calcular el nivel.
     const level = await api.recalculateLevel();
     await Promise.all([refresh(), profile.refresh()]);
-    if (level.leveledUp) router.push("/trabajador/nivel?subiste=1");
+    if (level.leveledUp) router.push("/t/nivel?subiste=1");
   };
   return (
     <FinishView

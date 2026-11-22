@@ -25,7 +25,7 @@ export const BOARD_POLL_MS = 2000;
 export interface CompanySession {
   readonly company: CompanyPersona;
   readonly api: CompanyApi;
-  /** Tablero de la solicitud activa, compartido por todas las secciones de `/contratista`. */
+  /** Tablero de la solicitud activa, compartido por todas las secciones de `/c`. */
   readonly board: LiveStore<RequestBoard | null>;
 }
 

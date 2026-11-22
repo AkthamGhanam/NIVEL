@@ -10,14 +10,14 @@ const AUDIENCES = [
     chip: "Trabajador",
     title: "Regístrate hablando",
     text: "Sin formularios. Nivi te escucha, arma tu perfil y te avisa de ofertas de trabajo en regla.",
-    href: "/trabajador",
+    href: "/t",
     cta: "Crear mi perfil",
   },
   {
     chip: "Contratista",
     title: "Pide tu cuadrilla hablando",
     text: "Dices qué necesitas y ves quién cumple, cuánto cuesta en regla y quién aceptó.",
-    href: "/contratista",
+    href: "/c",
     cta: "Registrar mi empresa",
   },
   {
