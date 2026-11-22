@@ -252,6 +252,21 @@ describe("camino dorado", () => {
     expect(serialized).not.toContain("extintor");
     expect(serialized).not.toContain(carlosOtp);
   });
+
+  it("15. la bitácora dice cuánto tardó en armarse la cuadrilla, una sola vez", async () => {
+    const events = await listEventsSince(app.context, undefined);
+    const created = events.find((event) => event.type === "solicitud_creada");
+    const complete = events.filter((event) => event.type === "cuadrilla_completa");
+
+    expect(created?.label).toBe("Solicitud: 3 soldadores · 6 cumplen");
+    expect(complete).toHaveLength(1);
+    expect(complete[0]).toMatchObject({
+      actor: "Constructora Los Guayos",
+      label: "Cuadrilla completa · 3 de 3",
+      detail: { requestId: created?.detail?.requestId, seconds: expect.any(Number) },
+    });
+    expect(Number(complete[0]?.detail?.seconds)).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe("control de acceso (denegado por defecto)", () => {

@@ -104,12 +104,13 @@ async function acceptInvitation({
   context,
   row,
   worker,
-}: Acceptance): Promise<{ contractId: string; otp: string }> {
+}: Acceptance): Promise<{ contractId: string; otp: string; crewComplete: boolean }> {
   const { invitation, request, company } = row;
   const contractId = context.newId("ct");
   const otp = newOtpCode();
   const respondedAt = context.now().toISOString();
   const fee = hiringFee(worker.level as Level);
+  let crewComplete = false;
   await writeTransaction(context.db, async (tx) => {
     const [{ accepted } = { accepted: 0 }] = await tx
       .select({ accepted: count() })
@@ -148,11 +149,12 @@ async function acceptInvitation({
       status: "por_pagar",
       createdAt: respondedAt,
     });
-    if (accepted + 1 >= request.quantity) {
+    crewComplete = accepted + 1 >= request.quantity;
+    if (crewComplete) {
       await tx.update(jobRequests).set({ status: "completa" }).where(eq(jobRequests.id, request.id));
     }
   });
-  return { contractId, otp };
+  return { contractId, otp, crewComplete };
 }
 
 async function rejectInvitation(context: AppContext, invitationId: string): Promise<void> {
@@ -162,6 +164,17 @@ async function rejectInvitation(context: AppContext, invitationId: string): Prom
     .where(and(eq(invitations.id, invitationId), eq(invitations.status, "enviada")))
     .returning({ id: invitations.id });
   if (updated.length === 0) throw new ConflictError("Esta invitación ya fue respondida.");
+}
+
+/** Deja en la bitácora cuánto tardó en armarse la cuadrilla: es la cifra que se muestra en el Modo Jurado. */
+async function logCrewComplete(context: AppContext, { request, company }: OfferJoin): Promise<void> {
+  const elapsedMs = context.now().getTime() - new Date(request.createdAt).getTime();
+  await logEvent(context, {
+    actor: company.name,
+    type: "cuadrilla_completa",
+    label: `Cuadrilla completa · ${request.quantity} de ${request.quantity}`,
+    detail: { requestId: request.id, seconds: Math.max(0, Math.round(elapsedMs / 1000)) },
+  });
 }
 
 /** El trabajador acepta o rechaza una invitación. Solo puede responder la suya, y una sola vez. */
@@ -187,6 +200,7 @@ export async function respondToInvitation(
     label: `${shortName(worker.name)} ${input.accept ? "aceptó" : "rechazó"} la invitación`,
     detail: { invitationId: row.invitation.id, requestId: row.request.id },
   });
+  if (accepted?.crewComplete) await logCrewComplete(context, row);
   const status = input.accept ? ("aceptada" as const) : ("rechazada" as const);
   const rates = await paysOnTimeByCompany(context.db, [row.company.id]);
   const offer = toOffer(

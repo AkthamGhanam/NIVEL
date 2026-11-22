@@ -7,7 +7,7 @@ import type { Level } from "@/lib/level";
 import { type PublicCandidate, rankCandidates } from "@/lib/matching";
 import { moderateJobText } from "@/lib/moderation";
 import { hiringFeeRange, type PriceWithIva } from "@/lib/pricing";
-import type { ContractType, Trade } from "@/lib/trades";
+import { type ContractType, type Trade, tradeCount } from "@/lib/trades";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
@@ -120,7 +120,7 @@ export async function createJobRequest(
   await logEvent(context, {
     actor: company.name,
     type: "solicitud_creada",
-    label: `Solicitud: ${request.quantity} ${request.trade} · ${search.matching} cumplen`,
+    label: `Solicitud: ${tradeCount(request.trade, request.quantity)} · ${search.matching} cumplen`,
     detail: { requestId: request.id, matching: search.matching },
   });
   return { request, ...search };

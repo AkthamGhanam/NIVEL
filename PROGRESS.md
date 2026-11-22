@@ -211,6 +211,39 @@ Pendiente de esta app:
   pruebas del servidor las posiciones dentro y fuera de la geocerca.
 - Sin probar en Safari ni en un teléfono real.
 
+## Fase 9 · Modo Jurado (`/demo`) — listo sin la voz, el Plan B ni el chequeo previo
+
+- [x] Solo entra el equipo: la página pide la clave de la demo y abre una sesión firmada; la bitácora y los
+      controles responden 401 sin ella
+- [x] Pantalla dividida: la app del trabajador en un marco de teléfono y la web del contratista al lado, cada
+      una en su propio marco del mismo origen, con sesiones separadas
+- [x] Bitácora en vivo (se consulta cada 1,5 s, lo más reciente arriba) con quién, qué, a qué hora y, cuando
+      el servidor lo registra, el producto de ElevenLabs y la latencia
+- [x] Contador de la cuadrilla: corre desde que se publica la solicitud y se detiene con el evento
+      "Cuadrilla completa", que el servidor registra una sola vez con los segundos que tardó
+- [x] Controles del presentador: "Avanzar a fin de obra", "Reiniciar demo" con confirmación (recarga los dos
+      marcos) e interruptor del bot de demo
+- [x] Perfiles reales creados hoy (nombre de pila, oficio y zona) y QR dibujado en la propia página, sin
+      servicios externos
+- [x] En pantallas de 1280 px o más de ancho todo cabe sin desplazar la página: la bitácora va en una
+      columna a la derecha y se desplaza por dentro. En pantallas más angostas la página se desplaza
+- [x] 561 pruebas; cobertura de líneas 99 %
+
+Recorrido completo en un navegador real (Chromium, 1920 × 1080, 1366 × 768 y 390 px) sobre el servidor de
+producción: clave equivocada, entrada, cuadrilla armada con el bot (9 s en el contador), avance a fin de
+obra, bot apagado y reinicio. 18 estados con axe sin hallazgos WCAG 2.1 A y AA, sin desbordes y cero errores
+de consola. También se midió en 1280 × 720 y 1536 × 864. Esa revisión se corre a mano; no está en CI. Encontró
+dos fallos que las pruebas no veían y ya están corregidos: un rol de accesibilidad mal puesto en la bitácora
+y la página que crecía con la bitácora hasta sacarla de la pantalla.
+
+Pendiente de esta vista:
+
+- El QR lleva a `/t` (entrada con personas de ejemplo). Apuntará a `/t/registro` cuando exista el registro.
+- Interruptor de Plan B (`?planb=1`, audios pregrabados) y chequeo previo `/demo/check`: dependen de la voz.
+- La bitácora todavía no muestra eventos de ElevenLabs con latencia real: no hay ninguno hasta integrar la voz.
+- En 1280 × 720 el teléfono queda con 440 px de alto útil; funciona, pero hay que desplazar dentro del marco.
+- Sin probar en Safari ni en un proyector real.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.
