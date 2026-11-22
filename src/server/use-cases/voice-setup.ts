@@ -145,7 +145,7 @@ async function selfCall(context: AppContext, setup: VoiceSetup, toolContext: str
     await takeTestProfile(context, SELF_CONVERSATION);
     return `Llamada directa del servidor a su propia herramienta: HTTP ${response.status} · ${body}`;
   } catch (error) {
-    return `Llamada directa fallida: ${errorDetail(error)}`;
+    return `Llamada directa fallida (${error instanceof Error ? error.name : "error"}).`;
   }
 }
 
