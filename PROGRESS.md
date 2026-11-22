@@ -303,7 +303,7 @@ Pendiente de estas vistas:
 - La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
 - Sin probar en Safari ni en un teléfono real.
 
-## Fase 11 · Voz en las pantallas — en curso (falta el widget de respaldo y los sonidos de nivel)
+## Fase 11 · Voz en las pantallas — lista en código salvo el widget de respaldo (sin probar con ElevenLabs real)
 
 ### 11a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
 
@@ -378,7 +378,10 @@ Pendiente de hablar con Nivi:
 - [x] En una sola columna (teléfono y marco del Modo Jurado) el tablero de `/c` va justo después de la voz,
       para ver sin bajar lo que Nivi crea
 - [x] `POST /api/requests` acepta `via: "voz" | "web"` (por defecto `web`)
-- [x] 751 pruebas; cobertura de líneas 99 %
+- [x] **Subir de nivel** (`/t/nivel?subiste=1`): suena el efecto y la felicitación de Nivi, que también
+      queda escrita con «Escuchar la felicitación». La de Carlos a Nivel 3 usa el audio pregenerado; para
+      cualquier otra persona la frase se pide al TTS. Al salir de la pantalla se calla
+- [x] 761 pruebas; cobertura de líneas 99 %
 
 Recorrido en Chromium: chequeo previo (1440 px y 390 px), plan B completo en `/c?planb=1` (saludo,
 solicitud, invitaciones) y Modo Jurado con el interruptor; axe sin hallazgos, sin desbordes, cero tokens
@@ -398,6 +401,9 @@ Pendiente del plan B y del chequeo:
   navegador. Los efectos de sonido salen en rojo hasta que se integre el PR que los trae.
 - La salida de audio solo comprueba que el navegador reprodujo el archivo; que se oiga lo confirma la persona.
 - El chequeo no revisa `TOOL_SECRET` ni que los agentes publicados apunten a esta dirección.
+- El efecto de subir de nivel (`/sfx/subir-nivel.mp3`) no está en esta rama: hasta que se integre, la
+  pantalla pide un archivo que responde 404 y solo suena la voz. El navegador puede bloquear el sonido
+  automático; para eso está el botón. Los sonidos de notificación y de éxito no se usan en ninguna pantalla.
 
 ## Decisiones
 

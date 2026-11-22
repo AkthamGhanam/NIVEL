@@ -1,4 +1,5 @@
 import { type ApiRequest, errorMessage } from "./api";
+import { SOUNDS } from "./level-up";
 import { CONTRACTOR_OPENING } from "./plan-b";
 import { PRIVACY_AUDIO_URL } from "./registration-view";
 import { playAudio } from "./speech-player";
@@ -35,11 +36,7 @@ export interface CheckState {
 }
 
 /** Efectos de sonido de la app (sección 7.6). */
-export const SOUND_EFFECT_URLS = Object.freeze([
-  "/sfx/subir-nivel.mp3",
-  "/sfx/notificacion.mp3",
-  "/sfx/exito.mp3",
-]);
+export const SOUND_EFFECT_URLS: readonly string[] = Object.freeze(Object.values(SOUNDS));
 
 /** Lista de audios pregenerados que publica `npm run audio:gen`. */
 export const AUDIO_MANIFEST_URL = "/audio/manifest.json";

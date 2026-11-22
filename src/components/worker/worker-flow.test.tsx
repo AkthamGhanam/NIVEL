@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createApiRequest } from "@/client/api";
+import { levelUpSpeech } from "@/client/level-up";
 import { isReportKind } from "@/client/report-kinds";
 import { type CompanyApi, createCompanyApi } from "@/client/company-api";
 import type { Receipt } from "@/client/company-api";
@@ -454,6 +455,15 @@ describe("fin de obra", () => {
     expect(markup).toContain(REFERENCE_BAND_NOTICE);
     expect(markup).toContain('href="/legal/niveles"');
     expect(html(<LevelView level={await worker.level()} celebrate={false} />)).not.toContain("¡Subiste");
+    const congratulation = levelUpSpeech({ ...level, firstName: (await worker.profile()).firstName });
+    const celebrated = html(
+      <LevelView level={level} celebrate congratulation={congratulation} onListen={noop} />,
+    );
+    expect(text(celebrated)).toContain("¡Felicidades, Carlos! Ya eres Nivel 3: Probado.");
+    expect(celebrated).toMatch(/<button[^>]*>Escuchar la felicitación<\/button>/);
+    expect(html(<LevelView level={level} celebrate={false} congratulation={congratulation} />)).not.toContain(
+      "Escuchar la felicitación",
+    );
     expect(contract.ratedByMe).toBe(true);
     expect(finishView(contract)).toContain("Calificación enviada");
     await expect(worker.rate({ ...rating, tags: [] })).rejects.toMatchObject({ status: 409 });
