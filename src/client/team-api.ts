@@ -7,7 +7,7 @@ import type { ReportResolution, ReportRow } from "@/server/use-cases/reports";
 import type { ApiRequest } from "./api";
 
 /**
- * Lo que el Modo Jurado y la administración le piden al servidor. Cada llamada va con la vista
+ * Lo que la administración le pide al servidor. Cada llamada va con la vista
  * "admin": el servidor exige la sesión del equipo, que solo se abre con la
  * clave de la demo.
  */
@@ -39,7 +39,8 @@ export function createTeamApi(request: ApiRequest) {
       return (await get<{ events: EventRow[] }>(`/api/events${query}`, signal)).events;
     },
 
-    reset: () => post<ResetSummary>("/api/demo/reset"),
+    /** Vuelve al seed. Con `all`, borra también los perfiles y empresas reales. */
+    reset: (all = false) => post<ResetSummary>(all ? "/api/demo/reset?all=1" : "/api/demo/reset"),
     setBot: (on: boolean) => post<{ bot: boolean }>("/api/demo/bot", { state: on ? "on" : "off" }),
     fastForward: () => post<FastForwardResult>("/api/demo/fast-forward"),
     realProfiles: (signal?: AbortSignal) => get<RealProfilesToday>("/api/demo/real-profiles", signal),

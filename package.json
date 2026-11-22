@@ -21,6 +21,7 @@
     "voice:check": "tsx scripts/check-voice.ts"
   },
   "dependencies": {
+    "@elevenlabs/react": "1.23.1",
     "@libsql/client": "0.18.0",
     "drizzle-orm": "0.45.4",
     "nanoid": "6.0.2",

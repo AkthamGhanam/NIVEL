@@ -5,14 +5,20 @@ import { createContext, type ReactNode, use, useState } from "react";
 
 import { apiRequest, errorMessage } from "@/client/api";
 import { createLiveStore, type LiveStore } from "@/client/live-store";
-import { createWorkerApi, type MyProfile, type WorkerApi, type WorkerOffer } from "@/client/worker-api";
+import {
+  createWorkerApi,
+  type MyProfile,
+  type WorkerApi,
+  type WorkerOffer,
+  type WorkerSignupInput,
+} from "@/client/worker-api";
 import { Button } from "@/components/ui/button";
 import { LoadingText, Notice } from "@/components/ui/notice";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
-import { WorkerPicker } from "./worker-picker";
-import { PhoneStage, WorkerShell } from "./worker-shell";
+import { WorkerAccess } from "./worker-access";
+import { WorkerShell, WorkerStage } from "./worker-shell";
 
 /** Cada cuánto se revisa si llegó una invitación nueva. */
 export const OFFERS_POLL_MS = 3000;
@@ -48,17 +54,37 @@ function createSessionStores() {
   };
 }
 
+type SessionStores = ReturnType<typeof createSessionStores>;
+
+/** Entrar con una cuenta de prueba o crear el perfil: después todo se pide ya con la persona nueva. */
+function useAccessActions(stores: SessionStores, done: () => void) {
+  const reloadSession = async () => {
+    await Promise.all([stores.state.refresh(), stores.offers.refresh(), stores.profile.refresh()]);
+    done();
+  };
+  const enter = useAction(async (workerId: string) => {
+    await stores.api.enter(workerId);
+    await reloadSession();
+  });
+  const register = useAction(async (input: WorkerSignupInput) => {
+    await stores.api.register(input);
+    await reloadSession();
+  });
+  return { enter, register, reloadSession };
+}
+
 function GateMessage({ children }: { readonly children: ReactNode }) {
   return (
-    <PhoneStage>
-      <div className="flex flex-1 flex-col gap-4 px-4 py-10">{children}</div>
-    </PhoneStage>
+    <WorkerStage>
+      <div className="flex flex-1 flex-col gap-4 py-10">{children}</div>
+    </WorkerStage>
   );
 }
 
 /**
  * Puerta de la app del trabajador. Pregunta al servidor con qué persona está
- * abierta la sesión; si no hay ninguna, muestra el selector de la demo. La
+ * abierta la sesión; si no hay ninguna, muestra el acceso: crear el perfil
+ * (con Nivi o escribiendo) o entrar con una cuenta de prueba. La
  * autorización real la hace el servidor en cada petición.
  */
 export function WorkerGate({ children }: { readonly children: ReactNode }) {
@@ -67,12 +93,7 @@ export function WorkerGate({ children }: { readonly children: ReactNode }) {
   const demoMode = useSearchParams().get("demo") === "1";
   const [startedInDemo] = useState(demoMode);
   const state = useLive(stores.state);
-  const enter = useAction(async (workerId: string) => {
-    await stores.api.enter(workerId);
-    // Todo se pide ya con la persona nueva: nunca se muestra lo de la anterior.
-    await Promise.all([stores.state.refresh(), stores.offers.refresh(), stores.profile.refresh()]);
-    setChoosing(false);
-  });
+  const { enter, register, reloadSession } = useAccessActions(stores, () => setChoosing(false));
 
   if (state.loading) {
     return (
@@ -96,14 +117,17 @@ export function WorkerGate({ children }: { readonly children: ReactNode }) {
   // y que por privacidad no aparece en el selector.
   if (active.workerId === null || choosing) {
     return (
-      <PhoneStage>
-        <WorkerPicker
-          workers={personas.workers}
-          onPick={(workerId) => void enter.invoke(workerId)}
-          pending={enter.pending}
-          error={enter.error}
+      <WorkerStage>
+        <WorkerAccess
+          api={stores.api}
+          demoAccounts={personas.workers}
+          onPickDemo={(workerId) => void enter.invoke(workerId)}
+          onRegister={(input) => void register.invoke(input)}
+          onRegistered={() => void reloadSession()}
+          pending={enter.pending || register.pending}
+          error={register.error ?? enter.error}
         />
-      </PhoneStage>
+      </WorkerStage>
     );
   }
   const session: WorkerSession = {

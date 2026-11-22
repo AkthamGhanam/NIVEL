@@ -4,6 +4,7 @@ import { levelRoutes, paymentRoutes, ratingRoutes } from "./closing";
 import { academyRoutes, learningRoutes } from "./learning";
 import { meRoutes } from "./me";
 import { requestRoutes } from "./requests";
+import { signupRoutes } from "./signup";
 import { stateRoutes } from "./state";
 import { demoRoutes, eventRoutes, reportRoutes } from "./team";
 import { companyTools, crewTools, offerTools, workerTools } from "./tools";
@@ -16,6 +17,7 @@ import { attendanceRoutes, contractRoutes, invitationRoutes } from "./work";
  */
 export const createApi = (runtime: RuntimeProvider) => ({
   state: stateRoutes(runtime),
+  signup: signupRoutes(runtime),
   requests: requestRoutes(runtime),
   invitations: invitationRoutes(runtime),
   contracts: contractRoutes(runtime),
