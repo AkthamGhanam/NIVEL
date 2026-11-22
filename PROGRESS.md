@@ -37,6 +37,26 @@ Cambios respecto a la sección 5.1 de la especificación, todos por seguridad o 
 - `workers.conversation_id`: enlaza el registro por voz con la pantalla que lo inició.
 - Sin `drizzle-kit`: arrastra un `esbuild` con aviso de seguridad; las tablas se crean desde el propio esquema.
 
+## Fase 3 · Casos de uso y API del camino dorado — lista
+
+- [x] Casos de uso con permisos por actor: solicitud, invitación, contrato y firma, asistencia con geocerca,
+      pago y recibo, calificación doble ciega, nivel, reportes con revisión humana, controles del Modo Jurado
+- [x] 23 rutas en `src/app/api`, cada una de una línea; la validación zod vive en `src/server/http/api`
+- [x] Sesión por cookie firmada, una por vista (`nivel_worker`, `nivel_company`, `nivel_academy`, `nivel_admin`)
+- [x] `npm run smoke`: 17 pasos del camino dorado; Carlos termina en Nivel 3
+- [x] El mismo smoke corre en las pruebas contra los archivos de ruta reales, y en CI contra `next start`
+- [x] 254 pruebas; cobertura de líneas 98 %
+
+Cambios respecto a la sección 9 de la especificación, todos por seguridad:
+
+- `GET /api/invitations`, `GET /api/level` y `POST /api/level/recalc` no reciben `workerId`: usan la sesión.
+- `POST /api/contracts` no existe: el contrato nace cuando el trabajador acepta la invitación.
+- `GET /api/events` y `GET /api/reports` exigen sesión de equipo o `x-demo-key`.
+- `contracts.otp_attempts`: el código de firma se bloquea tras 5 intentos.
+
+Pendiente a propósito para la fase 4: límite de peticiones por IP, y que un perfil real solo entre a las
+búsquedas si la persona aceptó compartirlo.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

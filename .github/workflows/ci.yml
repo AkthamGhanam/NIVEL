@@ -28,6 +28,15 @@ jobs:
       - run: npm run typecheck
       - run: npm run test:coverage
       - run: npm run build
+      - name: Smoke del camino dorado contra el servidor de producción
+        env:
+          TURSO_DATABASE_URL: file:smoke.db
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+        run: |
+          # Secretos efímeros, generados en cada corrida: no hay ninguno guardado en el repositorio.
+          export SESSION_SECRET="$(openssl rand -hex 32)" DEMO_RESET_KEY="$(openssl rand -hex 32)"
+          npm start > server.log 2>&1 &
+          npm run smoke || { cat server.log; exit 1; }
       - run: npm audit --audit-level=high --omit=dev
 
   secrets:

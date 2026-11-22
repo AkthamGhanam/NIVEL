@@ -21,16 +21,22 @@ La especificación completa está en [`docs/spec.md`](docs/spec.md) y el avance 
 | `npm run check`         | Formato, lint, tipos y pruebas (lo mismo que CI) |
 | `npm run test:coverage` | Pruebas con umbral de cobertura                  |
 | `npm run build`         | Compilación de producción                        |
+| `npm run db:seed`       | Crea las tablas y carga el seed en la base       |
+| `npm run smoke`         | Camino dorado de 17 pasos contra un servidor     |
+
+`npm run smoke` usa `SMOKE_BASE_URL` (por defecto `http://localhost:3000`) y la misma `DEMO_RESET_KEY`
+del servidor. Reinicia la demo al empezar y al terminar; con `-- --keep` deja el estado final.
 
 ## Arquitectura
 
 | Capa               | Carpeta                       | Regla                                         |
 | ------------------ | ----------------------------- | --------------------------------------------- |
 | Dominio puro       | `src/lib/`                    | Sin red, sin base de datos, 100 % probado     |
-| Casos de uso       | `src/server/use-cases/`       | Orquestan el dominio a través de puertos      |
-| Adaptadores        | `src/server/adapters/`        | Base de datos, ElevenLabs, almacenamiento     |
-| Seguridad y config | `src/server/http`, `config`   | Cabeceras, CSP con nonce, entorno validado    |
-| Entrada HTTP       | `src/app/api/`                | Validan con zod y delegan en los casos de uso |
+| Casos de uso       | `src/server/use-cases/`       | Reglas de negocio y permisos por actor        |
+| Datos              | `src/server/db`, `repos`      | Esquema, seed, reset y lecturas agregadas     |
+| Seguridad y config | `src/server/http`, `config`   | Sesión, CSRF, cabeceras, entorno validado     |
+| Rutas de la API    | `src/server/http/api/`        | Validan con zod y delegan en los casos de uso |
+| Entrada HTTP       | `src/app/api/`                | Una línea por ruta: monta el manejador        |
 | Interfaz           | `src/app/`, `src/components/` | `/t`, `/c`, `/a`, `/admin`, `/demo`           |
 
 ## Seguridad
@@ -38,6 +44,12 @@ La especificación completa está en [`docs/spec.md`](docs/spec.md) y el avance 
 - CSP estricta con nonce por petición en páginas (`src/proxy.ts`); la API responde con `default-src 'none'`.
 - HSTS, `nosniff`, `X-Frame-Options: SAMEORIGIN`, `Permissions-Policy` (micrófono y GPS solo para el propio sitio).
 - Variables de entorno validadas con zod; los mensajes de error nunca muestran valores.
+- Quién hace cada petición se deduce en el servidor de una cookie firmada (HMAC, `HttpOnly`, `SameSite=Lax`),
+  una por vista. Ningún id de persona se acepta del cliente y todo está denegado por defecto.
+- Solo se puede entrar como un personaje de ejemplo: nunca como una persona real registrada en el evento.
+- Las peticiones que cambian datos deben venir del propio origen (CSRF), en JSON y con menos de 64 KB.
+- El código de firma se guarda como HMAC, con 5 intentos; la bitácora no guarda reportes ni datos personales.
+- Los errores inesperados responden un mensaje genérico con un `requestId`; el detalle queda en el log.
 - CI: formato, lint, tipos, pruebas con cobertura, build, `npm audit` y `gitleaks`.
 
 Demo · nombres, empresas y cifras de ejemplo.
