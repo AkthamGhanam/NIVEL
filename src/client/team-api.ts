@@ -1,17 +1,19 @@
 import type { ResetSummary } from "@/server/db/reset";
 import type { EventRow } from "@/server/use-cases/events";
-import type { RealProfilesToday } from "@/server/use-cases/metrics";
+import type { Metrics, RealProfilesToday } from "@/server/use-cases/metrics";
 import type { DemoState } from "@/server/use-cases/personas";
+import type { ReportResolution, ReportRow } from "@/server/use-cases/reports";
 
 import type { ApiRequest } from "./api";
 
 /**
- * Lo que el Modo Jurado le pide al servidor. Cada llamada va con la vista
+ * Lo que el Modo Jurado y la administración le piden al servidor. Cada llamada va con la vista
  * "admin": el servidor exige la sesión del equipo, que solo se abre con la
  * clave de la demo.
  */
 
-export type { DemoState, EventRow, RealProfilesToday, ResetSummary };
+export type { DemoState, EventRow, Metrics, RealProfilesToday, ReportRow, ResetSummary };
+export type ReportOutcome = ReportResolution["outcome"];
 
 export interface FastForwardResult {
   readonly requestId: string;
@@ -19,6 +21,7 @@ export interface FastForwardResult {
 }
 
 const AS_TEAM = { as: "admin" } as const;
+const segment = (id: string) => encodeURIComponent(id);
 
 export function createTeamApi(request: ApiRequest) {
   const get = <T>(path: string, signal?: AbortSignal) =>
@@ -40,6 +43,14 @@ export function createTeamApi(request: ApiRequest) {
     setBot: (on: boolean) => post<{ bot: boolean }>("/api/demo/bot", { state: on ? "on" : "off" }),
     fastForward: () => post<FastForwardResult>("/api/demo/fast-forward"),
     realProfiles: (signal?: AbortSignal) => get<RealProfilesToday>("/api/demo/real-profiles", signal),
+
+    metrics: (signal?: AbortSignal) => get<Metrics>("/api/metrics", signal),
+
+    /** Cola de revisión humana, de la más antigua a la más nueva. */
+    reports: async (signal?: AbortSignal) =>
+      (await get<{ reports: ReportRow[] }>("/api/reports", signal)).reports,
+    resolveReport: (reportId: string, resolution: { outcome: ReportOutcome; note: string }) =>
+      post<ReportRow>(`/api/reports/${segment(reportId)}/resolve`, resolution),
   };
 }
 

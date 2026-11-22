@@ -4,6 +4,7 @@ import { localDate } from "@/lib/dates";
 import { ensure } from "@/lib/errors";
 import { shortName } from "@/lib/matching";
 import { round2 } from "@/lib/money";
+import { passes } from "@/lib/practical-test";
 import { ACADEMY_COMMISSION_RATE } from "@/lib/pricing";
 
 import { type Actor, requireRole } from "../actor";
@@ -29,8 +30,6 @@ import { recalculateLevel } from "./levels";
  * prueba o emitir una constancia son los hechos verificables que suben el nivel.
  */
 
-/** Nota mínima para aprobar la prueba práctica: 3 de 4 criterios. */
-export const PASSING_RATIO = 0.75;
 const MS_PER_DAY = 86_400_000;
 const RANKING_WINDOW_DAYS = 90;
 const RANKING_FORMULA =
@@ -215,7 +214,7 @@ export async function evaluatePracticalTest(
     Number.isInteger(input.score) && input.score >= 0 && input.score <= test.maxScore,
     `La nota va de 0 a ${test.maxScore}`,
   );
-  const passed = input.score / test.maxScore >= PASSING_RATIO;
+  const passed = passes(input.score, test.maxScore);
   const [evaluated] = await context.db
     .update(practicalTests)
     .set({ score: input.score, passed })
