@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { z } from "zod";
 import { ZodError } from "zod";
 
-import { DomainValidationError } from "@/lib/errors";
+import { DomainValidationError, ensure } from "@/lib/errors";
 
 import type { Actor, Role, Sessions } from "../actor";
 import { ConfigError } from "../config/env";
@@ -28,6 +28,7 @@ import {
   sessionCookie,
   sessionCookieName,
 } from "./session";
+import type { Speaker, Transcriber } from "../use-cases/voice";
 import { decodeToolContext, encodeToolContext, TOOL_CONTEXT_HEADER, type ToolContext } from "./tool-context";
 
 /**
@@ -72,6 +73,10 @@ export type ActorOf<A extends Access> = A extends "public" | "tool"
 export interface Services {
   /** Token de corta vida para abrir una conversación con un agente de voz. */
   readonly conversationToken: (agent: "worker" | "contractor") => Promise<string>;
+  /** La voz de Nivi para el TTS. Lanza `ConfigError` si falta configuración. */
+  readonly speaker: () => Speaker;
+  /** Transcripción de una nota de voz (Scribe). */
+  readonly transcribe: Transcriber;
 }
 
 export interface Runtime {
@@ -90,6 +95,8 @@ export type RuntimeProvider = () => Promise<Runtime>;
 export interface EndpointInput<Body, RequestActor> {
   readonly actor: RequestActor;
   readonly body: Body;
+  /** Cuerpo binario validado, solo en rutas con `upload`. */
+  readonly upload: Blob | undefined;
   readonly params: Readonly<Record<string, string>>;
   readonly url: URL;
   readonly context: AppContext;
@@ -116,9 +123,18 @@ export class ApiResponse {
   ) {}
 }
 
+/** Cuerpo binario aceptado en lugar de JSON (por ejemplo, una nota de voz). */
+export interface UploadRule {
+  readonly maxBytes: number;
+  /** Tipos MIME admitidos, sin parámetros (`audio/webm`, no `audio/webm;codecs=opus`). */
+  readonly types: readonly string[];
+}
+
 interface EndpointOptions<A extends Access, Schema extends z.ZodType | undefined> {
   readonly access: A;
   readonly body?: Schema;
+  /** La ruta recibe el cuerpo crudo como `Blob` en `upload`. Excluyente con `body`. */
+  readonly upload?: UploadRule;
   /** Tope propio de la ruta por IP, además del general (por ejemplo, lo que cuesta dinero). */
   readonly limit?: RateRule & { readonly bucket: string };
 }
@@ -213,11 +229,11 @@ function assertSameOrigin(request: Request): void {
   if (!originHost || originHost !== expected) throw new ForbiddenError("Origen no permitido.");
 }
 
-/** Lee el cuerpo sin cargar en memoria más de `MAX_BODY_BYTES`, venga o no con Content-Length. */
-async function readLimitedText(request: Request): Promise<string> {
+/** Lee el cuerpo sin cargar en memoria más de `maxBytes`, venga o no con Content-Length. */
+async function readLimitedBytes(request: Request, maxBytes: number): Promise<Buffer> {
   const declared = Number(request.headers.get("content-length") ?? 0);
-  if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) throw new PayloadTooLargeError();
-  if (!request.body) return "";
+  if (Number.isFinite(declared) && declared > maxBytes) throw new PayloadTooLargeError();
+  if (!request.body) return Buffer.alloc(0);
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
   let received = 0;
@@ -225,13 +241,30 @@ async function readLimitedText(request: Request): Promise<string> {
     const { done, value } = await reader.read();
     if (done) break;
     received += value.byteLength;
-    if (received > MAX_BODY_BYTES) {
+    if (received > maxBytes) {
       await reader.cancel();
       throw new PayloadTooLargeError();
     }
     chunks.push(value);
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks);
+}
+
+const readLimitedText = async (request: Request) =>
+  (await readLimitedBytes(request, MAX_BODY_BYTES)).toString("utf8");
+
+const mediaTypeOf = (request: Request) =>
+  (request.headers.get("content-type") ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
+
+async function readUpload(request: Request, rule: UploadRule | undefined): Promise<Blob | undefined> {
+  if (!rule) return undefined;
+  const type = mediaTypeOf(request);
+  if (!rule.types.includes(type)) {
+    throw new UnsupportedMediaTypeError(`Formato no admitido. Usa uno de estos: ${rule.types.join(", ")}.`);
+  }
+  const bytes = await readLimitedBytes(request, rule.maxBytes);
+  ensure(bytes.byteLength > 0, "No llegó ningún archivo.");
+  return new Blob([new Uint8Array(bytes)], { type });
 }
 
 async function readBody<Schema extends z.ZodType | undefined>(
@@ -305,6 +338,11 @@ function errorResponse(error: unknown, requestId: string): Response {
 }
 
 function successResponse(result: unknown, requestId: string): Response {
+  // Respuesta ya armada (por ejemplo, un audio): solo se le agrega el correlation ID.
+  if (result instanceof Response) {
+    result.headers.set("X-Request-ID", requestId);
+    return result;
+  }
   if (result instanceof ApiResponse) {
     const headers = { "X-Request-ID": requestId, ...result.init.headers };
     return jsonResponse(result.data, result.init.status ?? 200, headers);
@@ -330,9 +368,11 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
       if (wait > 0) throw new RateLimitedError(wait);
     }
     const body = await readBody(request, options.body as Schema);
+    const upload = await readUpload(request, options.upload);
     return handler({
       actor,
       body,
+      upload,
       params: (await route?.params) ?? {},
       url: new URL(request.url),
       context: resolved.context,

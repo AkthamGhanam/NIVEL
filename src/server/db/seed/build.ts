@@ -3,7 +3,7 @@ import { academyCommission, hiringFee, toBolivares } from "@/lib/pricing";
 
 import type { schema } from "../schema";
 import { CAST, type CastMember, COMPANIES, IDS, northOfSite, SITE, ZONES } from "./cast";
-import { LESSONS } from "./lessons";
+import { LESSONS, lessonAudioUrl } from "./lessons";
 
 /**
  * Construye el seed canónico. Función pura: mismas filas para el mismo día,
@@ -14,7 +14,9 @@ import { LESSONS } from "./lessons";
 
 type Insert<K extends keyof typeof schema> = (typeof schema)[K]["$inferInsert"];
 
-export type SeedRows = { [K in keyof typeof schema]: Array<Insert<K>> };
+/** Tablas con datos de la demo. La caché de voz no es dato de la demo: el seed no la llena. */
+export type DemoTable = Exclude<keyof typeof schema, "voiceClips">;
+export type SeedRows = { [K in DemoTable]: Array<Insert<K>> };
 
 export const EXAMPLE_RATE_BS_PER_USD = 36.5;
 
@@ -397,7 +399,7 @@ function catalogRows(): Pick<SeedRows, "companies" | "academies" | "courses" | "
         free: true,
       },
     ],
-    lessons: LESSONS.map((lesson) => ({ ...lesson })),
+    lessons: LESSONS.map((lesson) => ({ ...lesson, audioUrl: lessonAudioUrl(lesson.id) })),
     demoState: [
       { key: "active_company_id", value: IDS.activeCompany },
       { key: "active_worker_id", value: IDS.carlos },

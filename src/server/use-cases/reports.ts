@@ -35,7 +35,7 @@ export interface NewReport {
   readonly companyId?: string | undefined;
 }
 
-const MAX_REPORT_TEXT_LENGTH = 2000;
+export const MAX_REPORT_TEXT_LENGTH = 2000;
 const MAX_REVIEWER_NOTE_LENGTH = 1000;
 const MIN_COMPANY_NAME_LENGTH = 4;
 

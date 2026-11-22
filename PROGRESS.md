@@ -110,10 +110,39 @@ Error corregido de la fase 3: dos personas que aceptaban una invitación en el m
 un error 500 (SQLite admite un solo escritor). Ahora la transacción toma el candado al empezar y reintenta.
 Probado con base local; falta confirmarlo contra Turso remoto.
 
-## Fase 5b · Audio y transcripción — pendiente (necesita `ELEVENLABS_API_KEY`)
+## Fase 5b · Audio, transcripción y agentes — lista en código (publicar agentes espera permisos de la clave)
 
-- [ ] `POST /api/voice/tts` con caché por texto, `POST /api/voice/transcribe` (Scribe) y sus guiones de audio
-- [ ] `scripts/setup-agents.ts` para publicar los dos agentes y confirmar la variable secreta en la cabecera
+- [x] `POST /api/voice/tts`: frase (≤ 400 caracteres) a voz de Nivi, con sesión de cualquier rol y tope por IP.
+      Caché en la tabla `voice_clips` (huella sha256 de voz, modelo y texto): una frase se paga una sola vez.
+      Probado contra ElevenLabs real: 648 ms la primera vez, 12 ms desde la caché.
+- [x] `GET /api/voice/audio/:id`: sirve el MP3 de la caché (el id es la huella, no se puede adivinar)
+- [x] `POST /api/voice/transcribe`: nota de voz (cuerpo binario `audio/webm`, `audio/mp4`, `audio/ogg`…, hasta 2 MB)
+      → Scribe v2 en español → clasificación por palabras clave → reporte en revisión humana.
+      Probado con Scribe real: 710 ms y queda como "inseguridad" con la guía del INPSASEL.
+- [x] La bitácora registra "TTS · nota de voz" y "Scribe v2 · reporte" con su latencia, sin el texto
+- [x] `npm run audio:gen`: 5 lecciones, el resumen de privacidad (`/audio/privacidad.mp3`) y la felicitación de
+      Carlos (`/audio/nivel-3-carlos.mp3`) generados y commiteados; el seed apunta cada lección a su MP3 y su
+      duración real. Un manifiesto evita regenerar (y pagar) lo que no cambió.
+- [x] `npm run agents:setup`: publica los dos agentes y sus 7 herramientas webhook (idempotente, por nombre),
+      con autenticación obligatoria, el secreto de herramientas guardado en ElevenLabs y el contexto como variable
+      secreta en `x-nivel-context`. `--dry-run` muestra exactamente lo que publica.
+- [x] `npm run voice:check`: conversa por texto con Nivi contra la app desplegada y confirma que el perfil se
+      crea, cosa que solo pasa si la variable secreta llegó en la cabecera.
+- [x] 408 pruebas; cobertura de líneas 97 %
+- [ ] Publicar los agentes y correr `voice:check` (esperan los permisos de la clave y la URL de Vercel)
+- [ ] Efectos de sonido (`/sfx/*.mp3`): el script ya los tiene, falta el permiso de Sound Effects
+- [ ] Notas de voz de invitación pregeneradas: hoy salen de la caché dinámica tras el primer uso (un ensayo las deja listas)
+- [ ] Audios del plan B: se generan cuando exista el guion de la fase 9
+
+Decisiones:
+
+- **Voz de Nivi: "Clari"** (`9Ux14cxOYULytGFBVsW4`), voz venezolana de la biblioteca de ElevenLabs. La clave no tiene
+  permiso de Voice Design; con ese permiso, `npm run audio:gen -- --design-voice` crea la voz propia.
+- **Caché en la base, no en Vercel Blob:** no hay `BLOB_READ_WRITE_TOKEN` y la base ya está en todas partes. El
+  reset no toca la caché.
+- **El audio de las notas de voz no se guarda**, solo la transcripción: es lo que revisa el equipo (minimización).
+- **Subida binaria en vez de multipart:** el cliente manda el `Blob` de `MediaRecorder` tal cual con su
+  `Content-Type`. Menos código y menos superficie de ataque.
 
 ## Fase 6 · Sistema visual y páginas legales — lista
 
@@ -287,4 +316,9 @@ Pendiente de estas vistas:
   `DEMO_RESET_KEY` y `TOOL_SECRET` (ver `.env.example`).
 - HUMANO: poner en Vercel `NEXT_PUBLIC_APP_URL=https://nivel-wheat.vercel.app`. De esa variable dependen las
   cookies seguras, el QR del Modo Jurado y la dirección a la que llaman las herramientas de los agentes.
-- HUMANO: poner `ELEVENLABS_API_KEY` en Vercel y en el entorno de trabajo para publicar los agentes (fase 5).
+- HUMANO: poner `ELEVENLABS_API_KEY` y `EL_VOICE_ID=9Ux14cxOYULytGFBVsW4` en Vercel.
+- HUMANO: en elevenlabs.io → Developers → API Keys, darle a la clave los permisos de ElevenAgents (lectura y
+  escritura), Sound Effects y, para la voz propia, Voices (escritura) y Voice Generation. Sin ElevenAgents,
+  `/api/el/token` falla y no se pueden publicar los agentes.
+- HUMANO: con la URL de Vercel lista, correr `npm run agents:setup` (con `NEXT_PUBLIC_APP_URL` y `TOOL_SECRET`
+  iguales a los de Vercel), poner en Vercel los `EL_AGENT_*_ID` que imprime y correr `npm run voice:check`.

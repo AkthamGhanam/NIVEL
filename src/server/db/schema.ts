@@ -1,4 +1,4 @@
-import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { blob, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
 
@@ -288,6 +288,18 @@ export const demoState = sqliteTable("demo_state", {
   value: text("value").notNull(),
 });
 
+/**
+ * Caché de voz (TTS): un audio por huella sha256 de voz, modelo y texto. No es
+ * dato de la demo: el reset no la toca, así una frase se paga una sola vez.
+ */
+export const voiceClips = sqliteTable("voice_clips", {
+  hash: text("hash").primaryKey(),
+  mime: text("mime").notNull(),
+  audio: blob("audio", { mode: "buffer" }).notNull(),
+  characters: integer("characters").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+
 export const schema = {
   companies,
   academies,
@@ -308,4 +320,5 @@ export const schema = {
   fees,
   events,
   demoState,
+  voiceClips,
 };
