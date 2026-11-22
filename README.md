@@ -57,6 +57,7 @@ del servidor. Reinicia la demo al empezar y al terminar; con `-- --keep` deja el
 - Cada empresa y academia ve y paga solo sus tarifas; una academia evalúa solo a sus alumnos o en su taller.
 - El código de firma se guarda como HMAC, con 5 intentos; la bitácora no guarda reportes ni datos personales.
 - Los errores inesperados responden un mensaje genérico con un `requestId`; el detalle queda en el log.
+- La interfaz no usa estilos en línea ni recursos de terceros: fuentes y logos salen de nuestro dominio.
 - CI: formato, lint, tipos, pruebas con cobertura, build, `npm audit` y `gitleaks`.
 
 Demo · nombres, empresas y cifras de ejemplo.

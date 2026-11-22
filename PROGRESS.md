@@ -115,6 +115,29 @@ Probado con base local; falta confirmarlo contra Turso remoto.
 - [ ] `POST /api/voice/tts` con caché por texto, `POST /api/voice/transcribe` (Scribe) y sus guiones de audio
 - [ ] `scripts/setup-agents.ts` para publicar los dos agentes y confirmar la variable secreta en la cabecera
 
+## Fase 6 · Sistema visual y páginas legales — lista
+
+- [x] Identidad de Bytes: colores del manual, Inter servida desde nuestro dominio, logos optimizados en `/brand`
+- [x] Componentes base en `src/components/ui`: botón, tarjeta, etiqueta, insignia de nivel, avatar de iniciales,
+      barra de avance, avisos, precio con IVA aparte, marco de teléfono y orbe de voz
+- [x] Textos fijos de la revisión legal en un solo lugar (`src/lib/legal-copy.ts`)
+- [x] `/legal/terminos`, `/legal/privacidad` y `/legal/niveles`; la tabla de niveles y las tarifas salen de las
+      mismas reglas que usa el cálculo
+- [x] Portada, página de "no encontrada" y galería del sistema visual en `/estilo`
+- [x] Cliente de la API para las pantallas (`src/client/api.ts`) con errores listos para mostrar
+- [x] Una prueba revisa que ninguna pantalla use palabras prohibidas ni medios de pago no permitidos
+- [x] 427 pruebas; cobertura de líneas 99 %
+
+Revisado en un navegador real (Chromium, 1440 px y 390 px) sobre el servidor de producción: axe sin
+hallazgos WCAG 2.1 A y AA, cero errores de consola, cero violaciones de CSP, sin desbordes y con botones de
+48 px. Esa revisión se corre a mano; todavía no está en CI.
+
+Hallazgos de esa revisión, ya corregidos:
+
+- `next/image` añade un `style` en línea que nuestra CSP bloquea: los logos van con `<img>`.
+- El ámbar del manual (#A86A00) no llegaba a contraste AA sobre su fondo: el texto usa #8A5600.
+- La página de "no encontrada" ahora también se renderiza por petición y lleva su nonce.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

@@ -9,12 +9,12 @@ export default defineConfig({
   test: {
     environment: "node",
     alias: { "server-only": serverOnlyStub },
-    include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
     restoreMocks: true,
     coverage: {
       provider: "v8",
-      include: ["src/lib/**", "src/server/**"],
-      exclude: ["**/*.test.ts"],
+      include: ["src/lib/**", "src/server/**", "src/client/**"],
+      exclude: ["**/*.test.{ts,tsx}"],
       thresholds: { lines: 90, functions: 90, branches: 85, statements: 90 },
     },
   },
