@@ -1,3 +1,4 @@
+// La empresa elige a quién invitar.
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,11 +10,6 @@ import { dispatch, type InProcessApi, startInProcessApi } from "@/server/testing
 
 import { ApiClient } from "../../../scripts/smoke/client";
 import { CandidateList } from "./board";
-
-/**
- * La empresa elige a quién invitar: no solo "los N mejores". Por las rutas
- * reales, con la misma lista que ve en pantalla.
- */
 
 let server: InProcessApi;
 let company: CompanyApi;
@@ -76,7 +72,7 @@ describe("elegir a quién invitar", () => {
     expect(sent.map((invitation) => invitation.candidate.workerId)).toEqual([last.workerId]);
     const after = await boardNow();
     expect(after.invitations.map((invitation) => invitation.candidate?.workerId)).toEqual([last.workerId]);
-    // Invitar a menos de las que hacen falta no es un rechazo: no aparece "Reemplazo sugerido".
+
     expect(after.suggestedReplacement).toBeNull();
   });
 

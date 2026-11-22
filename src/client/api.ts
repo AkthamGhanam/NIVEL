@@ -1,10 +1,4 @@
-/**
- * Cliente de la API para las pantallas. Habla JSON con nuestro propio origen,
- * manda la cookie de sesión y convierte todo fallo en un `ApiError` con un
- * mensaje que se le puede mostrar a la persona.
- */
-
-/** Vista desde la que se hace la petición: decide qué sesión usa el servidor. */
+// Cliente de la API para las pantallas.
 export type ViewRole = "worker" | "company" | "academy" | "admin";
 
 export interface FieldProblem {
@@ -35,7 +29,6 @@ export class ApiError extends Error {
     this.requestId = failure.requestId;
   }
 
-  /** La sesión no existe o venció: toca elegir de nuevo con qué persona entrar. */
   get needsSession(): boolean {
     return this.status === 401;
   }
@@ -46,10 +39,7 @@ export interface RequestOptions {
   readonly body?: unknown;
   readonly as?: ViewRole;
   readonly signal?: AbortSignal;
-  /**
-   * Archivo crudo (una nota de voz). Viaja tal cual, con su propio tipo, en
-   * vez de un cuerpo JSON, y siempre por POST.
-   */
+  readonly timeoutMs?: number;
   readonly upload?: Blob;
 }
 
@@ -74,7 +64,9 @@ function buildInit(options: RequestOptions): RequestInit {
   if (options.as) headers["x-nivel-role"] = options.as;
   const { body, type } = bodyOf(options, method);
   if (type) headers["content-type"] = type;
-  const timeout = AbortSignal.timeout(options.upload ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
+  const timeout = AbortSignal.timeout(
+    options.timeoutMs ?? (options.upload ? UPLOAD_TIMEOUT_MS : REQUEST_TIMEOUT_MS),
+  );
   return {
     method,
     headers,
@@ -108,17 +100,14 @@ function toApiError(status: number, payload: unknown): ApiError {
   });
 }
 
-/** Crea el cliente sobre un `fetch` dado. Las pruebas inyectan uno falso. */
 export function createApiRequest(fetchImpl: typeof fetch): ApiRequest {
   return async <T>(path: string, options: RequestOptions = {}): Promise<T> => {
-    // Solo rutas propias: nunca se manda la sesión ni datos a otro origen.
     if (!path.startsWith("/api/"))
       throw new ApiError({ status: 0, code: "ruta_invalida", message: UNEXPECTED_MESSAGE });
     let response: Response;
     try {
       response = await fetchImpl(path, buildInit(options));
     } catch (error) {
-      // Si quien llamó canceló la petición (cambió de pantalla), se respeta su cancelación.
       if (options.signal?.aborted) throw error;
       throw new ApiError({ status: 0, code: "sin_conexion", message: OFFLINE_MESSAGE });
     }
@@ -128,14 +117,11 @@ export function createApiRequest(fetchImpl: typeof fetch): ApiRequest {
   };
 }
 
-/** Cliente del navegador. */
 export const apiRequest: ApiRequest = (path, options) => createApiRequest(fetch)(path, options);
 
 const FRIENDLY_ERROR_NAMES: readonly string[] = ["LocationError", "MicrophoneError"];
 
-/** Mensaje para mostrar, venga el error de donde venga. */
 export function errorMessage(error: unknown): string {
-  // Los errores propios del cliente (API, ubicación, micrófono) ya traen un texto pensado para la persona.
   const friendly =
     error instanceof ApiError || (error instanceof Error && FRIENDLY_ERROR_NAMES.includes(error.name));
   return friendly ? (error as Error).message : UNEXPECTED_MESSAGE;

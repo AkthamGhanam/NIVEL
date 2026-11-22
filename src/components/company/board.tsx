@@ -1,3 +1,4 @@
+// Tablero del contratista: solicitud activa, avance de la cuadrilla, invitaciones y elección de candidatos.
 "use client";
 
 import { useState } from "react";
@@ -28,7 +29,6 @@ const CREATED_VIA = {
   seed: "Solicitud de ejemplo",
 } as const;
 
-/** Encabezado de la solicitud activa. Entra con una animación corta cuando llega una nueva. */
 export function RequestHeader({ request }: { readonly request: RequestBoard["request"] }) {
   return (
     <header key={request.id} className="animate-enter">
@@ -41,7 +41,6 @@ export function RequestHeader({ request }: { readonly request: RequestBoard["req
   );
 }
 
-/** Lo único que se ve de una persona: nombre corto, nivel y hechos verificables. Sin foto ni estrellas. */
 function CandidateSummary({
   candidate,
   muted = false,
@@ -63,7 +62,6 @@ function CandidateSummary({
   );
 }
 
-/** Avance de la cuadrilla. Se anuncia a los lectores de pantalla cada vez que cambia. */
 export function CrewBanner({ board }: { readonly board: RequestBoard }) {
   const progress = crewProgress(board);
   if (progress.complete) {
@@ -120,15 +118,12 @@ export function InvitationList({ invitations }: { readonly invitations: RequestB
 }
 
 interface InviteProps {
-  /** Invita a las personas elegidas, o a las siguientes N mejores que aún no fueron invitadas. */
   readonly onInvite: (choice: InviteSelection) => void;
   readonly pending: boolean;
 }
 
-/** Tope de personas por invitación: el mismo que pone el servidor. */
 export const MAX_SELECTION = 10;
 
-/** Alguien rechazó y falta gente: el siguiente mejor candidato, a un clic. */
 export function ReplacementCard({
   candidate,
   onInvite,
@@ -157,13 +152,11 @@ const bestLabel = (count: number, first: boolean) => {
 const selectedLabel = (count: number) =>
   count === 1 ? "Invitar a 1 persona elegida" : `Invitar a las ${count} personas elegidas`;
 
-/** "6 personas cumplen" antes de invitar; después, "3 personas más cumplen". */
 const matchingTitle = (count: number, first: boolean) => {
   const more = first ? "" : " más";
   return count === 1 ? `1 persona${more} cumple` : `${count} personas${more} cumplen`;
 };
 
-/** Selección de personas de la lista. Se olvida de quien ya no está disponible. */
 function useSelection(available: readonly Candidate[]) {
   const [chosen, setChosen] = useState<readonly string[]>([]);
   const ids = new Set(available.map((candidate) => candidate.workerId));
@@ -244,7 +237,6 @@ function SelectableList({
   );
 }
 
-/** Barra fija con cuántas personas están elegidas y el botón para invitarlas. */
 function SelectionBar({
   count,
   onClear,
@@ -273,16 +265,12 @@ function SelectionBar({
   );
 }
 
-/**
- * Personas que cumplen y aún no fueron invitadas, las mejores primero. La
- * empresa elige a quién invitar marcando la casilla, o invita a las mejores de un clic.
- */
 export function CandidateList({ board, onInvite, pending }: InviteProps & { readonly board: RequestBoard }) {
   const candidates = uninvitedCandidates(board);
   const selection = useSelection(candidates);
   const toInvite = Math.min(seatsToFill(board), candidates.length);
   const firstRound = board.invitations.length === 0;
-  // Con un solo puesto tras un rechazo, la tarjeta de reemplazo ya ofrece al siguiente mejor.
+
   const showBest =
     toInvite > 0 && !selection.selected.length && (!board.suggestedReplacement || toInvite > 1);
   const inviteSelected = () => {

@@ -1,12 +1,7 @@
+// Esquema de NIVEL (docs/spec.md, sección 5.1).
 import { blob, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
-
-/**
- * Esquema de NIVEL (docs/spec.md, sección 5.1). SQLite/libSQL.
- * Ids de texto, fechas ISO 8601 en UTC. Los enums cerrados impiden estados
- * inválidos desde el tipo; el DDL de `migrations.ts` los refuerza con CHECK.
- */
 
 const id = () => text("id").primaryKey();
 const bool = (name: string) => integer(name, { mode: "boolean" }).notNull().default(false);
@@ -21,7 +16,7 @@ export const companies = sqliteTable("companies", {
   zone: text("zone").notNull(),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
-  /** Empresa real que se registró en la web: el reset no la borra y nadie entra como ella. */
+
   isReal: bool("is_real"),
 });
 
@@ -47,11 +42,11 @@ export const workers = sqliteTable("workers", {
   level: integer("level").notNull().default(1),
   photoUrl: text("photo_url"),
   createdVia: text("created_via", { enum: ["voz", "texto", "seed"] }).notNull(),
-  /** Persona real registrada durante el evento: el reset no la borra. */
+
   isReal: bool("is_real"),
-  /** "Abierto a trabajar": si lo apaga, no aparece en búsquedas de empresas. */
+
   openToWork: integer("open_to_work", { mode: "boolean" }).notNull().default(true),
-  /** Cuenta borrada a petición de la persona: sus datos personales ya no están. */
+
   deletedAt: text("deleted_at"),
   conversationId: text("conversation_id"),
   consentVoiceAt: text("consent_voice_at"),
@@ -73,7 +68,7 @@ export const courses = sqliteTable("courses", {
   weeks: integer("weeks").notNull(),
   mode: text("mode").notNull(),
   free: bool("free"),
-  /** Cuotas ofrecidas por la academia, no por NIVEL. */
+
   installments: json<{ count: number; amountUsd: number }>("installments"),
 });
 
@@ -125,7 +120,7 @@ export const certificates = sqliteTable("certificates", {
   courseId: text("course_id")
     .notNull()
     .references(() => courses.id),
-  /** Se muestra como "constancia" (regla legal 8.10). */
+
   code: text("code").notNull().unique(),
   issuedByAcademyId: text("issued_by_academy_id")
     .notNull()
@@ -183,7 +178,7 @@ export const contracts = sqliteTable("contracts", {
   dailyPayUsd: real("daily_pay_usd").notNull(),
   startDate: text("start_date").notNull(),
   days: integer("days").notNull(),
-  /** Hash del código de firma (OTP simulado); nunca el código en claro. */
+
   otpHash: text("otp_hash"),
   otpAttempts: integer("otp_attempts").notNull().default(0),
   signedWorkerAt: text("signed_worker_at"),
@@ -231,7 +226,7 @@ export const ratings = sqliteTable("ratings", {
   tags: json<string[]>("tags").notNull(),
   comment: text("comment"),
   submittedAt: text("submitted_at").notNull(),
-  /** Doble ciega: nulo hasta que ambas partes califican o pasan 7 días. */
+
   revealedAt: text("revealed_at"),
 });
 
@@ -290,10 +285,6 @@ export const demoState = sqliteTable("demo_state", {
   value: text("value").notNull(),
 });
 
-/**
- * Caché de voz (TTS): un audio por huella sha256 de voz, modelo y texto. No es
- * dato de la demo: el reset no la toca, así una frase se paga una sola vez.
- */
 export const voiceClips = sqliteTable("voice_clips", {
   hash: text("hash").primaryKey(),
   mime: text("mime").notNull(),
