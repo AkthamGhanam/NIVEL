@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
-import type { DatabaseHandle } from "./client";
+import type { Database } from "./client";
 import { schema } from "./schema";
 import { buildSeed, type SeedRows } from "./seed/build";
 
@@ -56,7 +56,7 @@ function chunk<T>(items: readonly T[], size: number): T[][] {
 
 type Statement = BatchItem<"sqlite">;
 
-function deleteStatements({ db }: DatabaseHandle, keepRealWorkers: boolean): Statement[] {
+function deleteStatements(db: Database, keepRealWorkers: boolean): Statement[] {
   return [...INSERT_ORDER].reverse().map((key) => {
     if (key === "workers" && keepRealWorkers)
       return db.delete(schema.workers).where(eq(schema.workers.isReal, false));
@@ -64,7 +64,7 @@ function deleteStatements({ db }: DatabaseHandle, keepRealWorkers: boolean): Sta
   });
 }
 
-function insertStatements({ db }: DatabaseHandle, rows: SeedRows): Statement[] {
+function insertStatements(db: Database, rows: SeedRows): Statement[] {
   return INSERT_ORDER.flatMap((key) =>
     chunk(rows[key] as Array<Record<string, unknown>>, ROWS_PER_INSERT).map((batch) =>
       db.insert(schema[key] as SQLiteTable).values(batch),
@@ -72,17 +72,17 @@ function insertStatements({ db }: DatabaseHandle, rows: SeedRows): Statement[] {
   );
 }
 
-export async function resetDemo(handle: DatabaseHandle, options: ResetOptions): Promise<ResetSummary> {
+export async function resetDemo(
+  { db }: { readonly db: Database },
+  options: ResetOptions,
+): Promise<ResetSummary> {
   const rows = buildSeed(options.now);
-  const statements = [
-    ...deleteStatements(handle, options.keepRealWorkers),
-    ...insertStatements(handle, rows),
-  ];
+  const statements = [...deleteStatements(db, options.keepRealWorkers), ...insertStatements(db, rows)];
   const [first, ...rest] = statements;
   if (!first) throw new Error("El seed no puede estar vacío");
-  await handle.db.batch([first, ...rest]);
+  await db.batch([first, ...rest]);
   const keptRealWorkers = options.keepRealWorkers
-    ? await handle.db.$count(schema.workers, eq(schema.workers.isReal, true))
+    ? await db.$count(schema.workers, eq(schema.workers.isReal, true))
     : 0;
   const insertedRows = Object.values(rows).reduce((total, tableRows) => total + tableRows.length, 0);
   return { insertedRows, keptRealWorkers };

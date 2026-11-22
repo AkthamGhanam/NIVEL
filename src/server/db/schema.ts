@@ -179,6 +179,7 @@ export const contracts = sqliteTable("contracts", {
   days: integer("days").notNull(),
   /** Hash del código de firma (OTP simulado); nunca el código en claro. */
   otpHash: text("otp_hash"),
+  otpAttempts: integer("otp_attempts").notNull().default(0),
   signedWorkerAt: text("signed_worker_at"),
   signedCompanyAt: text("signed_company_at"),
   status: text("status", { enum: ["pendiente_firma", "activo", "completado", "terminado"] }).notNull(),

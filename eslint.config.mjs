@@ -13,7 +13,10 @@ const eslintConfig = defineConfig([
       "no-implied-eval": "error",
       "no-new-func": "error",
       "@typescript-eslint/no-explicit-any": "error",
-      "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", destructuredArrayIgnorePattern: "^_" },
+      ],
       "max-params": ["error", 3],
       "max-lines-per-function": ["warn", { max: 60, skipBlankLines: true, skipComments: true }],
     },
