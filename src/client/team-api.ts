@@ -54,6 +54,9 @@ export function createTeamApi(request: ApiRequest) {
     checkVoice: () =>
       request<VoiceCheck>("/api/demo/voice/check", { ...AS_TEAM, method: "POST", timeoutMs: SLOW_MS }),
 
+    /** Registra en Telegram a dónde manda los mensajes el bot. Una vez por despliegue. */
+    connectTelegram: () => post<{ bot: string; webhook: string }>("/api/telegram/setup"),
+
     metrics: (signal?: AbortSignal) => get<Metrics>("/api/metrics", signal),
 
     reports: async (signal?: AbortSignal) =>

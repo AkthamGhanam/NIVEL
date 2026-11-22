@@ -25,10 +25,11 @@ function Permissions() {
       <p>Ninguno viene activado. Puedes retirar cualquiera cuando quieras desde «Mis datos».</p>
       <LegalList
         items={[
-          "Voz: para registrarte y hablar con Nivi. El audio lo procesa ElevenLabs, nuestro proveedor de voz, para transcribirlo y responderte.",
+          "Voz: para registrarte y hablar con Nivi. El audio lo procesa ElevenLabs, nuestro proveedor de voz, para transcribirlo y responderte. Para que Nivi sepa con quién habla, le pasamos tu nombre de pila, tu oficio, tu nivel y tu zona; nunca tu teléfono ni tus calificaciones.",
           "Selfie: solo para comprobar que eres tú.",
-          "Ubicación: solo en el momento en que marcas entrada o salida. La empresa ve la hora, por ejemplo «Llegó 7:02 a. m.», y nunca un mapa en vivo.",
+          "Ubicación: solo en el momento en que marcas entrada o salida. Se compara con el punto de la obra y no se guarda. La empresa ve la hora, por ejemplo «Llegó 7:02 a. m.», y si la llegada se verificó en la obra; nunca un mapa en vivo.",
           "Avisos: para enterarte de ofertas y pagos.",
+          "Telegram: es opcional y lo conectas tú desde la app. Guardamos solo el identificador de tu chat para enviarte avisos; los mensajes pasan por Telegram. Al desconectarlo o borrar tu cuenta, ese vínculo se borra.",
           "Compartir perfil: para que las empresas te encuentren. Si lo retiras, sales de las búsquedas al instante.",
         ]}
       />
@@ -51,6 +52,20 @@ function WhatCompaniesSee() {
   );
 }
 
+function ForCompanies() {
+  return (
+    <LegalSection title="Si eres empresa">
+      <LegalList
+        items={[
+          "Guardamos el nombre, el RIF y la zona de tu empresa, tus solicitudes, las contrataciones y los pagos que registras.",
+          "Si fijas la obra con tu ubicación, guardamos ese punto como dirección de la obra, para verificar las llegadas. No seguimos tu teléfono.",
+          "Solo ves los datos de tus propias contrataciones.",
+        ]}
+      />
+    </LegalSection>
+  );
+}
+
 function YourRights() {
   return (
     <LegalSection title="Tus derechos">
@@ -63,6 +78,11 @@ function YourRights() {
           "Borrar tu cuenta.",
         ]}
       />
+      <p>
+        Estos derechos salen del artículo 28 de la Constitución: saber qué datos tuyos tenemos, para qué los
+        usamos, y pedir que se corrijan o se destruyan. Si algo no puedes hacerlo tú desde la app, escríbenos
+        desde «Ayuda» y una persona del equipo te responde.
+      </p>
       <p>
         Al borrar tu cuenta se borra tu perfil y tu historial. Si ya trabajaste con contratos, tu nombre queda
         solo en los recibos de pago ya emitidos, porque la empresa está obligada por ley a conservarlos.
@@ -90,6 +110,7 @@ function Security() {
           "La bitácora interna registra qué pasó y cuándo, pero no guarda nombres completos, teléfonos ni lo que dijiste.",
           "Los códigos de firma no se guardan en claro.",
           "No vendemos tus datos ni los usamos para publicidad.",
+          "Tu nivel nunca usa tu edad, tu sexo, un embarazo, una discapacidad, tu religión, tu afiliación sindical o política, ni los reclamos que hagas.",
         ]}
       />
     </LegalSection>
@@ -105,6 +126,7 @@ export default function PrivacyPage() {
       <WhatWeKeep />
       <Permissions />
       <WhatCompaniesSee />
+      <ForCompanies />
       <YourRights />
       <AdultsOnly />
       <Security />

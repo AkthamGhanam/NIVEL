@@ -139,6 +139,8 @@ export const jobRequests = sqliteTable("job_requests", {
   zone: text("zone").notNull(),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
+  /** Cuándo la empresa fijó el punto exacto de la obra con su ubicación. Nulo: se usa el de su sede. */
+  sitePinnedAt: text("site_pinned_at"),
   startDate: text("start_date").notNull(),
   days: integer("days").notNull(),
   dailyPayUsd: real("daily_pay_usd").notNull(),
@@ -293,6 +295,54 @@ export const voiceClips = sqliteTable("voice_clips", {
   createdAt: text("created_at").notNull(),
 });
 
+/** Borrador del pedido que un contratista arma paso a paso desde Telegram. */
+export interface TelegramDraft {
+  readonly step: "oficio" | "cantidad" | "nivel" | "inicio" | "dias" | "pago" | "confirmar";
+  readonly trade?: (typeof TRADES)[number];
+  readonly quantity?: number;
+  readonly minLevel?: number;
+  readonly startDate?: string;
+  readonly days?: number;
+  readonly dailyPayUsd?: number;
+}
+
+/**
+ * Chats de Telegram conectados a una cuenta de NIVEL. Sin llaves foráneas: el
+ * vínculo sobrevive al reinicio de la demo y se descarta solo si la cuenta ya no existe.
+ */
+export const telegramLinks = sqliteTable("telegram_links", {
+  chatId: text("chat_id").primaryKey(),
+  role: text("role", { enum: ["worker", "company"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  draft: json<TelegramDraft>("draft"),
+  linkedAt: text("linked_at").notNull(),
+});
+
+/** Códigos de un solo uso para conectar un chat: los crea la app con la sesión abierta y vencen pronto. */
+export const telegramCodes = sqliteTable("telegram_codes", {
+  code: text("code").primaryKey(),
+  role: text("role", { enum: ["worker", "company"] }).notNull(),
+  subjectId: text("subject_id").notNull(),
+  expiresAt: text("expires_at").notNull(),
+});
+
+/** Registro en curso de una persona nueva desde Telegram, antes de tener cuenta. */
+export interface TelegramSignupDraft {
+  readonly kind: "worker" | "company";
+  readonly step: "permiso" | "nombre" | "oficio" | "anos" | "rif" | "zona";
+  readonly name?: string;
+  readonly trade?: (typeof TRADES)[number];
+  readonly yearsExp?: number;
+  readonly rif?: string;
+  readonly consentAt?: string;
+}
+
+export const telegramSignups = sqliteTable("telegram_signups", {
+  chatId: text("chat_id").primaryKey(),
+  draft: json<TelegramSignupDraft>("draft").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const schema = {
   companies,
   academies,
@@ -314,4 +364,7 @@ export const schema = {
   events,
   demoState,
   voiceClips,
+  telegramLinks,
+  telegramCodes,
+  telegramSignups,
 };

@@ -19,6 +19,7 @@ import {
 } from "../errors";
 import { log } from "../log";
 import { workerIsActive } from "../repos/accounts";
+import { logEvent } from "../use-cases/events";
 import type { RateLimiter, RateRule } from "./rate-limit";
 import {
   decodeSession,
@@ -84,6 +85,8 @@ export interface EndpointInput<Body, RequestActor> {
   readonly upload: Blob | undefined;
   readonly params: Readonly<Record<string, string>>;
   readonly url: URL;
+  /** Lee una cabecera de la petición (por ejemplo, la firma de un webhook). */
+  readonly header: (name: string) => string | null;
   readonly context: AppContext;
 
   readonly sessions: Sessions;
@@ -149,6 +152,14 @@ function clientIp(request: Request): string {
   return forwarded || request.headers.get("x-real-ip") || "desconocida";
 }
 
+export const TOOL_REJECTED_EVENT = "herramienta_rechazada";
+
+class ToolRejectedError extends UnauthorizedError {
+  constructor() {
+    super("Secreto de herramientas inválido.");
+  }
+}
+
 interface Caller {
   readonly request: Request;
   readonly runtime: Runtime;
@@ -172,8 +183,9 @@ function assertWithinGeneralLimit({ request, runtime }: Caller): void {
 function authenticate(caller: Caller, access: Access, sessions: Sessions): Actor | undefined {
   const { request, runtime } = caller;
   if (access === "tool") {
-    if (secretIsValid(caller, request.headers.get(TOOL_SECRET_HEADER), runtime.toolSecret)) return undefined;
-    throw new UnauthorizedError("Secreto de herramientas inválido.");
+    if (secretIsValid(caller, request.headers.get(TOOL_SECRET_HEADER)?.trim() ?? null, runtime.toolSecret))
+      return undefined;
+    throw new ToolRejectedError();
   }
   assertWithinGeneralLimit(caller);
   if (access === "public") return undefined;
@@ -323,6 +335,46 @@ function successResponse(result: unknown, requestId: string): Response {
   return jsonResponse(result, 200, { "X-Request-ID": requestId });
 }
 
+export const TOOL_FAILED_EVENT = "herramienta_fallo";
+
+export const TOOL_ARRIVED_EVENT = "herramienta_llegada";
+
+async function noteToolArrival(runtime: RuntimeProvider, request: Request): Promise<void> {
+  try {
+    const { context } = await runtime();
+    const type = request.headers.get("content-type") ?? "sin tipo";
+    const length = request.headers.get("content-length") ?? "?";
+    const origin = request.headers.has("origin") ? "con origin" : "sin origin";
+    await logEvent(context, {
+      actor: "Nivi",
+      type: TOOL_ARRIVED_EVENT,
+      label: `Llegó ${new URL(request.url).pathname} · ${type} · ${length} bytes · ${origin}`,
+      product: "agents",
+    });
+  } catch {
+    return;
+  }
+}
+
+async function noteToolFailure(runtime: RuntimeProvider, error: unknown): Promise<void> {
+  try {
+    const { context } = await runtime();
+    const { status, code } = describeError(error);
+    const rejected = error instanceof ToolRejectedError;
+    const kind = error instanceof Error ? error.name : "desconocido";
+    await logEvent(context, {
+      actor: "Nivi",
+      type: rejected ? TOOL_REJECTED_EVENT : TOOL_FAILED_EVENT,
+      label: rejected
+        ? "Herramienta rechazada: la clave no coincide"
+        : `Herramienta con error ${status} (${code}, ${kind})`,
+      product: "agents",
+    });
+  } catch {
+    return;
+  }
+}
+
 export function endpoint<A extends Access, Schema extends z.ZodType | undefined = undefined>(
   options: EndpointOptions<A, Schema>,
   handler: (input: EndpointInput<BodyOf<Schema>, ActorOf<A>>) => Promise<unknown>,
@@ -347,6 +399,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
       upload,
       params: (await route?.params) ?? {},
       url: new URL(request.url),
+      header: (name) => request.headers.get(name),
       context: resolved.context,
       sessions,
       issueSession: (next) =>
@@ -365,9 +418,11 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
     const requestId = requestIdOf(request);
     const startedAt = performance.now();
     let response: Response;
+    if (options.access === "tool") await noteToolArrival(runtime, request);
     try {
       response = successResponse(await respond(request, route), requestId);
     } catch (error) {
+      if (options.access === "tool") await noteToolFailure(runtime, error);
       response = errorResponse(error, requestId);
     }
     log("info", "http_request", {

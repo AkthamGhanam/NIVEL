@@ -91,6 +91,8 @@ function publicWorker({ createdVia, ...worker }: WorkerRow): DemoState["personas
   return { ...worker, name: registered && last ? `${first} ${last.charAt(0)}.` : worker.name, registered };
 }
 
+const DEMO_COMPANY_ID = IDS.activeCompany;
+
 export async function getDemoState(context: AppContext, sessions: Sessions): Promise<DemoState> {
   const [workerRows, companyRows, academyRows, bot, simulation] = await Promise.all([
     context.db
@@ -129,7 +131,8 @@ export async function getDemoState(context: AppContext, sessions: Sessions): Pro
   return {
     personas: {
       workers: starsFirst(workerRows).map(publicWorker),
-      companies: companyRows,
+      // Una sola empresa de ejemplo, recién creada; las demás existen solo como historial de los trabajadores.
+      companies: companyRows.filter((row) => row.registered || row.id === DEMO_COMPANY_ID),
       academies: academyRows,
     },
     active: {

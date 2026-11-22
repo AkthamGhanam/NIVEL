@@ -37,7 +37,7 @@ del servidor. Reinicia la demo al empezar y al terminar; con `-- --keep` deja el
 | Seguridad y config | `src/server/http`, `config`   | Sesión, CSRF, cabeceras, entorno validado     |
 | Rutas de la API    | `src/server/http/api/`        | Validan con zod y delegan en los casos de uso |
 | Entrada HTTP       | `src/app/api/`                | Una línea por ruta: monta el manejador        |
-| Interfaz           | `src/app/`, `src/components/` | `/t`, `/c`, `/a`, `/admin`, `/demo`           |
+| Interfaz           | `src/app/`, `src/components/` | `/t`, `/c`, `/a`, `/admin`                    |
 
 ## Seguridad
 
