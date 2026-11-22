@@ -1,6 +1,7 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import { ensure } from "@/lib/errors";
+import { RATING_TAGS, type RatingRole } from "@/lib/rating-tags";
 
 import type { Actor } from "../actor";
 import type { AppContext } from "../context";
@@ -9,13 +10,7 @@ import { contracts, ratings } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
 
-/** Etiquetas positivas permitidas. Lista cerrada: no hay texto libre visible para la otra parte. */
-export const RATING_TAGS = Object.freeze({
-  empresa: ["Trabajo prolijo", "Puntual", "Cumple normas de seguridad", "Buen compañero", "Resuelve solo"],
-  trabajador: ["Pagó a tiempo", "Buen trato", "Equipo de protección completo", "Obra ordenada"],
-} as const);
-
-export type RatingRole = keyof typeof RATING_TAGS;
+export { RATING_TAGS, type RatingRole };
 
 export interface NewRating {
   readonly contractId: string;

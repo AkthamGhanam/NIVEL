@@ -1,4 +1,4 @@
-import { DEMO_TIME_ZONE } from "./dates";
+import { DEMO_TIME_ZONE, localDate } from "./dates";
 
 /**
  * Formato de cifras, fechas y horas para la interfaz, en español de Venezuela.
@@ -54,6 +54,11 @@ export function formatDay(isoDate: string): string {
   const [year = 0, month = 1, day = 1] = isoDate.slice(0, 10).split("-").map(Number);
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   return `${WEEKDAYS[weekday]} ${day} ${MONTHS[month - 1]}`;
+}
+
+/** De un instante a "mar 24 nov, 3:30 p. m." en la hora de la demo (Caracas). */
+export function formatDateTime(iso: string, timeZone: string = DEMO_TIME_ZONE): string {
+  return `${formatDay(localDate(new Date(iso), timeZone))}, ${formatTime(iso, timeZone)}`;
 }
 
 /** "1 día" o "5 días": concordancia simple para contadores. */

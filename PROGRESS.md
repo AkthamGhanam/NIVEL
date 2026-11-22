@@ -138,6 +138,33 @@ Hallazgos de esa revisión, ya corregidos:
 - El ámbar del manual (#A86A00) no llegaba a contraste AA sobre su fondo: el texto usa #8A5600.
 - La página de "no encontrada" ahora también se renderiza por petición y lleva su nonce.
 
+## Fase 7 · Vista del contratista (`/c`) — lista (la voz llega en la fase 8)
+
+- [x] Entrada de la demo: se elige una empresa de ejemplo y el servidor abre la sesión; encabezado con
+      nombre, verificación y RIF
+- [x] `/c`: formulario para pedir personal, tablero en vivo (se consulta cada 2 s), candidatos sin foto ni
+      estrellas, invitaciones con su estado, reemplazo sugerido a un clic y "Cuadrilla completa · 3 de 3"
+- [x] Panel de costos: costo legal estimado con su desglose, tarifa de NIVEL con el IVA aparte y garantía de
+      búsqueda
+- [x] `/c/obra`: asistencia con las horas reales, días cumplidos y bitácora
+- [x] `/c/pagos`: registro del pago directo al trabajador, recibo imprimible en `/recibo/[id]`
+      (LOTTT art. 106), tarifas de NIVEL con factura simulada y sugerencia del Plan Obra
+- [x] `/c/calificar`: calificación privada por categorías del 1 al 5 y etiquetas, sin estrellas
+- [x] Una prueba recorre toda la vista contra las rutas reales (misma cookie y mismo control de origen que
+      el navegador) y pinta cada paso con lo que devolvió el servidor
+- [x] 483 pruebas; cobertura de líneas 99 %
+
+Recorrido completo en un navegador real (Chromium, 1440 px y 390 px) sobre el servidor de producción, con
+Carlos respondiendo por API y el bot de demo activo: 13 estados de pantalla, axe sin hallazgos WCAG 2.1 A y
+AA, sin desbordes, objetivos táctiles de 44 px o más y cero errores de consola. Otra empresa recibe un 403
+al abrir un recibo ajeno. Esa revisión se corre a mano; todavía no está en CI.
+
+Pendiente de esta vista:
+
+- El panel "Pide tu cuadrilla hablando" (orbe y transcripción) llega con `NiviVoice` en la fase 8. El tablero
+  ya se actualiza solo cuando el agente crea la solicitud, porque consulta al servidor.
+- Sin probar en Safari ni en un teléfono real.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.
