@@ -4,8 +4,19 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      # Parches y menores en un solo PR para no interrumpir la demo con ruido.
+      menores-y-parches:
+        update-types: [minor, patch]
+    ignore:
+      # El runtime es Node 22 (.nvmrc); los tipos deben coincidir con él.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    groups:
+      acciones:
+        patterns: ["*"]
