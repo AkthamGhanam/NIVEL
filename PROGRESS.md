@@ -129,8 +129,10 @@ Probado con base local; falta confirmarlo contra Turso remoto.
 - [x] `npm run voice:check`: conversa por texto con Nivi contra la app desplegada y confirma que el perfil se
       crea, cosa que solo pasa si la variable secreta llegó en la cabecera.
 - [x] 408 pruebas; cobertura de líneas 97 %
-- [ ] Publicar los agentes y correr `voice:check` (esperan los permisos de la clave y la URL de Vercel)
-- [ ] Efectos de sonido (`/sfx/*.mp3`): el script ya los tiene, falta el permiso de Sound Effects
+- [x] Agentes publicados el 2026-11-22 contra https://nivel-wheat.vercel.app ("Nivi" y "Nivi Empresas", 7
+      herramientas con `x-nivel-context` ← `secret__nivel_contexto`); una segunda corrida solo actualiza
+- [ ] `voice:check` contra producción: espera `EL_AGENT_*_ID`, `ELEVENLABS_API_KEY` y el mismo `TOOL_SECRET` en Vercel
+- [x] Efectos de sonido (`/sfx/subir-nivel.mp3`, `/sfx/notificacion.mp3`, `/sfx/exito.mp3`) generados con Sound Effects
 - [ ] Notas de voz de invitación pregeneradas: hoy salen de la caché dinámica tras el primer uso (un ensayo las deja listas)
 - [ ] Audios del plan B: se generan cuando exista el guion de la fase 9
 

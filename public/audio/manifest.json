@@ -5,5 +5,8 @@
   "/audio/lecciones/le-smaw-1.mp3": "ba6dd0999c57e518f3dfe92105be14b50c424474e2cda3933596922a64e864ca",
   "/audio/lecciones/le-smaw-2.mp3": "ec1de968d112c3bbb1225f23722e886c98b080164616e65963b0ed073dafdf09",
   "/audio/privacidad.mp3": "fa2aa4c19ca778ab23f6009e7909d41340c4854ea64db080a3286790ac1219bc",
-  "/audio/nivel-3-carlos.mp3": "c2db15f28f0f7aec449b387a4f0a8eb6106f5354e17ecfdba32c89be5580e912"
+  "/audio/nivel-3-carlos.mp3": "c2db15f28f0f7aec449b387a4f0a8eb6106f5354e17ecfdba32c89be5580e912",
+  "/sfx/subir-nivel.mp3": "b347a39546a29be4b9d609fb00ebda0b5feb398ff9515a88cabb5cb5cec93478",
+  "/sfx/notificacion.mp3": "803512c1cb5ffc822d3de31362dcc4fbf0743182f353f704d5f59af16443c17f",
+  "/sfx/exito.mp3": "c1e98cdfa81e3352440706666397254df986339b6150056884f72169cdd88a37"
 }
