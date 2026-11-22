@@ -192,6 +192,8 @@ export interface SmokeResult {
 export async function runGoldenPath(clients: SmokeClients, step: Step): Promise<SmokeResult> {
   step("1. Reinicia la demo al seed");
   await clients.team.post("/api/demo/reset", { as: "admin" });
+  // El smoke responde por cada trabajador; el bot de demo queda apagado para que no se le adelante.
+  await clients.team.post("/api/demo/bot", { as: "admin", body: { state: "off" } });
   await clients.company.enterAs("company", IDS.activeCompany);
   const { requestId } = await assembleCrew(clients, step);
   const { contractId } = await workTheJob(clients, step);

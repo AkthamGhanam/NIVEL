@@ -3,6 +3,8 @@ import { levelRoutes, paymentRoutes, ratingRoutes } from "./closing";
 import { requestRoutes } from "./requests";
 import { stateRoutes } from "./state";
 import { demoRoutes, eventRoutes, reportRoutes } from "./team";
+import { companyTools, crewTools, offerTools, workerTools } from "./tools";
+import { voiceRoutes } from "./voice";
 import { attendanceRoutes, contractRoutes, invitationRoutes } from "./work";
 
 /**
@@ -21,6 +23,13 @@ export const createApi = (runtime: RuntimeProvider) => ({
   reports: reportRoutes(runtime),
   events: eventRoutes(runtime),
   demo: demoRoutes(runtime),
+  voice: voiceRoutes(runtime),
+  tools: {
+    ...workerTools(runtime),
+    ...offerTools(runtime),
+    ...companyTools(runtime),
+    ...crewTools(runtime),
+  },
 });
 
 export type Api = ReturnType<typeof createApi>;

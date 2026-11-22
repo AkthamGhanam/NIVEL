@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { fastForwardActiveRequest, resetDemoData } from "../../use-cases/demo";
+import { fastForwardActiveRequest, resetDemoData, setDemoBot } from "../../use-cases/demo";
 import { listEventsSince } from "../../use-cases/events";
 import { createReport, listReportsInReview, REPORT_KINDS, resolveReport } from "../../use-cases/reports";
 import { endpoint, type RuntimeProvider } from "../endpoint";
@@ -17,6 +17,7 @@ const resolutionSchema = z.strictObject({
   note: z.string().trim().min(1).max(1000),
 });
 
+const botSchema = z.strictObject({ state: z.enum(["on", "off"]) });
 const fastForwardSchema = z.strictObject({ requestId: idSchema.optional() });
 const sinceSchema = z.iso.datetime().optional();
 
@@ -60,6 +61,13 @@ export const demoRoutes = (runtime: RuntimeProvider) => ({
     { access: "admin", body: emptyBody },
     ({ actor, url, context }) =>
       resetDemoData(context, actor, { keepRealWorkers: url.searchParams.get("all") !== "1" }),
+    runtime,
+  ),
+
+  /** Enciende o apaga el bot que responde por Rafael, José y Luis. */
+  bot: endpoint(
+    { access: "admin", body: botSchema },
+    ({ actor, body, context }) => setDemoBot(context, actor, body.state === "on"),
     runtime,
   ),
 

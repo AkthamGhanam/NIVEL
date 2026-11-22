@@ -48,6 +48,10 @@ del servidor. Reinicia la demo al empezar y al terminar; con `-- --keep` deja el
   una por vista. Ningún id de persona se acepta del cliente y todo está denegado por defecto.
 - Solo se puede entrar como un personaje de ejemplo: nunca como una persona real registrada en el evento.
 - Las peticiones que cambian datos deben venir del propio origen (CSRF), en JSON y con menos de 64 KB.
+- Los agentes de voz llaman a `/api/tools/*` con `x-tool-secret`. En nombre de quién actúan lo decide un
+  contexto firmado por el servidor, no el modelo de lenguaje.
+- Límite de peticiones por IP, con bloqueo temporal tras varios secretos errados.
+- Un perfil real nace privado: no aparece en búsquedas hasta que la persona acepta compartirlo.
 - El código de firma se guarda como HMAC, con 5 intentos; la bitácora no guarda reportes ni datos personales.
 - Los errores inesperados responden un mensaje genérico con un `requestId`; el detalle queda en el log.
 - CI: formato, lint, tipos, pruebas con cobertura, build, `npm audit` y `gitleaks`.

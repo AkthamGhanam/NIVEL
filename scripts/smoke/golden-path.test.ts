@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IDS } from "../../src/server/db/seed/cast";
 import { dispatch, type InProcessApi, startInProcessApi } from "../../src/server/testing/in-process-api";
@@ -22,6 +22,10 @@ async function workerClient(workerId: string): Promise<ApiClient> {
   await client.enterAs("worker", workerId);
   return client;
 }
+
+beforeEach(() => {
+  vi.spyOn(console, "warn").mockImplementation(() => undefined);
+});
 
 beforeAll(async () => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
