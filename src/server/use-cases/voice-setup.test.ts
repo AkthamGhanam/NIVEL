@@ -125,7 +125,9 @@ describe("probar la voz", () => {
     expect(check.ok).toBe(false);
     expect(check.steps[1]).toMatchObject({ ok: false });
     expect(check.steps[1]?.detail).toContain("no llegó al servidor");
-    expect(check.trace).toEqual(["Dirección publicada: https://nivel.example"]);
+    expect(check.trace[0]).toBe("Ninguna llamada de herramienta llegó al servidor.");
+    expect(check.trace[1]).toBe("Dirección publicada: https://nivel.example");
+    expect(check.trace[2]).toContain("Llamada directa");
   });
 
   it("si el servidor rechazó la clave, sugiere reconectar", async () => {
