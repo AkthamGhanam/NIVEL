@@ -335,6 +335,25 @@ function successResponse(result: unknown, requestId: string): Response {
 
 export const TOOL_FAILED_EVENT = "herramienta_fallo";
 
+export const TOOL_ARRIVED_EVENT = "herramienta_llegada";
+
+async function noteToolArrival(runtime: RuntimeProvider, request: Request): Promise<void> {
+  try {
+    const { context } = await runtime();
+    const type = request.headers.get("content-type") ?? "sin tipo";
+    const length = request.headers.get("content-length") ?? "?";
+    const origin = request.headers.has("origin") ? "con origin" : "sin origin";
+    await logEvent(context, {
+      actor: "Nivi",
+      type: TOOL_ARRIVED_EVENT,
+      label: `Llegó ${new URL(request.url).pathname} · ${type} · ${length} bytes · ${origin}`,
+      product: "agents",
+    });
+  } catch {
+    return;
+  }
+}
+
 async function noteToolFailure(runtime: RuntimeProvider, error: unknown): Promise<void> {
   try {
     const { context } = await runtime();
@@ -396,6 +415,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
     const requestId = requestIdOf(request);
     const startedAt = performance.now();
     let response: Response;
+    if (options.access === "tool") await noteToolArrival(runtime, request);
     try {
       response = successResponse(await respond(request, route), requestId);
     } catch (error) {
