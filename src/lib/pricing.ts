@@ -25,6 +25,11 @@ export const PLANS = Object.freeze({
 export const FEE_PAYMENT_METHODS = Object.freeze(["pago_movil", "transferencia"] as const);
 export type FeePaymentMethod = (typeof FEE_PAYMENT_METHODS)[number];
 
+export const PAYMENT_METHOD_LABELS: Readonly<Record<FeePaymentMethod, string>> = Object.freeze({
+  pago_movil: "Pago Móvil",
+  transferencia: "Transferencia",
+});
+
 export interface PriceWithIva {
   readonly base: number;
   readonly iva: number;

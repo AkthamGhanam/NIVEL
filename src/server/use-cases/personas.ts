@@ -21,7 +21,14 @@ export interface PersonaChoice {
 export interface DemoState {
   readonly personas: {
     readonly workers: ReadonlyArray<{ id: string; name: string; trade: string; level: number; zone: string }>;
-    readonly companies: ReadonlyArray<{ id: string; name: string; zone: string }>;
+    readonly companies: ReadonlyArray<{
+      id: string;
+      name: string;
+      zone: string;
+      /** Datos mercantiles públicos: se muestran en el encabezado de la empresa. */
+      rif: string;
+      verified: boolean;
+    }>;
     readonly academies: ReadonlyArray<{ id: string; name: string }>;
   };
   /** Con qué persona está abierta cada vista en este navegador. */
@@ -48,7 +55,13 @@ export async function getDemoState(context: AppContext, sessions: Sessions): Pro
       .where(and(eq(workers.isReal, false), isNull(workers.deletedAt)))
       .orderBy(asc(workers.id)),
     context.db
-      .select({ id: companies.id, name: companies.name, zone: companies.zone })
+      .select({
+        id: companies.id,
+        name: companies.name,
+        zone: companies.zone,
+        rif: companies.rif,
+        verified: companies.verified,
+      })
       .from(companies)
       .orderBy(asc(companies.id)),
     context.db.select({ id: academies.id, name: academies.name }).from(academies).orderBy(asc(academies.id)),

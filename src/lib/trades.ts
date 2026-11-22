@@ -25,3 +25,16 @@ export const CONTRACT_TYPES = Object.freeze([
   "servicio_independiente",
 ] as const);
 export type ContractType = (typeof CONTRACT_TYPES)[number];
+
+/** Nombre de cada tipo de contrato como lo lee la empresa. */
+export const CONTRACT_TYPE_LABELS: Readonly<Record<ContractType, string>> = Object.freeze({
+  obra_determinada: "Por obra determinada",
+  tiempo_determinado: "Por tiempo determinado",
+  servicio_independiente: "Servicio independiente",
+});
+
+/** "3 soldadores", "1 albañil". */
+export function tradeCount(trade: Trade, count: number): string {
+  const label = TRADE_LABELS[trade];
+  return `${count} ${count === 1 ? label.singular : label.plural}`;
+}

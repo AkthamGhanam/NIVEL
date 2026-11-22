@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBs, formatDay, formatKm, formatRate, formatTime, formatUsd, initials, plural } from "./format";
+import {
+  formatBs,
+  formatDateTime,
+  formatDay,
+  formatKm,
+  formatRate,
+  formatTime,
+  formatUsd,
+  initials,
+  plural,
+} from "./format";
 
 describe("formato para la interfaz", () => {
   it("los dólares muestran céntimos solo cuando existen, con coma decimal", () => {
@@ -26,6 +36,11 @@ describe("formato para la interfaz", () => {
     expect(formatDay("2026-11-24")).toBe("mar 24 nov");
     expect(formatDay("2026-01-01")).toBe("jue 1 ene");
     expect(formatDay("2026-11-22T06:30:00.000Z")).toBe("dom 22 nov");
+  });
+
+  it("fecha y hora juntas usan el día de Caracas, no el de UTC", () => {
+    expect(formatDateTime("2026-11-24T19:30:00.000Z")).toBe("mar 24 nov, 3:30 p. m.");
+    expect(formatDateTime("2026-11-25T02:15:00.000Z")).toBe("mar 24 nov, 10:15 p. m.");
   });
 
   it("plurales e iniciales", () => {

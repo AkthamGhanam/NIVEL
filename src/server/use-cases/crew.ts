@@ -6,6 +6,14 @@ import { shortName } from "@/lib/matching";
 import type { AppContext } from "../context";
 import { attendance, contracts, payments, ratings, workers } from "../db/schema";
 
+export interface AttendanceDay {
+  readonly date: string;
+  readonly checkInAt: string | null;
+  readonly checkOutAt: string | null;
+  readonly insideGeofence: boolean;
+  readonly note: string | null;
+}
+
 /** Una persona ya contratada en la solicitud, como la ve la empresa en su tablero. */
 export interface CrewMember {
   readonly contractId: string;
@@ -17,13 +25,9 @@ export interface CrewMember {
   readonly days: number;
   readonly daysAttended: number;
   /** Última jornada registrada: horas reales de entrada y salida, y el motivo si la persona dejó uno. */
-  readonly lastAttendance: {
-    readonly date: string;
-    readonly checkInAt: string | null;
-    readonly checkOutAt: string | null;
-    readonly insideGeofence: boolean;
-    readonly note: string | null;
-  } | null;
+  readonly lastAttendance: AttendanceDay | null;
+  /** Todas las jornadas con entrada registrada, de la más antigua a la más reciente. */
+  readonly attendance: readonly AttendanceDay[];
   readonly payment: {
     readonly id: string;
     readonly receiptNumber: string;
@@ -55,12 +59,12 @@ export async function loadCrew(context: AppContext, requestId: string): Promise<
       .from(ratings)
       .where(and(inArray(ratings.contractId, contractIds), eq(ratings.fromRole, "empresa"))),
   ]);
-  const daysAttended = new Map<string, number>();
-  const lastAttendance = new Map<string, CrewMember["lastAttendance"]>();
+  const daysByContract = new Map<string, AttendanceDay[]>();
   for (const { contractId, date, checkInAt, checkOutAt, insideGeofence, note } of attended) {
     if (checkInAt === null) continue;
-    daysAttended.set(contractId, (daysAttended.get(contractId) ?? 0) + 1);
-    lastAttendance.set(contractId, { date, checkInAt, checkOutAt, insideGeofence, note });
+    const days = daysByContract.get(contractId) ?? [];
+    days.push({ date, checkInAt, checkOutAt, insideGeofence, note });
+    daysByContract.set(contractId, days);
   }
   const ratedContracts = new Set(rated.map((row) => row.contractId));
   return rows.map(({ contract, worker, payment }) => ({
@@ -71,8 +75,9 @@ export async function loadCrew(context: AppContext, requestId: string): Promise<
     status: contract.status,
     signedWorkerAt: contract.signedWorkerAt,
     days: contract.days,
-    daysAttended: daysAttended.get(contract.id) ?? 0,
-    lastAttendance: lastAttendance.get(contract.id) ?? null,
+    daysAttended: daysByContract.get(contract.id)?.length ?? 0,
+    lastAttendance: daysByContract.get(contract.id)?.at(-1) ?? null,
+    attendance: daysByContract.get(contract.id) ?? [],
     payment: payment && {
       id: payment.id,
       receiptNumber: payment.receiptNumber,
