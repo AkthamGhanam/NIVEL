@@ -176,11 +176,11 @@ describe("pedir cuadrilla y tablero en vivo", () => {
     const plain = text(markup);
 
     expect(plain).toContain("Salario (5 días) $125");
-    expect(plain).toContain("Por persona $196,67");
-    expect(plain).toContain("Por 3 personas $590");
+    expect(plain).toContain("Por persona $300,83");
+    expect(plain).toContain("Por 3 personas $902,50");
     expect(plain).toContain("Estimado. Valídalo con tu contador.");
     // A dónde va cada dólar: al trabajador y al Estado. Nada de eso es de NIVEL.
-    expect(plain).toContain("Va al trabajador $166,67");
+    expect(plain).toContain("Va al trabajador $270,83");
     expect(plain).toContain("Va al Estado $30");
     expect(plain).toContain("No es una factura");
     expect(plain).toContain("Lo único que cobra NIVEL");
@@ -289,9 +289,9 @@ describe("pagos", () => {
   it("la empresa registra la liquidación completa, con cada concepto, y queda el recibo", async () => {
     const before = html(<WagePayments board={await boardNow()} onRegister={idle} />);
     expect(before).toContain("liquidación completa, directo");
-    expect(text(before)).toContain("Carlos R. 5 días a $25 $166,67");
+    expect(text(before)).toContain("Carlos R. 5 días a $25 $270,83");
     expect(text(before)).toContain(
-      "Salario $125 Utilidades proporcionales $10,42 Vacaciones y bono vacacional $10,42 Prestaciones sociales $20,83 Total $166,67",
+      "Salario $125 Utilidades proporcionales $10,42 Vacaciones y bono vacacional $10,42 Prestaciones sociales $125 Total $270,83",
     );
     expect(before.match(/Registrar liquidación pagada/g)).toHaveLength(1);
     expect(before).toContain("Pago Móvil");
@@ -305,7 +305,7 @@ describe("pagos", () => {
     paymentId = payment.id;
     const registered = html(<WagePayments board={await boardNow()} onRegister={idle} />);
 
-    expect(payment.amountUsd).toBe(166.67);
+    expect(payment.amountUsd).toBe(270.83);
     expect(registered).toContain("Liquidación registrada. Falta que Carlos R. confirme");
     expect(registered).toContain(`href="/recibo/${paymentId}?vista=empresa"`);
     expect(registered).not.toContain("Registrar liquidación pagada");
@@ -331,8 +331,8 @@ describe("pagos", () => {
     expect(plain).toContain("Trabajador Carlos Rodríguez");
     expect(plain).toContain("5 días a $25");
     expect(plain).toContain("Salario $125");
-    expect(plain).toContain("Prestaciones sociales $20,83");
-    expect(plain).toContain("Total $166,67");
+    expect(plain).toContain("Prestaciones sociales $125");
+    expect(plain).toContain("Total $270,83");
     expect(plain).toContain("(tasa de ejemplo)");
     expect(plain).toContain("Pago Móvil · referencia 0102-123456");
     expect(plain).toMatch(/Recibido · \w{3} \d{1,2} \w{3}, \d{1,2}:\d{2} [ap]\. m\./);

@@ -163,7 +163,7 @@ describe("el contratista pide personal desde Telegram", () => {
     const board = await activeRequestBoard(context, ACTORS.company);
     expect(board?.request).toMatchObject({ trade: "soldador", quantity: 3, startDate: "2026-11-24" });
     expect(last()?.text).toContain("6 personas cumplen en Los Guayos");
-    expect(last()?.text).toContain("Costo legal estimado: $196,67 por persona");
+    expect(last()?.text).toContain("Costo legal estimado: $300,83 por persona");
     expect(dataOf(last(), /Invitar a los 3 mejores/)).toBe(`iv:${board?.request.id}:3`);
   });
 

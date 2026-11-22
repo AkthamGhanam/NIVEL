@@ -138,7 +138,7 @@ describe("conversación de la empresa", () => {
     requestId = data.solicitud_id as string;
 
     expect(status).toBe(200);
-    expect(data).toMatchObject({ ok: true, cumplen: 6, costo_legal: { por_trabajador: 196.67 } });
+    expect(data).toMatchObject({ ok: true, cumplen: 6, costo_legal: { por_trabajador: 300.83 } });
     expect((data.top as Array<{ nombre_corto: string }>).map((entry) => entry.nombre_corto)).toEqual([
       "Rafael T.",
       "José P.",
@@ -206,7 +206,7 @@ describe("conversación de la empresa", () => {
     const { data } = await callTool("calcular_costo_legal", { pago_diario_usd: "25", dias: 5, cantidad: 3 });
     const invalid = await callTool("calcular_costo_legal", { pago_diario_usd: 25, dias: 0, cantidad: 3 });
 
-    expect(data).toMatchObject({ ok: true, total: 590 });
+    expect(data).toMatchObject({ ok: true, total: 902.5 });
     expect(data.say).toContain("Estimado. Valídalo con tu contador.");
     expect(invalid.data).toMatchObject({ ok: false });
   });

@@ -68,7 +68,7 @@ describe("camino dorado", () => {
       "Luis M.",
       "Carlos R.",
     ]);
-    expect(created.legalCost.perWorker.total).toBe(196.67);
+    expect(created.legalCost.perWorker.total).toBe(300.83);
     expect(created.feeRange?.min.base).toBe(20);
     expect(created.feeRange?.max.base).toBe(30);
   });
@@ -187,11 +187,11 @@ describe("camino dorado", () => {
     const receipt = await getReceipt(app.context, ACTORS.carlos, paymentId);
 
     // Liquidación: $125 de salario más utilidades, vacaciones con bono y prestaciones proporcionales.
-    expect(payment.amountUsd).toBe(166.67);
+    expect(payment.amountUsd).toBe(270.83);
     expect(payment.salaryUsd).toBe(125);
     expect(receipt.employer).toEqual({ name: "Constructora Los Guayos", rif: "J-50123456-7" });
     expect(receipt.workerName).toBe("Carlos Rodríguez");
-    expect(receipt.amountBs).toBe(6083.46);
+    expect(receipt.amountBs).toBe(9885.3);
   });
 
   it("10. Carlos confirma que recibió el pago", async () => {

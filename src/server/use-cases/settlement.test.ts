@@ -56,12 +56,12 @@ describe("liquidación al terminar la obra", () => {
     paymentId = payment.id;
     const receipt = await getReceipt(app.context, ACTORS.rafael, paymentId);
 
-    expect(payment.amountUsd).toBe(1333.33);
+    expect(payment.amountUsd).toBe(1416.67);
     expect(receipt.items).toEqual([
       { label: "Salario", amountUsd: 1000 },
       { label: "Utilidades proporcionales", amountUsd: 83.33 },
       { label: "Vacaciones y bono vacacional", amountUsd: 83.33 },
-      { label: "Prestaciones sociales", amountUsd: 166.67 },
+      { label: "Prestaciones sociales", amountUsd: 250 },
     ]);
     expect(receipt.concept).toMatch(/^Liquidación por 20 días/);
   });

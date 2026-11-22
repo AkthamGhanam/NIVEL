@@ -11,10 +11,32 @@ export const LEGAL_COST_DISCLAIMER = "Estimado. Valídalo con tu contador.";
 const LEGAL_COST_RATES = Object.freeze({
   utilidades: 30 / 360, // mínimo legal de 30 días al año, proporcional
   vacacionesBono: 30 / 360, // 15 días de vacaciones + 15 de bono vacacional, proporcional
-  prestaciones: 15 / 90, // garantía de 15 días por trimestre, proporcional
+  prestaciones: 15 / 90, // garantía de 15 días por trimestre (art. 142, literal a)
   pensiones: 0.09, // contribución especial
   aportes: 0.15, // IVSS + RPE + FAOV + INCES, estimado simplificado
 });
+
+/**
+ * Prestaciones sociales (LOTTT, art. 142). Si la relación dura menos de tres
+ * meses, el literal e) fija cinco días de salario por mes trabajado o fracción;
+ * desde los tres meses rige la garantía de 15 días por trimestre.
+ */
+export const FIRST_TRIMESTER_DAYS = 90;
+const DAYS_PER_MONTH = 30;
+const SHORT_RELATION_DAYS_PER_MONTH = 5;
+
+export function prestacionesFor(dailyPayUsd: number, days: number): number {
+  if (days < FIRST_TRIMESTER_DAYS) {
+    return dailyPayUsd * SHORT_RELATION_DAYS_PER_MONTH * Math.ceil(days / DAYS_PER_MONTH);
+  }
+  return dailyPayUsd * days * LEGAL_COST_RATES.prestaciones;
+}
+
+/** Cómo se calcularon las prestaciones, para decirlo junto al monto. */
+export const prestacionesBasis = (days: number): string =>
+  days < FIRST_TRIMESTER_DAYS
+    ? "Menos de 3 meses: 5 días de salario por mes o fracción (art. 142, literal e)"
+    : "Desde 3 meses: 15 días de salario por trimestre (art. 142, literal a)";
 
 const LIMITS = Object.freeze({ maxDailyPayUsd: 1000, maxDays: 365, maxQuantity: 100 });
 
@@ -60,7 +82,7 @@ export function estimateLegalCost(input: LegalCostInput): LegalCostEstimate {
   const charges = {
     utilidades: salary * LEGAL_COST_RATES.utilidades,
     vacacionesBono: salary * LEGAL_COST_RATES.vacacionesBono,
-    prestaciones: salary * LEGAL_COST_RATES.prestaciones,
+    prestaciones: prestacionesFor(input.dailyPayUsd, input.days),
     pensiones: salary * LEGAL_COST_RATES.pensiones,
     aportes: salary * LEGAL_COST_RATES.aportes,
   };

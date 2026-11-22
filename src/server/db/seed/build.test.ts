@@ -155,7 +155,7 @@ describe("seed canónico: camino dorado", () => {
     expect(seed.certificates.find((certificate) => certificate.workerId === IDS.carlos)?.code).toBe("C-2041");
   });
 
-  it("el costo legal del pedido del guion es de unos 197 dólares por persona", () => {
-    expect(estimateLegalCost({ dailyPayUsd: 25, days: 5, quantity: 3 }).perWorker.total).toBe(196.67);
+  it("el costo legal del pedido del guion es de unos 301 dólares por persona", () => {
+    expect(estimateLegalCost({ dailyPayUsd: 25, days: 5, quantity: 3 }).perWorker.total).toBe(300.83);
   });
 });

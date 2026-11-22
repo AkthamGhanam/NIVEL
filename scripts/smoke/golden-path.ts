@@ -133,7 +133,7 @@ async function closeTheJob(clients: SmokeClients, step: Step, contractId: string
   const payment = await company.post<{ id: string; amountUsd: number }>("/api/payments", {
     body: { contractId, method: "pago_movil", reference: "0102-123456" },
   });
-  check(payment.amountUsd === 166.67, `La liquidación debe ser de 166,67 USD y es de ${payment.amountUsd}`);
+  check(payment.amountUsd === 270.83, `La liquidación debe ser de 270,83 USD y es de ${payment.amountUsd}`);
 
   step("12. Carlos confirma que recibió el pago");
   await carlos.post(`/api/payments/${payment.id}/confirm`);
