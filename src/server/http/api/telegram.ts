@@ -10,6 +10,7 @@ import {
   unlinkTelegram,
   webhookSecret,
 } from "../../use-cases/telegram";
+import { redeemEntryCode } from "../../use-cases/telegram-signup";
 import { endpoint, type RuntimeProvider } from "../endpoint";
 import type { RateRule } from "../rate-limit";
 import { secretMatches } from "../session";
@@ -49,6 +50,21 @@ export const telegramRoutes = (runtime: RuntimeProvider) => ({
         throw new UnauthorizedError();
       await handleTelegramUpdate(context, body);
       return { ok: true };
+    },
+    runtime,
+  ),
+
+  /**
+   * Enlace de un solo uso que el bot le da a quien se registró en el chat: abre
+   * la app con su sesión iniciada. Un código vencido o ya usado lleva a la portada.
+   */
+  enter: endpoint(
+    { access: "public", limit: LINK_LIMIT },
+    async ({ url, context, issueSession }) => {
+      const actor = await redeemEntryCode(context, url.searchParams.get("c") ?? "");
+      const headers = new Headers({ Location: actor ? (actor.role === "worker" ? "/t" : "/c") : "/" });
+      if (actor) headers.set("Set-Cookie", issueSession(actor));
+      return new Response(null, { status: 303, headers });
     },
     runtime,
   ),

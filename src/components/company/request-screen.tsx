@@ -1,13 +1,14 @@
 // Pantalla principal del contratista: pedir cuadrilla (formulario o Nivi), tablero y costos.
 "use client";
 
-import { useCallback } from "react";
+import { type ReactNode, useCallback } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
 import { Card } from "@/components/ui/card";
 import { CrewIcon } from "@/components/ui/icons";
-import { LoadingText, Notice } from "@/components/ui/notice";
+import { Disclosure } from "@/components/ui/disclosure";
+import { LoadingText, NotEmployerNotice, Notice } from "@/components/ui/notice";
 import { SeatRing } from "@/components/ui/rings";
 import { TelegramCard } from "@/components/telegram/telegram-card";
 import { NiviCard } from "@/components/voice/nivi-card";
@@ -64,6 +65,19 @@ export function EmptyBoard() {
   );
 }
 
+/** Con una solicitud activa, lo único en primer plano es la cuadrilla; costos y otro pedido quedan plegados. */
+function ActiveRequest({ again, ...view }: BoardViewProps & { readonly again: ReactNode }) {
+  return (
+    <>
+      <BoardView {...view} />
+      <Disclosure title="Ver costos y comprobantes">
+        <CostPanel board={view.board} />
+      </Disclosure>
+      <Disclosure title="Hacer otro pedido">{again}</Disclosure>
+    </>
+  );
+}
+
 export function RequestScreen() {
   const { company, api, board: store } = useCompany();
   const live = useLive(store);
@@ -78,43 +92,44 @@ export function RequestScreen() {
   const refreshBoard = useCallback(() => void store.refresh(), [store]);
   const board = live.data ?? null;
 
+  const form = <RequestForm key="formulario" zone={company.zone} onSubmit={publish} />;
+  const nivi = (
+    <NiviCard
+      key="nivi"
+      title="Pídela con Nivi"
+      hint="Dile qué personal necesitas"
+      openSession={api.voice}
+      onActivity={refreshBoard}
+    />
+  );
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[21rem_minmax(0,1fr)]">
-      <section aria-labelledby="pedir-titulo" className="flex flex-col gap-4">
-        <div>
-          <NiviCard
-            title="Pídela con Nivi"
-            hint="Dile qué personal necesitas, hablando o escribiendo"
-            openSession={api.voice}
-            onActivity={refreshBoard}
-          />
-        </div>
-        <Card className="flex flex-col gap-4">
-          <h2 id="pedir-titulo" className="display text-2xl">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
+      {live.error !== undefined && !live.loading ? (
+        <Notice tone="pending">{errorMessage(live.error)}</Notice>
+      ) : null}
+      {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
+      {!live.loading && board ? (
+        <ActiveRequest
+          board={board}
+          onInvite={(choice) => void invite.invoke(board.request.id, choice)}
+          pending={invite.pending}
+          error={invite.error}
+          again={[nivi, form]}
+        />
+      ) : null}
+      {!live.loading && !board ? (
+        <>
+          <h1 id="pedir-titulo" className="display text-3xl sm:text-4xl">
             Pide tu cuadrilla
-          </h2>
-          <RequestForm zone={company.zone} onSubmit={publish} />
-        </Card>
+          </h1>
+          {nivi}
+          <Card>{form}</Card>
+        </>
+      ) : null}
+      <Disclosure title="Más opciones">
         <TelegramCard role="company" />
-      </section>
-      <div className="order-first grid min-w-0 items-start gap-6 lg:order-none 2xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="flex min-w-0 flex-col gap-4">
-          {live.error !== undefined && !live.loading ? (
-            <Notice tone="pending">{errorMessage(live.error)}</Notice>
-          ) : null}
-          {live.loading ? <LoadingText>Nivi está revisando tus solicitudes…</LoadingText> : null}
-          {!live.loading && board ? (
-            <BoardView
-              board={board}
-              onInvite={(choice) => void invite.invoke(board.request.id, choice)}
-              pending={invite.pending}
-              error={invite.error}
-            />
-          ) : null}
-          {!live.loading && !board && live.error === undefined ? <EmptyBoard /> : null}
-        </div>
-        <CostPanel board={board} />
-      </div>
+        <NotEmployerNotice />
+      </Disclosure>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import {
   type RequestDraft,
 } from "@/client/request-draft";
 import { Button } from "@/components/ui/button";
+import { Disclosure } from "@/components/ui/disclosure";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { localDate } from "@/lib/dates";
@@ -129,7 +130,6 @@ function PeopleFields({ draft, problems, change }: SectionProps) {
       <SelectField
         id="solicitud-nivel"
         label="Nivel mínimo"
-        hint="Nivel 2 o más para la mayoría de las obras."
         value={draft.minLevel}
         error={problems.minLevel}
         onChange={(event) => change("minLevel", event.target.value)}
@@ -178,18 +178,23 @@ function SiteFields({ draft, problems, change }: SectionProps) {
   );
 }
 
-/** Condiciones: pago diario, tipo de contrato y una nota opcional. */
+function PayField({ draft, problems, change }: SectionProps) {
+  return (
+    <TextField
+      id="solicitud-pago"
+      label="Pago diario (USD)"
+      inputMode="decimal"
+      value={draft.dailyPayUsd}
+      error={problems.dailyPayUsd}
+      onChange={(event) => change("dailyPayUsd", event.target.value)}
+    />
+  );
+}
+
+/** Lo que casi nunca cambia: tipo de contrato y una nota opcional. */
 function TermsFields({ draft, problems, change }: SectionProps) {
   return (
     <>
-      <TextField
-        id="solicitud-pago"
-        label="Pago diario (USD)"
-        inputMode="decimal"
-        value={draft.dailyPayUsd}
-        error={problems.dailyPayUsd}
-        onChange={(event) => change("dailyPayUsd", event.target.value)}
-      />
       <SelectField
         id="solicitud-contrato"
         label="Tipo de contrato"
@@ -223,13 +228,16 @@ export function RequestForm(props: RequestFormProps) {
     <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-3">
       <PeopleFields {...section} />
       <SiteFields {...section} />
-      <SitePin
-        pinned={form.site !== null}
-        detail={form.site ? accuracyLabel(form.site) : undefined}
-        onFix={pinSite}
-        onClear={() => pinSite(null)}
-      />
-      <TermsFields {...section} />
+      <PayField {...section} />
+      <Disclosure title="Más opciones" plain>
+        <SitePin
+          pinned={form.site !== null}
+          detail={form.site ? accuracyLabel(form.site) : undefined}
+          onFix={pinSite}
+          onClear={() => pinSite(null)}
+        />
+        <TermsFields {...section} />
+      </Disclosure>
       {form.failure ? (
         <Notice tone="alert" urgent>
           {form.failure}

@@ -106,15 +106,17 @@ describe("tarifas de NIVEL", () => {
   it("la empresa ve solo sus tarifas, con totales y la sugerencia del Plan Obra si le conviene", async () => {
     const statement = await listMyFees(app.context, ACTORS.company);
 
-    expect(statement.fees).toHaveLength(22);
-    expect(statement.paid).toEqual({ base: 770, iva: 123.2, total: 893.2 });
-    expect(statement.pending.total).toBe(0);
-    expect(statement.planSuggestion).toEqual({
-      hiresThisMonth: 8,
-      payPerHire: { base: 200, iva: 32, total: 232 },
-      planObra: { base: 139, iva: 22.24, total: 161.24 },
-      savesUsd: 70.76,
-    });
+    const history = await listMyFees(app.context, ACTORS.otherCompany);
+
+    // La empresa de la demo arranca limpia: sin tarifas, sin pagos y sin sugerencia de plan.
+    expect(statement.fees).toHaveLength(0);
+    expect(statement.paid).toEqual({ base: 0, iva: 0, total: 0 });
+    expect(statement.planSuggestion).toBeNull();
+    // El historial que respalda los niveles vive en las otras empresas.
+    expect(history.fees.length).toBeGreaterThan(0);
+    expect(history.pending.total).toBe(0);
+    expect(history.paid.iva).toBeCloseTo(history.paid.base * 0.16, 2);
+    expect(history.planSuggestion?.savesUsd).toBeGreaterThan(0);
   });
 
   it("no sugiere el plan a quien no le ahorra nada, ni a las academias", async () => {
@@ -220,21 +222,21 @@ describe("métricas del panel interno", () => {
 
 describe("paga a tiempo", () => {
   it("solo se calcula con 5 o más trabajos terminados, y baja si un pago se registró tarde", async () => {
-    const [late] = await app.context.db
-      .select()
-      .from(contracts)
-      .where(eq(contracts.companyId, IDS.activeCompany));
+    const [late] = await app.context.db.select().from(contracts).where(eq(contracts.companyId, "co-prado"));
     await app.context.db
       .update(payments)
       .set({ registeredAt: "2027-01-15T12:00:00.000Z" })
       .where(eq(payments.contractId, late?.id ?? ""));
     const rates = await paysOnTimeByCompany(app.context.db, [
       IDS.activeCompany,
+      "co-prado",
       "co-moron",
       "co-sin-historia",
     ]);
 
-    expect(rates.get(IDS.activeCompany)).toBe(95);
+    // Sin contrataciones terminadas no hay dato; con historial, un pago tardío baja el porcentaje.
+    expect(rates.get(IDS.activeCompany)).toBeNull();
+    expect(rates.get("co-prado")).toBeLessThan(100);
     expect(rates.get("co-moron")).toBe(100);
     expect(rates.get("co-sin-historia")).toBeNull();
     expect(await paysOnTimeByCompany(app.context.db, [])).toEqual(new Map());

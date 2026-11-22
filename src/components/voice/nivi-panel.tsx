@@ -88,9 +88,7 @@ export function MuteControl({ nivi }: { readonly nivi: Pick<Nivi, "muted" | "tog
         {nivi.muted ? "Volver a hablar" : "Pausar mi micrófono"}
       </Button>
       <p role="status" className="text-sm text-muted">
-        {nivi.muted
-          ? "Micrófono en pausa: Nivi no oye nada de lo que pasa alrededor."
-          : "¿Mucho ruido cerca? Acerca el teléfono o pausa el micrófono mientras no hablas."}
+        {nivi.muted ? "Nivi no te oye hasta que vuelvas a hablar." : "Habla cuando Nivi termine."}
       </p>
     </div>
   );

@@ -9,13 +9,12 @@ import type { MyProfile, WorkerOffer } from "@/client/worker-api";
 import { currentJob, jobStep, pendingOffers, stepAction } from "@/client/worker-view";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
+import { Disclosure } from "@/components/ui/disclosure";
 import { LoadingText, Notice } from "@/components/ui/notice";
 import { Switch } from "@/components/ui/switch";
 import { LevelRings } from "@/components/ui/rings";
 import { LevelBadge } from "@/components/ui/tag";
 import { cx } from "@/lib/cx";
-import { formatUsd } from "@/lib/format";
-import { REFERENCE_BAND_NOTICE } from "@/lib/legal-copy";
 
 import { TelegramCard } from "@/components/telegram/telegram-card";
 import { NiviCard } from "@/components/voice/nivi-card";
@@ -41,13 +40,6 @@ export function LevelCard({ level }: { readonly level: MyProfile["level"] }) {
           <p className="text-lg leading-snug font-semibold text-white">{level.explanation}</p>
         </div>
       </div>
-      <p className="border-t border-ink-line pt-4 text-sm text-muted-on-ink">
-        De{" "}
-        <span className="figures font-bold text-white">
-          {formatUsd(level.referenceBand.min)} a {formatUsd(level.referenceBand.max)}
-        </span>{" "}
-        al mes. {REFERENCE_BAND_NOTICE}
-      </p>
       <ButtonLink href="/t/nivel" variant="outline" block className="border-transparent">
         Ver mi nivel
       </ButtonLink>
@@ -94,7 +86,7 @@ export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] 
         Ofertas para ti
       </h2>
       {pending.length === 0 ? (
-        <p className="text-muted">Aún no tienes ofertas nuevas. Te avisaremos aquí cuando llegue una.</p>
+        <p className="text-muted">Aún no tienes ofertas nuevas. Te avisamos aquí.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {pending.map((offer) => (
@@ -162,12 +154,18 @@ export function HomeScreen() {
   });
   const refreshOffers = useCallback(() => void offersStore.refresh(), [offersStore]);
   const job = currentJob(offers.data ?? []);
+  // Con ofertas por responder, van primero; sin ellas, primero el nivel.
+  const hasOffers = pendingOffers(offers.data ?? []).length > 0;
   const failure = toggle.error ?? (profile.error === undefined ? null : errorMessage(profile.error));
 
   return (
     <>
       <h1 className="display text-4xl">Hola{profile.data ? `, ${profile.data.firstName}` : ""}</h1>
       {failure ? <Notice tone="alert">{failure}</Notice> : null}
+      {/* Primero lo que hay que hacer ahora: el trabajo en curso o las ofertas. */}
+      {job ? <CurrentJob offer={job} /> : null}
+      {offers.loading ? <LoadingText>Nivi está revisando tus ofertas…</LoadingText> : null}
+      {hasOffers && !job ? <OfferList offers={offers.data ?? []} /> : null}
       {profile.loading ? <LoadingText>Nivi está buscando tu perfil…</LoadingText> : null}
       {profile.data ? (
         <>
@@ -179,17 +177,18 @@ export function HomeScreen() {
           />
         </>
       ) : null}
-      {job ? <CurrentJob offer={job} /> : null}
-      {offers.loading ? <LoadingText>Nivi está revisando tus ofertas…</LoadingText> : null}
-      {offers.data ? <OfferList offers={offers.data} /> : null}
+      {offers.data && !hasOffers && !job ? <OfferList offers={offers.data} /> : null}
       <NiviCard
         title="Habla con Nivi"
-        hint="Pregúntale por tus ofertas o acéptalas hablando"
+        hint="Pregunta por tus ofertas o acéptalas hablando"
         openSession={api.voice}
         onActivity={refreshOffers}
       />
-      <TelegramCard role="worker" />
-      <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
+      <Disclosure title="Más opciones">
+        {offers.data && job ? <OfferList offers={offers.data} /> : null}
+        <TelegramCard role="worker" />
+        <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
+      </Disclosure>
     </>
   );
 }

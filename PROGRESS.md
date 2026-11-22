@@ -365,3 +365,15 @@ Pendiente:
 - [x] 692 pruebas
 
 Sin probar: el bot contra Telegram real, Nivi con las variables nuevas en ElevenLabs y el GPS en un teléfono.
+
+## Fase 13 · Experiencia más simple — lista en código, sin probar con servicios reales
+
+- [x] Un paso por pantalla en `/t` y `/c`: lo que toca hacer va primero; costos, otro pedido, Telegram y
+      avisos quedan plegados. Menos texto en todas las tarjetas
+- [x] Nivi por turnos: el micrófono se cierra solo mientras ella habla (no se oye a sí misma por el altavoz)
+      y pregunta un dato a la vez. Hay que tocar "Reconectar a Nivi" para publicar el prompt
+- [x] Bot de Telegram: entiende frases completas y notas de voz (Scribe), además de los botones; registro
+      de trabajador o empresa desde el chat y enlace de un solo uso para abrir la app con esa cuenta
+- [x] En `/t/obra` sin trabajo: muestra las ofertas ahí mismo o pregunta antes de ir al inicio
+- [x] Una sola empresa de ejemplo, sin tarifas ni pagos precargados; el historial vive en otras empresas
+- [x] 719 pruebas
