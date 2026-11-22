@@ -13,6 +13,15 @@ Plan aprobado: https://claude.ai/artifact/GSnQHsdYHduT8bpe6sQPD2 (backend fases 
 - [ ] CI en verde en GitHub
 - [ ] Despliegue en Vercel con `/api/health` en 200
 
+## Fase 1 · Dominio puro — lista
+
+- [x] `level` + `level-explanation`: tabla pública, freno de calificaciones que nunca baja el nivel
+- [x] `pricing` (IVA 16 % aparte, centavos enteros) y `legal-cost` (25 $ × 5 días = 196,67)
+- [x] `matching`: 6 candidatos del camino dorado en orden Rafael, José, Luis, Carlos; perfil sin datos sensibles
+- [x] `moderation`: 13 frases bloqueadas y 9 legítimas permitidas (incluye "mayor de 18")
+- [x] `geo` (geocerca 120 m) y `dates` ("el martes" en hora de Caracas)
+- [x] 154 pruebas; cobertura 100 % de líneas en `src/lib`
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.
