@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { addDays, type IsoDate, localDate } from "@/lib/dates";
 import { ensure } from "@/lib/errors";
+import { formatDay } from "@/lib/format";
 import { type GeoPoint, isInsideGeofence } from "@/lib/geo";
 
 import { type Actor, requireRole } from "../actor";
@@ -74,7 +75,7 @@ async function resolveWorkDay(
     return { date: today >= firstDay && today <= lastDay ? today : firstDay, simulated: true };
   }
   assertInsideSite(mark.position, row.site);
-  if (today < firstDay) throw new ConflictError(`La obra empieza el ${firstDay}.`);
+  if (today < firstDay) throw new ConflictError(`La obra empieza el ${formatDay(firstDay)}.`);
   if (today > lastDay) throw new ConflictError("La obra ya terminó.");
   return { date: today, simulated: false };
 }

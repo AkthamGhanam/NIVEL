@@ -5,12 +5,20 @@ import type { ReactNode } from "react";
  * pantalla grande (Modo Jurado). En un teléfono real no dibuja nada: el
  * contenido ocupa la pantalla completa.
  */
-export function PhoneFrame({ children, label }: { readonly children: ReactNode; readonly label: string }) {
+interface PhoneFrameProps {
+  readonly children: ReactNode;
+  /** Nombre del marco cuando va dentro de una página. Si el marco es toda la página, se omite. */
+  readonly label?: string;
+  /** Barra fija al pie (la navegación de la app): queda fuera de la zona que se desplaza. */
+  readonly footer?: ReactNode;
+}
+
+export function PhoneFrame({ children, label, footer }: PhoneFrameProps) {
   return (
     <div
-      role="group"
+      role={label ? "group" : undefined}
       aria-label={label}
-      className="relative flex min-h-dvh w-full flex-col bg-surface md:h-[868px] md:min-h-0 md:w-[414px] md:rounded-[56px] md:bg-[#0b1117] md:p-3 md:shadow-phone md:ring-2 md:ring-ink-2 md:ring-inset"
+      className="relative flex h-dvh w-full flex-col bg-surface md:h-[868px] md:min-h-0 md:w-[414px] md:rounded-[56px] md:bg-[#0b1117] md:p-3 md:shadow-phone md:ring-2 md:ring-ink-2 md:ring-inset"
     >
       <span
         aria-hidden="true"
@@ -18,7 +26,8 @@ export function PhoneFrame({ children, label }: { readonly children: ReactNode; 
       />
       <div className="relative flex flex-1 flex-col overflow-hidden bg-surface md:rounded-[44px]">
         <div aria-hidden="true" className="hidden h-12 shrink-0 md:block" />
-        <div className="flex flex-1 flex-col overflow-y-auto">{children}</div>
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{children}</div>
+        {footer}
       </div>
     </div>
   );

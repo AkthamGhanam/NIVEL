@@ -22,12 +22,10 @@ describe("catálogos cerrados", () => {
   });
 
   it("las calificaciones usan categorías y etiquetas cerradas, todas positivas", () => {
-    expect(RATING_CATEGORIES.map((category) => category.key)).toEqual([
-      "quality",
-      "punctuality",
-      "safety",
-      "attitude",
-    ]);
+    const keys = ["quality", "punctuality", "safety", "attitude"];
+    expect(RATING_CATEGORIES.empresa.map((category) => category.key)).toEqual(keys);
+    expect(RATING_CATEGORIES.trabajador.map((category) => category.key)).toEqual(keys);
+    expect(RATING_CATEGORIES.trabajador.map((category) => category.label)).toContain("Pago a tiempo");
     expect(RATING_TAGS.empresa).toContain("Cumple normas de seguridad");
     expect(RATING_TAGS.trabajador).toContain("Pagó a tiempo");
     expect(Object.isFrozen(RATING_TAGS)).toBe(true);

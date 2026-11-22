@@ -7,7 +7,7 @@ import { round2 } from "@/lib/money";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
-import { attendance, companies, contracts, payments } from "../db/schema";
+import { attendance, companies, contracts, payments, ratings } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
 
@@ -77,6 +77,8 @@ export interface ContractDetail extends PublicContract {
     readonly registeredAt: string;
     readonly confirmedByWorkerAt: string | null;
   } | null;
+  /** Quien consulta ya envió su calificación privada de este trabajo. */
+  readonly ratedByMe: boolean;
 }
 
 /** Detalle del contrato para cualquiera de las dos partes. */
@@ -86,7 +88,8 @@ export async function getContract(
   contractId: string,
 ): Promise<ContractDetail> {
   const { contract, companyName } = await loadContractFor(context, actor, contractId);
-  const [days, [payment]] = await Promise.all([
+  const raterRole = actor.role === "worker" ? "trabajador" : actor.role === "company" ? "empresa" : null;
+  const [days, [payment], mine] = await Promise.all([
     context.db
       .select({ date: attendance.date, checkInAt: attendance.checkInAt, checkOutAt: attendance.checkOutAt })
       .from(attendance)
@@ -102,8 +105,19 @@ export async function getContract(
       })
       .from(payments)
       .where(eq(payments.contractId, contract.id)),
+    raterRole === null
+      ? []
+      : context.db
+          .select({ id: ratings.id })
+          .from(ratings)
+          .where(and(eq(ratings.contractId, contract.id), eq(ratings.fromRole, raterRole))),
   ]);
-  return { ...toPublic(contract, companyName), attendance: days, payment: payment ?? null };
+  return {
+    ...toPublic(contract, companyName),
+    attendance: days,
+    payment: payment ?? null,
+    ratedByMe: mine.length > 0,
+  };
 }
 
 /**

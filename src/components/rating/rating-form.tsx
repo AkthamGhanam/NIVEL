@@ -2,14 +2,11 @@
 
 import { type FormEvent, useState } from "react";
 
-import type { RatingInput } from "@/client/company-api";
-import type { CrewMember } from "@/client/company-view";
 import { Button } from "@/components/ui/button";
 import { TextAreaField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { cx } from "@/lib/cx";
-import { PRIVATE_RATING_NOTICE } from "@/lib/legal-copy";
-import { RATING_CATEGORIES, RATING_TAGS, type RatingCategory } from "@/lib/rating-tags";
+import { RATING_CATEGORIES, RATING_TAGS, type RatingCategory, type RatingRole } from "@/lib/rating-tags";
 
 import { useAction } from "../hooks/use-action";
 
@@ -57,16 +54,17 @@ function ScoreGroup({ name, legend, value, onChange }: ScoreGroupProps) {
 
 interface TagGroupProps {
   readonly name: string;
+  readonly options: readonly string[];
   readonly selected: readonly string[];
   readonly onToggle: (tag: string) => void;
 }
 
-function TagGroup({ name, selected, onToggle }: TagGroupProps) {
+function TagGroup({ name, options, selected, onToggle }: TagGroupProps) {
   return (
     <fieldset>
       <legend className="text-sm font-bold text-ink-2">Lo que más destacó (opcional)</legend>
       <div className="mt-1 flex flex-wrap gap-2">
-        {RATING_TAGS.empresa.map((tag) => (
+        {options.map((tag) => (
           <label key={tag} className={cx(OPTION, "font-semibold")}>
             <input
               type="checkbox"
@@ -93,22 +91,39 @@ function Problem({ message }: { readonly message: string | null }) {
   );
 }
 
-interface RatingFormProps {
-  readonly member: CrewMember;
-  readonly onSubmit: (input: RatingInput) => Promise<void>;
+export interface RatingValues {
+  readonly contractId: string;
+  readonly quality: number;
+  readonly punctuality: number;
+  readonly safety: number;
+  readonly attitude: number;
+  readonly tags: readonly string[];
+  readonly comment?: string;
 }
 
-const isComplete = (scores: Scores): scores is Record<RatingCategory, number> =>
-  RATING_CATEGORIES.every((category) => scores[category.key] !== undefined);
+interface RatingFormProps {
+  /** Quién califica: decide los nombres de las categorías y las etiquetas disponibles. */
+  readonly role: RatingRole;
+  readonly contractId: string;
+  /** A quién se califica, para los textos de ayuda y los lectores de pantalla. */
+  readonly subject: string;
+  /** Texto fijo de la revisión legal que acompaña al formulario (regla 8.3). */
+  readonly notice: string;
+  readonly onSubmit: (input: RatingValues) => Promise<void>;
+}
 
-/** Calificación privada de una persona de la cuadrilla, por categorías y etiquetas. */
-export function RatingForm({ member, onSubmit }: RatingFormProps) {
+const KEYS = ["quality", "punctuality", "safety", "attitude"] as const satisfies readonly RatingCategory[];
+const isComplete = (scores: Scores): scores is Record<RatingCategory, number> =>
+  KEYS.every((key) => scores[key] !== undefined);
+
+/** Calificación privada y doble ciega, por categorías del 1 al 5 y etiquetas cerradas. */
+export function RatingForm({ role, contractId, subject, notice, onSubmit }: RatingFormProps) {
   const [scores, setScores] = useState<Scores>({});
   const [tags, setTags] = useState<readonly string[]>([]);
   const [comment, setComment] = useState("");
   const [incomplete, setIncomplete] = useState(false);
   const send = useAction(onSubmit);
-  const id = `calificar-${member.contractId}`;
+  const id = `calificar-${contractId}`;
 
   const toggle = (tag: string) =>
     setTags((current) =>
@@ -123,13 +138,13 @@ export function RatingForm({ member, onSubmit }: RatingFormProps) {
     }
     setIncomplete(false);
     const text = comment.trim();
-    void send.invoke({ contractId: member.contractId, ...scores, tags, ...(text ? { comment: text } : {}) });
+    void send.invoke({ contractId, ...scores, tags, ...(text ? { comment: text } : {}) });
   };
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <p className="text-sm text-muted">Del 1 al 5: 1 es bajo y 5 es excelente.</p>
-      {RATING_CATEGORIES.map((category) => (
+      {RATING_CATEGORIES[role].map((category) => (
         <ScoreGroup
           key={category.key}
           name={`${id}-${category.key}`}
@@ -138,21 +153,21 @@ export function RatingForm({ member, onSubmit }: RatingFormProps) {
           onChange={(score) => setScores((current) => ({ ...current, [category.key]: score }))}
         />
       ))}
-      <TagGroup name={`${id}-etiquetas`} selected={tags} onToggle={toggle} />
+      <TagGroup name={`${id}-etiquetas`} options={RATING_TAGS[role]} selected={tags} onToggle={toggle} />
       <TextAreaField
         id={`${id}-comentario`}
         label="Comentario (opcional)"
-        hint={`${member.shortName} lo verá junto con tu calificación.`}
+        hint={`${subject} lo verá junto con tu calificación.`}
         rows={2}
         maxLength={MAX_COMMENT}
         value={comment}
         onChange={(event) => setComment(event.target.value)}
       />
       <Problem message={incomplete ? "Elige un número en cada categoría." : send.error} />
-      <p className="text-sm font-semibold text-muted">{PRIVATE_RATING_NOTICE}</p>
+      <p className="text-sm font-semibold text-muted">{notice}</p>
       <Button type="submit" className="self-start" disabled={send.pending}>
         {send.pending ? "Enviando…" : "Enviar calificación"}
-        <span className="sr-only"> de {member.shortName}</span>
+        <span className="sr-only"> de {subject}</span>
       </Button>
     </form>
   );

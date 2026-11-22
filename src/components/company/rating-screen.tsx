@@ -6,10 +6,11 @@ import { Avatar } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { LevelBadge, Tag } from "@/components/ui/tag";
+import { PRIVATE_RATING_NOTICE } from "@/lib/legal-copy";
 
 import { BoardGate } from "./board-gate";
 import { useCompany } from "./company-gate";
-import { RatingForm } from "./rating-form";
+import { RatingForm } from "../rating/rating-form";
 
 type SubmitRating = (input: RatingInput) => Promise<void>;
 
@@ -28,7 +29,15 @@ function RatingCard({ member, onSubmit }: { readonly member: CrewMember; readonl
           Ya enviaste tu calificación
         </Tag>
       ) : null}
-      {canRate(member) ? <RatingForm member={member} onSubmit={onSubmit} /> : null}
+      {canRate(member) ? (
+        <RatingForm
+          role="empresa"
+          contractId={member.contractId}
+          subject={member.shortName}
+          notice={PRIVATE_RATING_NOTICE}
+          onSubmit={onSubmit}
+        />
+      ) : null}
       {!member.ratedByCompany && !canRate(member) ? (
         <p className="text-ink-2">
           Podrás calificar cuando registres el pago y {member.shortName} confirme que lo recibió.

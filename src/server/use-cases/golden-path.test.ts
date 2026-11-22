@@ -344,7 +344,7 @@ describe("casos borde del camino dorado", () => {
     );
     await expect(
       checkIn(app.context, ACTORS.jose, { contractId: joseContract, position: SITE.point }),
-    ).rejects.toThrow(/La obra empieza el 2026-11-24/);
+    ).rejects.toThrow(/La obra empieza el mar 24 nov\./);
 
     app.setNow(new Date("2026-11-24T11:02:00Z"));
     const entry = await checkIn(app.context, ACTORS.jose, { contractId: joseContract, position: SITE.point });
