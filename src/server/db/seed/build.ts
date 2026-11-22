@@ -400,6 +400,7 @@ function catalogRows(): Pick<SeedRows, "companies" | "academies" | "courses" | "
       { key: "active_company_id", value: IDS.activeCompany },
       { key: "active_worker_id", value: IDS.carlos },
       { key: "bot", value: "on" },
+      { key: "simulation", value: "on" },
       { key: "example_rate_bs_per_usd", value: String(EXAMPLE_RATE_BS_PER_USD) },
       { key: "site", value: JSON.stringify(SITE) },
     ],
