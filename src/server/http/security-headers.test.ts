@@ -26,6 +26,15 @@ describe("buildPageContentSecurityPolicy", () => {
     expect(csp).toContain("base-uri 'self'");
   });
 
+  it("solo conecta con el propio origen y con la voz de ElevenLabs", () => {
+    const csp = buildPageContentSecurityPolicy({ nonce: VALID_NONCE, isDevelopment: false });
+    const connect = csp.split("; ").find((directive) => directive.startsWith("connect-src "));
+
+    expect(connect).toBe(
+      "connect-src 'self' https://api.elevenlabs.io wss://api.elevenlabs.io https://livekit.rtc.elevenlabs.io wss://livekit.rtc.elevenlabs.io",
+    );
+  });
+
   it("añade unsafe-eval únicamente en desarrollo", () => {
     const csp = buildPageContentSecurityPolicy({ nonce: VALID_NONCE, isDevelopment: true });
 

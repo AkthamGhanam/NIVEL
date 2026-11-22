@@ -67,7 +67,7 @@ export function CrewBanner({ board }: { readonly board: RequestBoard }) {
         <p role="status" className="display text-2xl text-brand">
           {progress.label}
         </p>
-        <ButtonLink href="/c/obra" variant="ink">
+        <ButtonLink href="/contratista/obra" variant="ink">
           Ver la obra
         </ButtonLink>
       </div>

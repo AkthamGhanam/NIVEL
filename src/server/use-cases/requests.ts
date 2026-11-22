@@ -205,7 +205,7 @@ export interface RequestBoard extends CandidateSearch {
   readonly suggestedReplacement: PublicCandidate | null;
 }
 
-/** Tablero en vivo de la solicitud más reciente de la empresa (lo consulta `/c` por polling). */
+/** Tablero en vivo de la solicitud más reciente de la empresa (lo consulta `/contratista` por polling). */
 export async function activeRequestBoard(context: AppContext, actor: Actor): Promise<RequestBoard | null> {
   const { companyId } = requireRole(actor, "company");
   const [request] = await context.db

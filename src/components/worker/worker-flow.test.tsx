@@ -38,11 +38,11 @@ import {
 import { OfferView } from "./offer-screen";
 import { SiteView } from "./site-screen";
 import { WorkerGate } from "./worker-gate";
-import { WorkerPicker } from "./worker-picker";
+import { WorkerAccess } from "./worker-access";
 import { WorkerShell } from "./worker-shell";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/t",
+  usePathname: () => "/trabajador",
   useRouter: () => ({ push: () => undefined }),
   useSearchParams: () => new URLSearchParams("demo=1"),
 }));
@@ -127,11 +127,21 @@ describe("entrada del trabajador", () => {
     await expect(worker.profile()).rejects.toMatchObject({ status: 401 });
   });
 
-  it("el selector pone primero a los protagonistas, con iniciales y sin fotos", async () => {
+  it("el acceso invita a crear el perfil y deja las cuentas de prueba a un lado, protagonistas primero", async () => {
     const state = await worker.state();
-    const markup = html(
-      <WorkerPicker workers={state.personas.workers} onPick={noop} pending={false} error={null} />,
-    );
+    const access = (error: string | null, accounts = state.personas.workers) =>
+      html(
+        <WorkerAccess
+          api={worker}
+          demoAccounts={accounts}
+          onPickDemo={noop}
+          onRegister={noop}
+          onRegistered={noop}
+          pending={false}
+          error={error}
+        />,
+      );
+    const markup = access(null);
 
     expect(state.active.workerId).toBeNull();
     expect(state.personas.workers.slice(0, 5).map((persona) => persona.id)).toEqual([
@@ -141,12 +151,16 @@ describe("entrada del trabajador", () => {
       IDS.luis,
       IDS.andres,
     ]);
-    expect(markup).toContain("¿Quién eres hoy?");
+    expect(markup).toContain("Tu perfil de oficio, listo en dos minutos");
+    expect(markup).toContain("Hablando con Nivi");
+    expect(markup).toContain("Prefiero escribir");
+    expect(markup).not.toContain("¿Quién eres hoy?");
+    expect(markup).toContain("Entra con una cuenta de prueba");
     expect(markup).toContain('Entrar<span class="sr-only"> como Carlos Rodríguez</span>');
     expect(text(markup)).toContain("Carlos Rodríguez soldador · Los Guayos Nivel 2");
     expect(markup.replace(/<img src="\/brand\/[^>]*>/g, "")).not.toContain("<img");
-    expect(html(<WorkerPicker workers={[]} onPick={noop} pending error="No pudimos conectar." />)).toMatch(
-      /role="alert".*No pudimos conectar\..*Aún no hay personas de ejemplo/,
+    expect(access("No pudimos conectar.", [])).toMatch(
+      /role="alert".*No pudimos conectar\..*cuentas de prueba aún no están cargadas/,
     );
   });
 
@@ -161,9 +175,12 @@ describe("entrada del trabajador", () => {
     const level = text(html(<LevelCard level={profile.level} />));
 
     expect(state.active.workerId).toBe(IDS.carlos);
-    expect(shell).toContain("Carlos · cambiar");
-    expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/t"[^>]*>Inicio<\/a>/);
-    expect(shell.match(/<li>/g)).toHaveLength(4);
+    expect(shell).toContain("Carlos");
+    expect(shell).toContain("Cambiar de cuenta");
+    expect(shell).not.toContain("md:rounded-[56px]");
+    expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/trabajador"[^>]*>Inicio<\/a>/);
+    // Las mismas cuatro secciones en el menú lateral (escritorio) y en la barra inferior (teléfono).
+    expect(shell.match(/<li>/g)).toHaveLength(8);
     expect(shell).toContain(DEMO_FOOTER);
     expect(level).toContain("Nivel 2 · Verificado");
     expect(level).toContain("Te falta 1 trabajo confirmado para Nivel 3: Probado.");
@@ -216,7 +233,7 @@ describe("oferta y contrato", () => {
     expect(offer.status).toBe("enviada");
     expect(text(list)).toContain("Constructora Los Guayos Empresa verificada");
     expect(text(list)).toContain("Soldador en Los Guayos 5 días desde mar 24 nov $25 al día Total $125");
-    expect(list).toContain(`href="/t/oferta/${invitationId}"`);
+    expect(list).toContain(`href="/trabajador/oferta/${invitationId}"`);
     expect(text(detail)).toContain("Tipo de contrato Por obra determinada");
     expect(detail).toContain(NOT_EMPLOYER_NOTICE);
     expect(detail).toMatch(/<h1[^>]*>Soldador en Los Guayos<\/h1>/);
@@ -249,7 +266,7 @@ describe("oferta y contrato", () => {
     expect(markup).toContain('autoComplete="one-time-code"');
     expect(markup).toContain("Firmar contrato");
     expect(html(<OfferView offer={mine!} onRespond={noop} pending={false} error={null} />)).toMatch(
-      /Aceptaste esta oferta.*href="\/t\/contrato\/[^"]+"[^>]*>Ver mi contrato/,
+      /Aceptaste esta oferta.*href="\/trabajador\/contrato\/[^"]+"[^>]*>Ver mi contrato/,
     );
     expect(html(<NextStep action={stepAction(jobStep(contract), contract.id)} />)).toContain(
       "Firmar mi contrato",
@@ -273,7 +290,7 @@ describe("oferta y contrato", () => {
 
     expect(signed.status).toBe("activo");
     expect(text(markup)).toMatch(/Firmado el \w{3} \d{1,2} \w{3}, \d{1,2}:\d{2} [ap]\. m\./);
-    expect(markup).toMatch(/<a [^>]*href="\/t\/obra"[^>]*>Marcar mi entrada<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/trabajador\/obra"[^>]*>Marcar mi entrada<\/a>/);
     expect(markup).not.toContain("Firmar contrato");
     await expect(worker.sign(contractId, otp)).rejects.toMatchObject({ status: 409 });
   });
@@ -289,7 +306,7 @@ describe("entrada y salida de la obra", () => {
     expect(normal).toContain("Llegué a la obra");
     expect(normal).toContain("Usamos tu ubicación solo en este momento");
     expect(normal).not.toContain("Simular");
-    expect(normal).toContain('href="/t/ayuda?tipo=inseguridad"');
+    expect(normal).toContain('href="/trabajador/ayuda?tipo=inseguridad"');
     expect(jury).toContain("Simular que estoy en la obra (demo)");
   });
 
@@ -348,7 +365,7 @@ describe("fin de obra", () => {
     expect(markup).toContain("¿Recibiste tu pago de $125?");
     expect(markup).toContain(`href="/recibo/${paymentId}?vista=trabajador"`);
     expect(markup).toContain("Sí, lo recibí");
-    expect(markup).toMatch(/<a [^>]*href="\/t\/ayuda\?tipo=no_pago"[^>]*>No lo he recibido<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/trabajador\/ayuda\?tipo=no_pago"[^>]*>No lo he recibido<\/a>/);
     expect(markup).not.toContain("Califica a la empresa");
   });
 
@@ -471,7 +488,7 @@ describe("ayuda", () => {
     expect(markup).toContain("Reporte recibido");
     expect(markup).toContain(HUMAN_REVIEW_NOTICE);
     expect(markup).toContain(receipt.message);
-    expect(markup).toMatch(/<a [^>]*href="\/t"[^>]*>Volver al inicio<\/a>/);
+    expect(markup).toMatch(/<a [^>]*href="\/trabajador"[^>]*>Volver al inicio<\/a>/);
     expect((await worker.level()).level).toBe(before.level);
     expect((await company.board())?.request.status).toBe("completa");
     await expect(worker.report({ kind: "otro", text: "x".repeat(2001) })).rejects.toMatchObject({

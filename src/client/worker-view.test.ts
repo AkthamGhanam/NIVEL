@@ -100,12 +100,12 @@ describe("paso del trabajo", () => {
   it("cada paso lleva a su pantalla, y cuando toca esperar no ofrece un enlace", () => {
     expect(stepAction("firmar", "con 1")).toEqual({
       label: "Firmar mi contrato",
-      href: "/t/contrato/con%201",
+      href: "/trabajador/contrato/con%201",
     });
-    expect(stepAction("marcar_entrada", "c").href).toBe("/t/obra");
+    expect(stepAction("marcar_entrada", "c").href).toBe("/trabajador/obra");
     expect(stepAction("marcar_salida", "c").label).toBe("Marcar mi salida");
-    expect(stepAction("confirmar_pago", "c").href).toBe("/t/fin/c");
-    expect(stepAction("calificar", "c").href).toBe("/t/fin/c");
+    expect(stepAction("confirmar_pago", "c").href).toBe("/trabajador/fin/c");
+    expect(stepAction("calificar", "c").href).toBe("/trabajador/fin/c");
     for (const waiting of ["esperar_pago", "terminado", "cerrado"] as const) {
       expect(stepAction(waiting, "c").href).toBeNull();
     }

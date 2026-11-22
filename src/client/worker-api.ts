@@ -14,6 +14,7 @@ import type {
   ProfileCorrection,
 } from "@/server/use-cases/profile";
 import type { NewRating, RatingSubmitted } from "@/server/use-cases/ratings";
+import type { ProfileCreated } from "@/server/use-cases/registration";
 import type { ReportCreated, ReportKind } from "@/server/use-cases/reports";
 
 import type { ApiRequest } from "./api";
@@ -47,6 +48,26 @@ export interface AttendanceInput {
   readonly simulated?: boolean;
 }
 
+/** Formulario "Prefiero escribir". */
+export interface WorkerSignupInput {
+  readonly name: string;
+  readonly isAdult: true;
+  readonly trade: string;
+  readonly yearsExp: number;
+  readonly skills: readonly string[];
+  readonly zone: string;
+  readonly availability: string;
+  readonly consent: true;
+}
+
+/** Token para hablar con Nivi y el contexto firmado que viaja con la conversación. */
+export interface VoiceSession {
+  readonly token: string;
+  readonly dynamicVariables: Readonly<Record<string, string>>;
+}
+
+export type { ProfileCreated };
+
 export interface ReportInput {
   readonly kind: ReportKind;
   readonly text: string;
@@ -65,6 +86,12 @@ export function createWorkerApi(request: ApiRequest) {
   return {
     state: (signal?: AbortSignal) => get<DemoState>("/api/state", signal),
     enter: (workerId: string) => post<DemoState>("/api/state", { role: "worker", id: workerId }),
+    register: (input: WorkerSignupInput) => post<{ profile: ProfileCreated }>("/api/workers/register", input),
+    /** Abre una conversación de registro con Nivi. La persona ya aceptó el permiso en pantalla. */
+    registrationVoice: () => get<VoiceSession>("/api/el/token?agent=worker&registro=1&real=1&consent=1"),
+    /** Reclama el perfil que Nivi creó en esa conversación y abre su sesión. */
+    claimProfile: (conversationId: string) =>
+      get<{ profile: ProfileCreated }>(`/api/workers/by-conversation/${segment(conversationId)}`),
 
     offers: async (signal?: AbortSignal) =>
       (await get<{ offers: WorkerOffer[] }>("/api/invitations", signal)).offers,

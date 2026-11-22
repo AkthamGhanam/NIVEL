@@ -19,7 +19,7 @@ interface BoardViewProps {
   readonly error: string | null;
 }
 
-/** Centro de `/c`: la solicitud activa, quién aceptó y a quién más se puede invitar. */
+/** Centro de `/contratista`: la solicitud activa, quién aceptó y a quién más se puede invitar. */
 export function BoardView({ board, onInvite, pending, error }: BoardViewProps) {
   const open = board.request.status === "abierta";
   return (

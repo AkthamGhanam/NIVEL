@@ -28,6 +28,17 @@ interface PageCspOptions {
   readonly isDevelopment: boolean;
 }
 
+/**
+ * Únicos orígenes externos de las páginas: la conversación con Nivi (ElevenLabs
+ * por WebRTC). La API de NIVEL sigue siendo de nuestro propio origen.
+ */
+export const VOICE_CONNECT_SOURCES = Object.freeze([
+  "https://api.elevenlabs.io",
+  "wss://api.elevenlabs.io",
+  "https://livekit.rtc.elevenlabs.io",
+  "wss://livekit.rtc.elevenlabs.io",
+]);
+
 const NONCE_PATTERN = /^[A-Za-z0-9+/=_-]{16,}$/;
 
 /**
@@ -48,7 +59,7 @@ export function buildPageContentSecurityPolicy({ nonce, isDevelopment }: PageCsp
     ["img-src", "'self' blob: data:"],
     ["font-src", "'self'"],
     ["media-src", "'self' blob:"],
-    ["connect-src", "'self'"],
+    ["connect-src", ["'self'", ...VOICE_CONNECT_SOURCES].join(" ")],
     ["object-src", "'none'"],
     ["base-uri", "'self'"],
     ["form-action", "'self'"],

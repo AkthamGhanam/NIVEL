@@ -60,7 +60,7 @@ export function LevelView({ level, celebrate }: LevelViewProps) {
       >
         Cómo se calcula el nivel
       </Link>
-      <ButtonLink href="/t/aprender" variant="outline" block>
+      <ButtonLink href="/trabajador/aprender" variant="outline" block>
         Ver mi ruta
       </ButtonLink>
     </>

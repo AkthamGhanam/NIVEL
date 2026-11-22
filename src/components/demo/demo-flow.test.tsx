@@ -281,10 +281,10 @@ describe("público y escena", () => {
     const markup = html(<DemoStage />);
 
     expect(markup).toMatch(
-      /<iframe src="\/t\?demo=1" title="App del trabajador" allow="microphone; autoplay; geolocation"/,
+      /<iframe src="\/trabajador\?demo=1" title="App del trabajador" allow="microphone; autoplay; geolocation"/,
     );
     expect(markup).toMatch(
-      /<iframe src="\/c" title="Web del contratista" allow="microphone; autoplay; geolocation"/,
+      /<iframe src="\/contratista" title="Web del contratista" allow="microphone; autoplay; geolocation"/,
     );
     expect(markup.match(/<iframe/g)).toHaveLength(2);
     expect(markup).not.toMatch(/<iframe[^>]*src="https?:/);

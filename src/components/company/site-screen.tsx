@@ -107,7 +107,7 @@ export function SiteView({ board }: { readonly board: RequestBoard }) {
             Aún no hay nadie contratado. Cuando una persona acepte tu invitación, verás aquí su firma y su
             asistencia.
           </p>
-          <ButtonLink href="/c">Ver la solicitud</ButtonLink>
+          <ButtonLink href="/contratista">Ver la solicitud</ButtonLink>
         </Card>
       ) : (
         <>

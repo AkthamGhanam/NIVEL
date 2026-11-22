@@ -17,6 +17,13 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  // Las apps se llamaban /t y /c: los enlaces y QR viejos siguen funcionando.
+  async redirects() {
+    return [
+      { source: "/t/:path*", destination: "/trabajador/:path*", permanent: false },
+      { source: "/c/:path*", destination: "/contratista/:path*", permanent: false },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: toHeaderList(BASE_SECURITY_HEADERS) },

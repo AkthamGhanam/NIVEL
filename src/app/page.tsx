@@ -1,24 +1,31 @@
 import Link from "next/link";
 
 import { BytesLogo, DemoFooter, NivelMark } from "@/components/brand/brand";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { Chip } from "@/components/ui/tag";
 
 const AUDIENCES = [
   {
-    chip: "Trabajador · app",
+    chip: "Trabajador",
     title: "Regístrate hablando",
-    text: "Sin formularios. Nivi te escucha, arma tu perfil y te avisa de ofertas con una nota de voz.",
+    text: "Sin formularios. Nivi te escucha, arma tu perfil y te avisa de ofertas de trabajo en regla.",
+    href: "/trabajador",
+    cta: "Crear mi perfil",
   },
   {
-    chip: "Contratista · web",
+    chip: "Contratista",
     title: "Pide tu cuadrilla hablando",
     text: "Dices qué necesitas y ves quién cumple, cuánto cuesta en regla y quién aceptó.",
+    href: "/contratista",
+    cta: "Registrar mi empresa",
   },
   {
-    chip: "Academia · web",
+    chip: "Academia",
     title: "Tus alumnos consiguen trabajo",
     text: "Cursos, pruebas prácticas y constancias que suben el nivel de cada persona.",
+    href: "/a",
+    cta: "Entrar como academia",
   },
 ] as const;
 
@@ -27,6 +34,30 @@ const LEGAL_LINKS = [
   { href: "/legal/terminos", label: "Términos de uso" },
   { href: "/legal/privacidad", label: "Privacidad" },
 ] as const;
+
+function Audiences() {
+  return (
+    <section aria-labelledby="audiences-title">
+      <h2 id="audiences-title" className="bar-title text-2xl font-extrabold">
+        Para quién es
+      </h2>
+      <ul className="mt-5 grid gap-4 md:grid-cols-3">
+        {AUDIENCES.map((audience) => (
+          <li key={audience.chip}>
+            <Card className="flex h-full flex-col gap-3 p-5">
+              <Chip className="self-start">{audience.chip}</Chip>
+              <h3 className="display text-2xl">{audience.title}</h3>
+              <p className="flex-1 text-ink-2">{audience.text}</p>
+              <ButtonLink href={audience.href} variant={audience.href === "/a" ? "outline" : "primary"} block>
+                {audience.cta}
+              </ButtonLink>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export default function HomePage() {
   return (
@@ -47,22 +78,7 @@ export default function HomePage() {
           </p>
         </section>
 
-        <section aria-labelledby="audiences-title">
-          <h2 id="audiences-title" className="bar-title text-2xl font-extrabold">
-            Para quién es
-          </h2>
-          <ul className="mt-5 grid gap-4 md:grid-cols-3">
-            {AUDIENCES.map((audience) => (
-              <li key={audience.chip}>
-                <Card className="flex h-full flex-col gap-3 p-5">
-                  <Chip className="self-start">{audience.chip}</Chip>
-                  <h3 className="display text-2xl">{audience.title}</h3>
-                  <p className="text-ink-2">{audience.text}</p>
-                </Card>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <Audiences />
 
         <nav aria-label="Reglas claras">
           <h2 className="bar-title text-2xl font-extrabold">Reglas claras</h2>

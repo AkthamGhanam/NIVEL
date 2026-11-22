@@ -303,6 +303,28 @@ Pendiente de estas vistas:
 - La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
 - Sin probar en Safari ni en un teléfono real.
 
+## Fase 11 · Producto web: `/trabajador` y `/contratista`
+
+- [x] Las apps dejan de verse como presentación: `/t` pasa a `/trabajador` y `/c` a `/contratista` (los enlaces
+      y QR viejos redirigen con 307). La portada enlaza a cada app
+- [x] Trabajador sin marco de teléfono: menú lateral oscuro en escritorio, encabezado y barra inferior en el
+      teléfono. El marco queda solo para el Modo Jurado y `/estilo`
+- [x] Acceso del trabajador: crear el perfil **hablando con Nivi** (`@elevenlabs/react`, WebRTC con el token y
+      el contexto firmado de `/api/el/token`; la pantalla reclama el perfil por la conversación) o **escribiendo**
+      (`POST /api/workers/register`). Las cuentas de prueba quedan plegadas en "¿Vienes a probar NIVEL?"
+- [x] Acceso del contratista: **registro de empresa** con RIF validado y normalizado (`POST /api/companies/register`),
+      nace sin verificar. Empresas de prueba plegadas igual que en el trabajador
+- [x] Todo registro desde la web es real: nace privado, sobrevive al reset y nadie puede entrar como él desde las
+      cuentas de prueba. Nueva columna `companies.is_real` (la migración la agrega sola)
+- [x] `/api/state` devuelve `activeCompany`, así la web identifica también a una empresa real
+- [x] CSP de páginas: `connect-src` admite solo ElevenLabs (API y LiveKit) además del propio origen
+- [x] Tope de 20 registros por IP cada 10 minutos
+
+Pendiente:
+
+- La voz de registro solo está probada hasta el token: falta una conversación real con micrófono en el Preview.
+- No hay inicio de sesión para volver a una cuenta real desde otro navegador: la sesión vive en la cookie.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

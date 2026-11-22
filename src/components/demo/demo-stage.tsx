@@ -19,7 +19,7 @@ export function DemoStage() {
         </h2>
         <PhoneFrame fit>
           <iframe
-            src="/t?demo=1"
+            src="/trabajador?demo=1"
             title="App del trabajador"
             allow={FRAME_PERMISSIONS}
             className="w-full flex-1 border-0"
@@ -34,7 +34,7 @@ export function DemoStage() {
           Contratista · web
         </h2>
         <iframe
-          src="/c"
+          src="/contratista"
           title="Web del contratista"
           allow={FRAME_PERMISSIONS}
           className="h-[700px] w-full flex-1 rounded-card border-[1.5px] border-line bg-surface lg:h-auto lg:min-h-0"

@@ -76,7 +76,7 @@ export function FeeRangeCard({ feeRange }: { readonly feeRange: FeeRange }) {
   );
 }
 
-/** Columna derecha de `/c`: cuánto cuesta contratar en regla y qué cobra NIVEL. */
+/** Columna derecha de `/contratista`: cuánto cuesta contratar en regla y qué cobra NIVEL. */
 export function CostPanel({ board }: { readonly board: RequestBoard | null }) {
   return (
     <aside aria-label="Costos" className="flex flex-col gap-4">

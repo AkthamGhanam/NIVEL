@@ -2,6 +2,7 @@ import type { FeePaymentMethod } from "@/lib/pricing";
 import type { FeeStatement } from "@/server/use-cases/billing";
 import type { PaymentRow, Receipt } from "@/server/use-cases/payments";
 import type { DemoState } from "@/server/use-cases/personas";
+import type { CompanyCreated, CompanySignup } from "@/server/use-cases/registration";
 import type { NewRating, RatingSubmitted } from "@/server/use-cases/ratings";
 import type {
   InvitationSent,
@@ -23,6 +24,9 @@ export type CompanyPersona = DemoState["personas"]["companies"][number];
 export type RequestInput = Omit<NewJobRequest, "createdVia">;
 export type RatingInput = NewRating;
 
+export type { CompanyCreated };
+export type CompanySignupInput = CompanySignup & { readonly consent: true };
+
 export interface PaymentInput {
   readonly contractId: string;
   readonly method: FeePaymentMethod;
@@ -41,6 +45,8 @@ export function createCompanyApi(request: ApiRequest) {
     /** Personajes de la demo y con cuál está abierta cada vista. */
     state: (signal?: AbortSignal) => get<DemoState>("/api/state", signal),
     enter: (companyId: string) => post<DemoState>("/api/state", { role: "company", id: companyId }),
+    register: (input: CompanySignupInput) =>
+      post<{ company: CompanyCreated }>("/api/companies/register", input),
 
     board: async (signal?: AbortSignal) =>
       (await get<{ board: RequestBoard | null }>("/api/requests/active", signal)).board,

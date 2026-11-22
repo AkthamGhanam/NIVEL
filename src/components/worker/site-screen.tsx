@@ -93,7 +93,7 @@ export function SiteView({ contract, ...controls }: SiteViewProps) {
         <NextStep action={stepAction(step, contract.id)} />
       )}
       <AttendanceList days={contract.attendance} />
-      <HelpLink href="/t/ayuda?tipo=inseguridad">Reportar un problema en la obra</HelpLink>
+      <HelpLink href="/trabajador/ayuda?tipo=inseguridad">Reportar un problema en la obra</HelpLink>
     </>
   );
 }
@@ -138,7 +138,7 @@ export function SiteScreen() {
           <Notice tone="pending">
             Aún no tienes un trabajo activo. Cuando aceptes una oferta, aquí marcarás tu entrada.
           </Notice>
-          <ButtonLink href="/t" variant="outline" block>
+          <ButtonLink href="/trabajador" variant="outline" block>
             Ver mis ofertas
           </ButtonLink>
         </>
