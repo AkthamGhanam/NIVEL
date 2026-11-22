@@ -1,3 +1,4 @@
+// Todo lo que la app del trabajador le pide al servidor, con sus tipos.
 import type { GeoPoint } from "@/lib/geo";
 import type { AttendanceRow } from "@/server/use-cases/attendance";
 import type { ContractDetail, PublicContract } from "@/server/use-cases/contracts";
@@ -19,12 +20,6 @@ import type { ReportCreated, ReportKind } from "@/server/use-cases/reports";
 
 import type { ApiRequest } from "./api";
 
-/**
- * Todo lo que la app del trabajador le pide al servidor, con sus tipos. Cada
- * llamada va con la vista "worker": el servidor actúa siempre sobre la
- * persona de la sesión y ninguna ruta acepta el id de otra.
- */
-
 export type {
   AccountDeletion,
   ConsentKind,
@@ -42,13 +37,12 @@ export type WorkerRatingInput = NewRating;
 
 export interface AttendanceInput {
   readonly contractId: string;
-  /** Posición del teléfono en ese momento. El servidor no la guarda: solo la compara con la obra. */
+
   readonly position?: GeoPoint;
-  /** Control de demo "Simular que estoy en la obra". El servidor decide si está permitido. */
+
   readonly simulated?: boolean;
 }
 
-/** Formulario "Prefiero escribir". */
 export interface WorkerSignupInput {
   readonly name: string;
   readonly isAdult: true;
@@ -60,7 +54,6 @@ export interface WorkerSignupInput {
   readonly consent: true;
 }
 
-/** Token para hablar con Nivi y el contexto firmado que viaja con la conversación. */
 export interface VoiceSession {
   readonly token: string;
   readonly dynamicVariables: Readonly<Record<string, string>>;
@@ -87,9 +80,10 @@ export function createWorkerApi(request: ApiRequest) {
     state: (signal?: AbortSignal) => get<DemoState>("/api/state", signal),
     enter: (workerId: string) => post<DemoState>("/api/state", { role: "worker", id: workerId }),
     register: (input: WorkerSignupInput) => post<{ profile: ProfileCreated }>("/api/workers/register", input),
-    /** Abre una conversación de registro con Nivi. La persona ya aceptó el permiso en pantalla. */
+
     registrationVoice: () => get<VoiceSession>("/api/el/token?agent=worker&registro=1&real=1&consent=1"),
-    /** Reclama el perfil que Nivi creó en esa conversación y abre su sesión. */
+    voice: () => get<VoiceSession>("/api/el/token?agent=worker"),
+
     claimProfile: (conversationId: string) =>
       get<{ profile: ProfileCreated }>(`/api/workers/by-conversation/${segment(conversationId)}`),
 

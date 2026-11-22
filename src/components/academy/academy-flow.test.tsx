@@ -1,3 +1,4 @@
+// El panel de la academia contra las rutas reales.
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -16,12 +17,6 @@ import { AcademyGate } from "./academy-gate";
 import { AcademyPanelView, CourseTable, PendingConstancias, RankingCard } from "./academy-panel";
 import { AcademyPicker } from "./academy-picker";
 import { AcademyShell } from "./academy-shell";
-
-/**
- * El panel de la academia contra las rutas reales: lo que ve, lo que puede
- * hacer y lo que el servidor le niega. Evaluar una prueba o emitir una
- * constancia son los hechos que suben el nivel de una persona.
- */
 
 let server: InProcessApi;
 let academy: AcademyApi;
@@ -95,7 +90,7 @@ describe("entrada de la academia", () => {
     expect(state.active.academyId).toBe(IDS.academy);
     expect(markup).toMatch(/<header[^>]*>.*Academia Técnica Carabobo.*Cambiar de academia.*<\/header>/s);
     expect(markup.match(/<main/g)).toHaveLength(1);
-    expect(markup).toContain("Demo · nombres, empresas y cifras de ejemplo");
+    expect(markup).toContain("Versión demo · datos de ejemplo");
   });
 });
 
@@ -228,7 +223,7 @@ describe("constancias", () => {
     );
     expect(mine.constancia).toBe(issued.constancia.code);
     expect((await academy.panel()).pendingConstancias).toEqual([]);
-    // Emitirla dos veces devuelve la misma: no hay dos constancias del mismo curso.
+
     expect((await academy.issueConstancia(enrollment.id)).constancia.code).toBe(issued.constancia.code);
   });
 

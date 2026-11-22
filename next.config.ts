@@ -1,3 +1,4 @@
+// Configuración de Next.js: cabeceras de seguridad, redirecciones y Tailwind con Turbopack.
 import type { NextConfig } from "next";
 
 import { API_CONTENT_SECURITY_POLICY, BASE_SECURITY_HEADERS } from "./src/server/http/security-headers";
@@ -6,8 +7,6 @@ const toHeaderList = (headers: Readonly<Record<string, string>>) =>
   Object.entries(headers).map(([key, value]) => ({ key, value }));
 
 const nextConfig: NextConfig = {
-  // Sin Cache Components: la CSP con nonce exige renderizar cada página por petición,
-  // y la demo es en vivo (polling), así que no hay nada útil que prerenderizar.
   poweredByHeader: false,
   turbopack: {
     rules: {
@@ -17,7 +16,7 @@ const nextConfig: NextConfig = {
       },
     },
   },
-  // Las apps viven en /t y /c; los nombres largos también llevan ahí.
+
   async redirects() {
     return [
       { source: "/trabajador/:path*", destination: "/t/:path*", permanent: false },

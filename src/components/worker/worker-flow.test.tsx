@@ -1,3 +1,4 @@
+// La app del trabajador de punta a punta, sin navegador.
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -47,12 +48,6 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams("demo=1"),
 }));
 
-/**
- * La app del trabajador de punta a punta, sin navegador: el cliente de la
- * pantalla habla con las rutas reales (misma cookie, mismo CSRF) y cada paso
- * del camino dorado de Carlos se pinta con lo que el servidor devolvió.
- */
-
 let server: InProcessApi;
 let worker: WorkerApi;
 let company: CompanyApi;
@@ -101,7 +96,7 @@ beforeAll(async () => {
   server = startInProcessApi();
   team = new ApiClient(server.baseUrl, dispatch, server.demoKey);
   await team.post("/api/demo/reset", { as: "admin" });
-  // Las pruebas responden por cada persona: el bot queda apagado para que no se adelante.
+
   await team.post("/api/demo/bot", { as: "admin", body: { state: "off" } });
   worker = createWorkerApi(browser());
   company = createCompanyApi(browser());
@@ -127,21 +122,23 @@ describe("entrada del trabajador", () => {
     await expect(worker.profile()).rejects.toMatchObject({ status: 401 });
   });
 
-  it("el acceso invita a crear el perfil y deja las cuentas de prueba a un lado, protagonistas primero", async () => {
+  it("el acceso ofrece crear el perfil o entrar con una cuenta, protagonistas primero", async () => {
     const state = await worker.state();
-    const access = (error: string | null, accounts = state.personas.workers) =>
+    const access = (tab: "crear" | "entrar", error: string | null, accounts = state.personas.workers) =>
       html(
         <WorkerAccess
           api={worker}
-          demoAccounts={accounts}
-          onPickDemo={noop}
+          accounts={accounts}
+          onPick={noop}
           onRegister={noop}
           onRegistered={noop}
           pending={false}
           error={error}
+          initialTab={tab}
         />,
       );
-    const markup = access(null);
+    const create = access("crear", null);
+    const enter = access("entrar", null);
 
     expect(state.active.workerId).toBeNull();
     expect(state.personas.workers.slice(0, 5).map((persona) => persona.id)).toEqual([
@@ -151,16 +148,18 @@ describe("entrada del trabajador", () => {
       IDS.luis,
       IDS.andres,
     ]);
-    expect(markup).toContain("Tu perfil de oficio, listo en dos minutos");
-    expect(markup).toContain("Hablando con Nivi");
-    expect(markup).toContain("Prefiero escribir");
-    expect(markup).not.toContain("¿Quién eres hoy?");
-    expect(markup).toContain("Entra con una cuenta de prueba");
-    expect(markup).toContain('Entrar<span class="sr-only"> como Carlos Rodríguez</span>');
-    expect(text(markup)).toContain("Carlos Rodríguez soldador · Los Guayos Nivel 2");
-    expect(markup.replace(/<img src="\/brand\/[^>]*>/g, "")).not.toContain("<img");
-    expect(access("No pudimos conectar.", [])).toMatch(
-      /role="alert".*No pudimos conectar\..*cuentas de prueba aún no están cargadas/,
+    expect(create).toContain("Crear mi perfil");
+    expect(create).toContain("Hablar con Nivi");
+    expect(create).toContain("Escribirle a Nivi");
+    expect(create).toContain("Prefiero escribir");
+    expect(enter).toContain("Cuentas de demostración");
+    expect(enter).not.toContain("Cuentas registradas");
+    expect(enter).toContain("Entrar como Carlos Rodríguez");
+    expect(text(enter)).toContain("Carlos Rodríguez Nivel 2 soldador · Los Guayos");
+    expect(enter).toContain("Ver las 40 cuentas");
+    expect(enter.replace(/<img src="\/brand\/[^>]*>/g, "")).not.toContain("<img");
+    expect(access("entrar", "No pudimos conectar.", [])).toMatch(
+      /role="alert".*No pudimos conectar\..*Todavía no hay cuentas/,
     );
   });
 
@@ -179,7 +178,7 @@ describe("entrada del trabajador", () => {
     expect(shell).toContain("Cambiar de cuenta");
     expect(shell).not.toContain("md:rounded-[56px]");
     expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/t"[^>]*>Inicio<\/a>/);
-    // Las mismas cuatro secciones en el menú lateral (escritorio) y en la barra inferior (teléfono).
+
     expect(shell.match(/<li>/g)).toHaveLength(8);
     expect(shell).toContain(DEMO_FOOTER);
     expect(level).toContain("Nivel 2 · Verificado");

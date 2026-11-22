@@ -1,3 +1,4 @@
+// Marco de la web del contratista: menú lateral, empresa activa y contenido.
 "use client";
 
 import Link from "next/link";
@@ -34,7 +35,7 @@ function CompanyNav({ current }: { readonly current: string }) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cx(
-                  "flex min-h-12 items-center rounded-control px-3.5 text-[1.0625rem] font-semibold",
+                  "flex min-h-13 items-center rounded-control px-3.5 text-[1.0625rem] font-semibold transition-colors duration-150",
                   active ? "bg-brand text-white" : "text-muted-on-ink hover:bg-ink-2 hover:text-white",
                 )}
               >
@@ -48,7 +49,6 @@ function CompanyNav({ current }: { readonly current: string }) {
   );
 }
 
-/** Empresa activa: nombre, si está verificada y su RIF (datos mercantiles públicos). */
 export function CompanyIdentity({ company, onSwitch }: Omit<CompanyShellProps, "children">) {
   return (
     <div className="flex flex-col gap-1">
@@ -78,14 +78,10 @@ export function CompanyIdentity({ company, onSwitch }: Omit<CompanyShellProps, "
   );
 }
 
-/**
- * Marco de la vista del contratista: menú oscuro a la izquierda en escritorio
- * (arriba en pantallas angostas) y el contenido sobre el fondo gris claro.
- */
 export function CompanyShell({ company, onSwitch, children }: CompanyShellProps) {
   const pathname = usePathname();
   return (
-    <div className="flex min-h-full flex-1 flex-col lg:flex-row">
+    <div className="flex min-h-dvh flex-1 flex-col lg:flex-row lg:bg-ink">
       <header className="on-dark flex flex-col gap-4 bg-ink px-4 py-4 lg:sticky lg:top-0 lg:h-dvh lg:w-64 lg:shrink-0 lg:gap-8 lg:overflow-y-auto lg:px-5 lg:py-7">
         <Link href="/c" aria-label="NIVEL, pedir cuadrilla" className="inline-flex min-h-12 items-center">
           <NivelMark tone="white" />
@@ -96,7 +92,7 @@ export function CompanyShell({ company, onSwitch, children }: CompanyShellProps)
         </div>
       </header>
       <div className="flex min-w-0 flex-1 flex-col bg-canvas">
-        <main className="flex-1 px-4 py-6 lg:px-8 lg:py-8">{children}</main>
+        <main className="flex-1 animate-enter px-4 py-6 lg:px-8 lg:py-8">{children}</main>
         <DemoFooter className="border-t border-line" />
       </div>
     </div>
