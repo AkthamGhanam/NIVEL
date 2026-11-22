@@ -189,7 +189,7 @@ describe("pedir cuadrilla y tablero en vivo", () => {
   });
 
   it("tras un rechazo sugiere a Carlos como reemplazo, a un clic", async () => {
-    expect(await company.invite(requestId, 3)).toHaveLength(3);
+    expect(await company.invite(requestId, { quantity: 3 })).toHaveLength(3);
     const waiting = boardView(await boardNow());
     expect(waiting.match(/Invitación enviada/g)).toHaveLength(3);
     expect(waiting).toContain("3 personas más cumplen");
@@ -224,7 +224,7 @@ describe("pedir cuadrilla y tablero en vivo", () => {
   });
 
   it("cuando Carlos acepta, la cuadrilla queda completa y lleva a la obra", async () => {
-    await company.invite(requestId, 1);
+    await company.invite(requestId, { quantity: 1 });
     const accepted = await respond(carlos, true);
     contractId = accepted.offer.contractId!;
     await carlos.post(`/api/contracts/${contractId}/sign`, { body: { otp: accepted.otp } });

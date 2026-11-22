@@ -319,6 +319,9 @@ Pendiente de estas vistas:
 - [x] `/api/state` devuelve `activeCompany`, así la web identifica también a una empresa real
 - [x] CSP de páginas: `connect-src` admite solo ElevenLabs (API y LiveKit) además del propio origen
 - [x] Tope de 20 registros por IP cada 10 minutos
+- [x] **Elegir a quién invitar**: cada persona que cumple tiene su casilla; se invita a las elegidas (hasta 10 a
+      la vez) o, de un clic, a las mejores. `POST /api/requests/:id/invite` acepta `{ workerIds }` además de
+      `{ quantity }`. "Reemplazo sugerido" solo aparece si alguien rechazó
 
 Pendiente:
 

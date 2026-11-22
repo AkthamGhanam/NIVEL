@@ -220,11 +220,11 @@ describe("oferta y contrato", () => {
   let offer: WorkerOffer;
 
   it("la invitación llega con la empresa, el trabajo y el pago, y dice que NIVEL no es el patrono", async () => {
-    await company.invite(requestId, 3);
+    await company.invite(requestId, { quantity: 3 });
     await answerFirstOffer(IDS.rafael, true);
     await answerFirstOffer(IDS.jose, true);
     await answerFirstOffer(IDS.luis, false);
-    await company.invite(requestId, 1);
+    await company.invite(requestId, { quantity: 1 });
     [offer] = (await worker.offers()) as [WorkerOffer];
     invitationId = offer.invitationId;
     const list = html(<OfferList offers={[offer]} />);

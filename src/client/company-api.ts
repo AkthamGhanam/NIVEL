@@ -27,6 +27,8 @@ export type RatingInput = NewRating;
 export type { CompanyCreated };
 export type CompanySignupInput = CompanySignup & { readonly consent: true };
 
+export type InviteSelection = { readonly quantity: number } | { readonly workerIds: readonly string[] };
+
 export interface PaymentInput {
   readonly contractId: string;
   readonly method: FeePaymentMethod;
@@ -51,12 +53,10 @@ export function createCompanyApi(request: ApiRequest) {
     board: async (signal?: AbortSignal) =>
       (await get<{ board: RequestBoard | null }>("/api/requests/active", signal)).board,
     createRequest: (input: RequestInput) => post<JobRequestCreated>("/api/requests", input),
-    invite: async (requestId: string, quantity: number) =>
-      (
-        await post<{ invitations: InvitationSent[] }>(`/api/requests/${segment(requestId)}/invite`, {
-          quantity,
-        })
-      ).invitations,
+    /** Invita a los N mejores, o a las personas elegidas de la lista. */
+    invite: async (requestId: string, choice: InviteSelection) =>
+      (await post<{ invitations: InvitationSent[] }>(`/api/requests/${segment(requestId)}/invite`, choice))
+        .invitations,
 
     registerPayment: (input: PaymentInput) => post<PaymentRow>("/api/payments", input),
     receipt: (paymentId: string, signal?: AbortSignal) =>

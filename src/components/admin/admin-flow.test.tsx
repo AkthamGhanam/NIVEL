@@ -136,7 +136,7 @@ describe("métricas", () => {
       contractType: "obra_determinada",
     });
     const before = await team.metrics();
-    const [sent] = await company.invite(request.id, 1);
+    const [sent] = await company.invite(request.id, { quantity: 1 });
     const invited = createWorkerApi(browser());
     await invited.enter(sent!.candidate.workerId);
     const [offer] = await invited.offers();

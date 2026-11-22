@@ -156,7 +156,7 @@ describe("bitácora y contador", () => {
       dailyPayUsd: 25,
       contractType: "obra_determinada",
     });
-    await company.invite(created.request.id, 2);
+    await company.invite(created.request.id, { quantity: 2 });
     const running = await feed.load(signal);
     await answerFirstOffer(IDS.rafael, true);
     const accepted = await answerFirstOffer(IDS.jose, true);

@@ -4,7 +4,7 @@ import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
 
 import { activeRequestBoard, createJobRequest, inviteCandidates } from "../../use-cases/requests";
 import { endpoint, type RuntimeProvider } from "../endpoint";
-import { pathId } from "./schemas";
+import { idSchema, pathId } from "./schemas";
 
 const LIMITS = Object.freeze({
   quantity: 50,
@@ -27,7 +27,11 @@ const newRequestSchema = z.strictObject({
   notes: z.string().trim().max(LIMITS.notes).optional(),
 });
 
-const inviteSchema = z.strictObject({ quantity: z.int().min(1).max(10) });
+/** Los N mejores, o las personas que la empresa eligió de la lista. */
+const inviteSchema = z.union([
+  z.strictObject({ quantity: z.int().min(1).max(10) }),
+  z.strictObject({ workerIds: z.array(idSchema).min(1).max(10) }),
+]);
 
 export const requestRoutes = (runtime: RuntimeProvider) => ({
   create: endpoint(
@@ -46,10 +50,7 @@ export const requestRoutes = (runtime: RuntimeProvider) => ({
   invite: endpoint(
     { access: "company", body: inviteSchema },
     async ({ actor, body, params, context }) => ({
-      invitations: await inviteCandidates(context, actor, {
-        requestId: pathId(params),
-        quantity: body.quantity,
-      }),
+      invitations: await inviteCandidates(context, actor, { requestId: pathId(params), ...body }),
     }),
     runtime,
   ),
