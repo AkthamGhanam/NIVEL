@@ -3,6 +3,7 @@
 
 import { createContext, type ReactNode, use, useState } from "react";
 
+import { type AccessKey, findAccess, rememberAccess } from "@/client/demo-access";
 import { apiRequest, errorMessage } from "@/client/api";
 import {
   type CompanyApi,
@@ -12,6 +13,7 @@ import {
   type RequestBoard,
 } from "@/client/company-api";
 import { createLiveStore, type LiveStore } from "@/client/live-store";
+import { NOT_ON_THIS_PHONE } from "@/components/access/account-key";
 import { Button } from "@/components/ui/button";
 import { LoadingText, Notice } from "@/components/ui/notice";
 
@@ -50,6 +52,17 @@ function GateMessage({ children }: { readonly children: ReactNode }) {
   return <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-4 py-16">{children}</div>;
 }
 
+/** Entra con el RIF y la contraseña guardados en este teléfono. */
+async function loginWith(
+  key: AccessKey,
+  enter: (companyId: string) => Promise<unknown>,
+): Promise<string | null> {
+  const companyId = await findAccess("company", key);
+  if (!companyId) return NOT_ON_THIS_PHONE;
+  await enter(companyId);
+  return null;
+}
+
 export function CompanyGate({ children }: { readonly children: ReactNode }) {
   const [stores] = useState(createSessionStores);
   const [choosing, setChoosing] = useState(false);
@@ -60,8 +73,9 @@ export function CompanyGate({ children }: { readonly children: ReactNode }) {
     await Promise.all([stores.state.refresh(), stores.board.refresh()]);
     setChoosing(false);
   });
-  const register = useAction(async (input: CompanySignupInput) => {
-    await stores.api.register(input);
+  const register = useAction(async ({ input, access }: { input: CompanySignupInput; access: AccessKey }) => {
+    const { company } = await stores.api.register(input);
+    await rememberAccess("company", access, company.id);
     await Promise.all([stores.state.refresh(), stores.board.refresh()]);
     setChoosing(false);
   });
@@ -92,7 +106,8 @@ export function CompanyGate({ children }: { readonly children: ReactNode }) {
         accounts={personas.companies}
         initialTab={choosing ? "entrar" : "crear"}
         onPick={(companyId) => void enter.invoke(companyId)}
-        onRegister={(input) => void register.invoke(input)}
+        onRegister={(input, access) => void register.invoke({ input, access })}
+        onLogin={(key) => loginWith(key, (companyId) => enter.invoke(companyId))}
         pending={enter.pending || register.pending}
         error={register.error ?? enter.error}
       />

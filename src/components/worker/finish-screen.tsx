@@ -8,7 +8,9 @@ import { jobStep, stepAction } from "@/client/worker-view";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
+import { LiquidationList } from "@/components/ui/liquidation-list";
 import { formatUsd } from "@/lib/format";
+import { LIQUIDATION_LABELS } from "@/lib/legal-cost";
 import { BLIND_RATING_NOTICE } from "@/lib/legal-copy";
 
 import { useAction } from "../hooks/use-action";
@@ -24,15 +26,27 @@ interface PaymentQuestionProps {
   readonly error: string | null;
 }
 
-/** "¿Recibiste tu pago?": solo la persona puede confirmar que el dinero le llegó. */
+type PaymentSummary = NonNullable<ContractDetail["payment"]>;
+
+/** Los conceptos de la liquidación. Un pago anterior a la liquidación muestra solo el salario. */
+export function liquidationItems(payment: PaymentSummary): Array<{ label: string; amountUsd: number }> {
+  if (payment.salaryUsd === null) return [{ label: "Salario", amountUsd: payment.amountUsd }];
+  const amounts = {
+    salary: payment.salaryUsd,
+    utilidades: payment.utilidadesUsd ?? 0,
+    vacacionesBono: payment.vacacionesUsd ?? 0,
+    prestaciones: payment.prestacionesUsd ?? 0,
+  };
+  return LIQUIDATION_LABELS.map(([key, label]) => ({ label, amountUsd: amounts[key] }));
+}
+
+/** "¿Recibiste tu liquidación?": solo la persona puede confirmar que el dinero le llegó. */
 export function PaymentQuestion({ payment, onConfirm, pending, error }: PaymentQuestionProps) {
   return (
     <Card className="flex flex-col gap-3">
-      <h2 className="display text-2xl">¿Recibiste tu pago de {formatUsd(payment.amountUsd)}?</h2>
-      <p className="text-ink-2">
-        La empresa registró que te pagó. El dinero va directo de la empresa a ti: confirma solo si ya lo
-        tienes.
-      </p>
+      <h2 className="display text-2xl">¿Recibiste tu liquidación de {formatUsd(payment.amountUsd)}?</h2>
+      <p className="text-ink-2">Revisa que te llegó cada parte. Confirma solo si ya la tienes.</p>
+      <LiquidationList items={liquidationItems(payment)} total={payment.amountUsd} />
       <Link
         href={`/recibo/${encodeURIComponent(payment.id)}?vista=trabajador`}
         className="inline-flex min-h-12 items-center font-semibold text-brand underline decoration-2"
@@ -45,10 +59,10 @@ export function PaymentQuestion({ payment, onConfirm, pending, error }: PaymentQ
         </Notice>
       ) : null}
       <Button block disabled={pending} onClick={onConfirm}>
-        Sí, lo recibí
+        Sí, recibí todo
       </Button>
       <ButtonLink href="/t/ayuda?tipo=no_pago" variant="danger" block>
-        No lo he recibido
+        Me falta una parte
       </ButtonLink>
     </Card>
   );

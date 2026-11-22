@@ -138,7 +138,7 @@ describe("conversación de la empresa", () => {
     requestId = data.solicitud_id as string;
 
     expect(status).toBe(200);
-    expect(data).toMatchObject({ ok: true, cumplen: 6, costo_legal: { por_trabajador: 196.67 } });
+    expect(data).toMatchObject({ ok: true, cumplen: 6, costo_legal: { por_trabajador: 300.83 } });
     expect((data.top as Array<{ nombre_corto: string }>).map((entry) => entry.nombre_corto)).toEqual([
       "Rafael T.",
       "José P.",
@@ -206,7 +206,7 @@ describe("conversación de la empresa", () => {
     const { data } = await callTool("calcular_costo_legal", { pago_diario_usd: "25", dias: 5, cantidad: 3 });
     const invalid = await callTool("calcular_costo_legal", { pago_diario_usd: 25, dias: 0, cantidad: 3 });
 
-    expect(data).toMatchObject({ ok: true, total: 590 });
+    expect(data).toMatchObject({ ok: true, total: 902.5 });
     expect(data.say).toContain("Estimado. Valídalo con tu contador.");
     expect(invalid.data).toMatchObject({ ok: false });
   });
@@ -348,6 +348,57 @@ describe("registro por voz", () => {
     expect(noConsent.data.ok).toBe(false);
     expect(noConsent.data.say).toContain("necesito tu permiso");
     expect(created).toHaveLength(1);
+  });
+
+  it("guarda varios oficios, la zona de trabajo por municipios y si trabaja de noche, con la fecha de nacimiento", async () => {
+    const { data } = await callTool(
+      "guardar_perfil",
+      {
+        nombre: "José Luis Pérez",
+        fecha_nacimiento: "1990-07-15",
+        oficios: ["soldador", "electricista"],
+        anos_experiencia: 10,
+        tecnicas: ["Soldadura MIG/MAG"],
+        alcance: "municipal",
+        estados: ["Carabobo"],
+        municipios: "San Diego y Naguanagua",
+        disponibilidad: "ya mismo",
+        trabaja_de_noche: "sí",
+        conversation_id: "conv_varios_oficios",
+      },
+      { context },
+    );
+    const [saved] = await (
+      await database()
+    )
+      .select()
+      .from(workers)
+      .where(eq(workers.id, data.worker_id as string));
+    const teen = await callTool(
+      "guardar_perfil",
+      {
+        ...PROFILE,
+        mayor_de_edad: undefined,
+        fecha_nacimiento: "2011-01-01",
+        conversation_id: "conv_joven_01",
+      },
+      { context },
+    );
+
+    expect(data.creado).toBe(true);
+    expect(saved).toMatchObject({
+      trade: "soldador",
+      trades: ["soldador", "electricista"],
+      availability: "Ya mismo · también de noche",
+      workArea: {
+        scope: "municipal",
+        places: [
+          { state: "Carabobo", municipality: "San Diego" },
+          { state: "Carabobo", municipality: "Naguanagua" },
+        ],
+      },
+    });
+    expect(teen.data).toMatchObject({ creado: false });
   });
 
   it("pide repetir un nombre que no parece un nombre, sin guardar nada", async () => {

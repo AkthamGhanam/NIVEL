@@ -1,4 +1,6 @@
+import { durationOf } from "@/lib/profile-options";
 import { formatDay, formatKm, formatTime, formatUsd, plural } from "@/lib/format";
+import { type Liquidation, liquidation } from "@/lib/legal-cost";
 import { round2 } from "@/lib/money";
 import { tradeCount } from "@/lib/trades";
 
@@ -28,7 +30,10 @@ export function requestFacts(request: Request): string[] {
     tradeCount(request.trade, request.quantity),
     request.minLevel >= 5 ? "Nivel 5" : `Nivel ${request.minLevel} o más`,
     `desde ${formatDay(request.startDate)}`,
-    plural(request.days, "día", "días"),
+    request.durationKey
+      ? durationOf(request.durationKey).label.toLowerCase()
+      : plural(request.days, "día", "días"),
+    ...(request.startTime && request.endTime ? [`de ${request.startTime} a ${request.endTime}`] : []),
     `${formatUsd(request.dailyPayUsd)} al día`,
   ];
 }
@@ -98,6 +103,11 @@ export function attendanceLine(day: AttendanceDay): string {
 /** Salario que la empresa le debe a esa persona por todos sus días. El dinero no pasa por NIVEL. */
 export function wageOwed(request: Request, member: CrewMember): number {
   return round2(request.dailyPayUsd * member.days);
+}
+
+/** Liquidación completa que la empresa le paga al terminar: salario y partes proporcionales de ley. */
+export function liquidationOwed(request: Request, member: CrewMember): Liquidation {
+  return liquidation({ dailyPayUsd: request.dailyPayUsd, days: member.days });
 }
 
 export type PaymentStage = "sin_firma" | "por_pagar" | "por_confirmar" | "confirmado";

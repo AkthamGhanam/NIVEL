@@ -131,6 +131,7 @@ describe("entrada del trabajador", () => {
           accounts={accounts}
           onPick={noop}
           onRegister={noop}
+          onLogin={async () => null}
           onRegistered={noop}
           pending={false}
           error={error}
@@ -153,6 +154,8 @@ describe("entrada del trabajador", () => {
     expect(create).toContain("Escribirle a Nivi");
     expect(create).toContain("Prefiero escribir");
     expect(enter).toContain("Cuentas de demostración");
+    expect(enter).toContain("Cédula");
+    expect(enter).toContain("Contraseña");
     expect(enter).not.toContain("Cuentas registradas");
     expect(enter).toContain("Entrar como Carlos Rodríguez");
     expect(text(enter)).toContain("Carlos Rodríguez Nivel 2 soldador · Los Guayos");
@@ -360,10 +363,11 @@ describe("fin de obra", () => {
     const markup = finishView(contract);
 
     expect(jobStep(contract)).toBe("confirmar_pago");
-    expect(markup).toContain("¿Recibiste tu pago de $125?");
+    expect(markup).toContain("¿Recibiste tu liquidación de $270,83?");
+    expect(text(markup)).toContain("Vacaciones y bono vacacional $10,42");
     expect(markup).toContain(`href="/recibo/${paymentId}?vista=trabajador"`);
-    expect(markup).toContain("Sí, lo recibí");
-    expect(markup).toMatch(/<a [^>]*href="\/t\/ayuda\?tipo=no_pago"[^>]*>No lo he recibido<\/a>/);
+    expect(markup).toContain("Sí, recibí todo");
+    expect(markup).toMatch(/<a [^>]*href="\/t\/ayuda\?tipo=no_pago"[^>]*>Me falta una parte<\/a>/);
     expect(markup).not.toContain("Califica a la empresa");
   });
 

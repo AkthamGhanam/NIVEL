@@ -13,6 +13,7 @@ import { companies, contracts, fees, invitations, jobRequests, workers } from ".
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { paysOnTimeByCompany } from "../repos/company-reputation";
 import { NOT_EMPLOYER_NOTICE, newOtpCode, otpDigest } from "./contracts";
+import { paysInRegla } from "./contributions";
 import { logEvent } from "./events";
 import { notifyByTelegram, openAppButton } from "./telegram-notify";
 
@@ -25,6 +26,8 @@ export interface WorkerOffer {
     readonly verified: boolean;
     /** Porcentaje de trabajos que pagó a tiempo. Nulo si tiene menos de 5 contrataciones terminadas. */
     readonly paysOnTimePercent: number | null;
+    /** Liquida completo y declara sus aportes. Solo verdadero cuando se puede comprobar. */
+    readonly paysInRegla: boolean;
   };
   readonly trade: Trade;
   readonly zone: string;
@@ -53,7 +56,11 @@ type OfferJoin = Awaited<ReturnType<typeof offersQuery>>[number];
 
 type PaymentRates = ReadonlyMap<string, number | null>;
 
-function toOffer({ invitation, request, company, contractId }: OfferJoin, rates: PaymentRates): WorkerOffer {
+function toOffer(
+  { invitation, request, company, contractId }: OfferJoin,
+  rates: PaymentRates,
+  inRegla: ReadonlySet<string> = new Set(),
+): WorkerOffer {
   return {
     invitationId: invitation.id,
     status: invitation.status,
@@ -62,6 +69,7 @@ function toOffer({ invitation, request, company, contractId }: OfferJoin, rates:
       name: company.name,
       verified: company.verified,
       paysOnTimePercent: rates.get(company.id) ?? null,
+      paysInRegla: inRegla.has(company.id),
     },
     trade: request.trade,
     zone: request.zone,
@@ -81,11 +89,12 @@ export async function listMyOffers(context: AppContext, actor: Actor): Promise<W
   const rows = await offersQuery(context)
     .where(eq(invitations.workerId, workerId))
     .orderBy(desc(invitations.createdAt));
-  const rates = await paysOnTimeByCompany(
-    context.db,
-    rows.map((row) => row.company.id),
-  );
-  return rows.map((row) => toOffer(row, rates));
+  const companyIds = rows.map((row) => row.company.id);
+  const [rates, inRegla] = await Promise.all([
+    paysOnTimeByCompany(context.db, companyIds),
+    paysInRegla(context, companyIds),
+  ]);
+  return rows.map((row) => toOffer(row, rates, inRegla));
 }
 
 export interface InvitationResponse {

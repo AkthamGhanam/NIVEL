@@ -40,8 +40,13 @@ const request: RequestBoard["request"] = {
   lat: 10.19,
   lng: -67.93,
   sitePinnedAt: null,
+  state: "Carabobo",
+  municipality: "Los Guayos",
   startDate: "2026-11-24",
   days: 5,
+  durationKey: "semana",
+  startTime: "07:00",
+  endTime: "16:00",
   dailyPayUsd: 25,
   contractType: "obra_determinada",
   status: "abierta",
@@ -83,13 +88,13 @@ const board = (changes: Partial<RequestBoard> = {}): RequestBoard => ({
       salary: 125,
       utilidades: 10.42,
       vacacionesBono: 10.42,
-      prestaciones: 20.83,
+      prestaciones: 125,
       pensiones: 11.25,
       aportes: 18.75,
-      total: 196.67,
+      total: 300.83,
     },
     quantity: 3,
-    totalForQuantity: 590,
+    totalForQuantity: 902.5,
   },
   feeRange: null,
   invitations: [],
@@ -105,16 +110,22 @@ describe("lectura de la solicitud", () => {
       "3 soldadores",
       "Nivel 2 o más",
       "desde mar 24 nov",
-      "5 días",
+      "una semana",
+      "de 07:00 a 16:00",
       "$25 al día",
     ]);
-    expect(requestFacts({ ...request, quantity: 1, trade: "albanil", minLevel: 5, days: 1 })).toEqual([
-      "1 albañil",
-      "Nivel 5",
-      "desde mar 24 nov",
-      "1 día",
-      "$25 al día",
-    ]);
+    expect(
+      requestFacts({
+        ...request,
+        quantity: 1,
+        trade: "albanil",
+        minLevel: 5,
+        days: 1,
+        durationKey: null,
+        startTime: null,
+        endTime: null,
+      }),
+    ).toEqual(["1 albañil", "Nivel 5", "desde mar 24 nov", "1 día", "$25 al día"]);
   });
 
   it("de una persona solo cuenta hechos verificables", () => {

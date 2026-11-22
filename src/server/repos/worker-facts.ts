@@ -1,9 +1,10 @@
-import { and, count, countDistinct, eq, inArray, isNotNull, isNull, sql, sum } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, isNotNull, isNull, like, or, sql, sum } from "drizzle-orm";
 
 import { addDays, type IsoDate } from "@/lib/dates";
 import type { Level, LevelInput, PrivateRating } from "@/lib/level";
 import type { BusyPeriod, CandidateWorker } from "@/lib/matching";
 import type { Trade } from "@/lib/trades";
+import type { WorkArea } from "@/lib/venezuela";
 
 import type { Database } from "../db/client";
 import {
@@ -27,8 +28,10 @@ export interface WorkerFacts {
   readonly workerId: string;
   readonly name: string;
   readonly trade: Trade;
+  readonly trades: readonly Trade[];
   readonly level: Level;
   readonly location: { readonly lat: number; readonly lng: number };
+  readonly workArea: WorkArea | null;
   readonly levelInput: LevelInput;
   /** Compromisos vigentes, con la solicitud que los originó. */
   readonly busy: ReadonlyArray<BusyPeriod & { readonly requestId: string }>;
@@ -219,8 +222,10 @@ function toFacts(person: WorkerRow, data: Aggregates): WorkerFacts {
     workerId: person.id,
     name: person.name,
     trade: person.trade,
+    trades: person.trades ?? [person.trade],
     level: person.level as Level,
     location: { lat: person.lat, lng: person.lng },
+    workArea: person.workArea ?? null,
     busy: data.busy.get(person.id) ?? [],
     levelInput: {
       confirmedJobs: data.jobs.get(person.id) ?? 0,
@@ -236,7 +241,9 @@ function toFacts(person: WorkerRow, data: Aggregates): WorkerFacts {
 export async function loadWorkerFacts(db: Database, filter: FactsFilter = {}): Promise<WorkerFacts[]> {
   const conditions = [
     filter.workerIds ? inArray(workers.id, [...filter.workerIds]) : undefined,
-    filter.trade ? eq(workers.trade, filter.trade) : undefined,
+    filter.trade
+      ? or(eq(workers.trade, filter.trade), like(workers.trades, `%"${filter.trade}"%`))
+      : undefined,
     filter.shareableOnly
       ? and(
           isNull(workers.deletedAt),
@@ -267,11 +274,13 @@ export function toCandidate(facts: WorkerFacts, ownRequestId?: string): Candidat
     id: facts.workerId,
     fullName: facts.name,
     trade: facts.trade,
+    trades: facts.trades,
     level: facts.level,
     confirmedJobs: facts.levelInput.confirmedJobs,
     practicalPassed: facts.levelInput.practicalPassed,
     certificates: facts.levelInput.certificates,
     location: facts.location,
+    ...(facts.workArea ? { workArea: facts.workArea } : {}),
     busy: facts.busy.filter((period) => period.requestId !== ownRequestId),
   };
 }

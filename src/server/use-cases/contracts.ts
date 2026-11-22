@@ -74,6 +74,10 @@ export interface ContractDetail extends PublicContract {
     readonly id: string;
     readonly receiptNumber: string;
     readonly amountUsd: number;
+    readonly salaryUsd: number | null;
+    readonly utilidadesUsd: number | null;
+    readonly vacacionesUsd: number | null;
+    readonly prestacionesUsd: number | null;
     readonly registeredAt: string;
     readonly confirmedByWorkerAt: string | null;
   } | null;
@@ -100,6 +104,10 @@ export async function getContract(
         id: payments.id,
         receiptNumber: payments.receiptNumber,
         amountUsd: payments.amountUsd,
+        salaryUsd: payments.salaryUsd,
+        utilidadesUsd: payments.utilidadesUsd,
+        vacacionesUsd: payments.vacacionesUsd,
+        prestacionesUsd: payments.prestacionesUsd,
         registeredAt: payments.registeredAt,
         confirmedByWorkerAt: payments.confirmedByWorkerAt,
       })

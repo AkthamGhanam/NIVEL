@@ -70,19 +70,19 @@ describe("tarifas de NIVEL", () => {
 });
 
 describe("estimateLegalCost", () => {
-  it("25 dólares por 5 días cuesta unos 196,67 por trabajador", () => {
+  it("25 dólares por 5 días cuesta unos 300,83 por trabajador", () => {
     const estimate = estimateLegalCost({ dailyPayUsd: 25, days: 5, quantity: 3 });
 
     expect(estimate.perWorker).toEqual({
       salary: 125,
       utilidades: 10.42,
       vacacionesBono: 10.42,
-      prestaciones: 20.83,
+      prestaciones: 125,
       pensiones: 11.25,
       aportes: 18.75,
-      total: 196.67,
+      total: 300.83,
     });
-    expect(estimate.totalForQuantity).toBe(590);
+    expect(estimate.totalForQuantity).toBe(902.5);
   });
 
   it("muestra siempre el aviso de estimado", () => {

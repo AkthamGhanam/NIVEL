@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { normalizeSpanish } from "@/lib/dates";
+import { localDate, normalizeSpanish } from "@/lib/dates";
+import { ageOn, HIRE_DURATIONS, matchAvailability, MIN_WORK_AGE } from "@/lib/profile-options";
 import { estimateLegalCost } from "@/lib/legal-cost";
 import type { Level } from "@/lib/level";
 import {
@@ -13,6 +14,7 @@ import {
   sayRequestCreated,
 } from "@/lib/say";
 import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
+import { spokenWorkArea, WORK_SCOPES } from "@/lib/venezuela";
 
 import { ForbiddenError } from "../../errors";
 import { listMyOffers, respondToInvitation } from "../../use-cases/invitations";
@@ -54,16 +56,54 @@ const spokenInteger = spokenNumber.pipe(z.int());
 const trade = z.string().transform(normalizeSpanish).pipe(z.enum(TRADES));
 const zone = z.string().trim().min(2).max(80);
 
-const profileSchema = z.object({
-  nombre: z.string().trim().min(2).max(80),
-  mayor_de_edad: spokenBoolean,
-  oficio: trade,
-  anos_experiencia: spokenNumber.pipe(z.number().min(0).max(60)),
-  tecnicas: z.array(z.string().max(80)).max(20).default([]),
-  zona: zone,
-  disponibilidad: z.string().trim().min(1).max(120),
-  conversation_id: conversationIdSchema,
-});
+const spokenList = z
+  .union([z.array(z.string().trim().max(80)), z.string().trim().max(400)])
+  .transform((value) =>
+    (typeof value === "string" ? value.split(/,| y /u) : value).map((item) => item.trim()).filter(Boolean),
+  );
+
+const profileSchema = z
+  .object({
+    nombre: z.string().trim().min(2).max(80),
+    fecha_nacimiento: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .optional(),
+    mayor_de_edad: spokenBoolean.optional(),
+    oficios: z.array(trade).max(TRADES.length).default([]),
+    oficio: trade.optional(),
+    anos_experiencia: spokenNumber.pipe(z.number().min(0).max(60)),
+    tecnicas: z.array(z.string().max(80)).max(20).default([]),
+    alcance: z.string().transform(normalizeSpanish).pipe(z.enum(WORK_SCOPES)).optional(),
+    estados: spokenList.default([]),
+    municipios: spokenList.default([]),
+    zona: zone.optional(),
+    disponibilidad: z.string().trim().min(1).max(120),
+    trabaja_de_noche: spokenBoolean.default(false),
+    conversation_id: conversationIdSchema,
+  })
+  .refine((body) => body.oficios.length > 0 || body.oficio !== undefined, {
+    error: "Falta el oficio",
+    path: ["oficios"],
+  })
+  .refine((body) => body.alcance !== undefined || body.zona !== undefined, {
+    error: "Falta dónde quiere trabajar",
+    path: ["alcance"],
+  });
+
+type SpokenProfile = z.infer<typeof profileSchema>;
+
+/** Mayor de edad según la fecha que dijo o, si no la dijo, según su confirmación. */
+function isAdultSaid(body: SpokenProfile, today: string): boolean {
+  if (body.fecha_nacimiento) return (ageOn(body.fecha_nacimiento, today) ?? 0) >= MIN_WORK_AGE;
+  return body.mayor_de_edad === true;
+}
+
+function workAreaSaid(body: SpokenProfile) {
+  if (!body.alcance) return undefined;
+  return spokenWorkArea({ scope: body.alcance, states: body.estados, municipalities: body.municipios });
+}
 
 const reportSchema = z.object({
   tipo: z.enum(REPORT_KINDS),
@@ -80,16 +120,34 @@ const answerSchema = z.object({
   conversation_id: conversationIdSchema.optional(),
 });
 
-const requestSchema = z.object({
-  oficio: trade,
-  cantidad: spokenInteger.pipe(z.number().min(1).max(50)),
-  nivel_minimo: spokenInteger.pipe(z.literal([1, 2, 3, 4, 5])),
-  zona: zone,
-  fecha_inicio: z.string().trim().min(1).max(40),
-  dias: spokenInteger.pipe(z.number().min(1).max(90)),
-  pago_diario_usd: spokenNumber.pipe(z.number().positive().max(1000)),
-  tipo_contrato: z.enum(CONTRACT_TYPES).default("obra_determinada"),
-});
+const DURATION_KEYS = HIRE_DURATIONS.map((duration) => duration.key) as [
+  (typeof HIRE_DURATIONS)[number]["key"],
+  ...(typeof HIRE_DURATIONS)[number]["key"][],
+];
+const spokenClock = z
+  .string()
+  .trim()
+  .regex(/^([01]?\d|2[0-3]):[0-5]\d$/)
+  .transform((value) => value.padStart(5, "0"));
+
+const requestSchema = z
+  .object({
+    oficio: trade,
+    cantidad: spokenInteger.pipe(z.number().min(1).max(50)),
+    nivel_minimo: spokenInteger.pipe(z.literal([1, 2, 3, 4, 5])),
+    zona: zone,
+    fecha_inicio: z.string().trim().min(1).max(40),
+    dias: spokenInteger.pipe(z.number().min(1).max(90)).optional(),
+    duracion: z.enum(DURATION_KEYS).optional(),
+    hora_entrada: spokenClock.optional(),
+    hora_salida: spokenClock.optional(),
+    pago_diario_usd: spokenNumber.pipe(z.number().positive().max(1000)),
+    tipo_contrato: z.enum(CONTRACT_TYPES).default("obra_determinada"),
+  })
+  .refine((body) => body.dias !== undefined || body.duracion !== undefined, {
+    error: "Falta cuánto tiempo va a durar",
+    path: ["duracion"],
+  });
 
 const inviteSchema = z.object({
   solicitud_id: idSchema,
@@ -110,16 +168,21 @@ export const workerTools = (runtime: RuntimeProvider) => ({
   guardarPerfil: tool(
     { name: "guardar_perfil", body: profileSchema },
     async ({ body, context, toolContext }) => {
-      if (!body.mayor_de_edad) return { say: SAY_UNDERAGE, creado: false };
+      if (!isAdultSaid(body, localDate(context.now()))) return { say: SAY_UNDERAGE, creado: false };
       if (toolContext?.kind !== "registration") throw new ForbiddenError(NO_CONSENT);
+      const trades = [...new Set([...(body.oficio ? [body.oficio] : []), ...body.oficios])];
+      const workArea = workAreaSaid(body);
       const created = await registerWorkerByVoice(context, {
         name: body.nombre,
         isAdult: true,
-        trade: body.oficio,
+        trade: trades[0] ?? "otro",
+        trades,
         yearsExp: body.anos_experiencia,
         skills: body.tecnicas,
-        zone: body.zona,
-        availability: body.disponibilidad,
+        zone: body.zona ?? ([...body.municipios, ...body.estados].join(", ") || "Carabobo"),
+        ...(workArea ? { workArea } : {}),
+        availability: matchAvailability(body.disponibilidad),
+        nightShift: body.trabaja_de_noche,
         conversationId: body.conversation_id,
         real: toolContext.real,
         consentAt: toolContext.consentAt,
@@ -207,7 +270,12 @@ export const companyTools = (runtime: RuntimeProvider) => ({
         minLevel: body.nivel_minimo,
         zone: body.zona,
         startDate: body.fecha_inicio,
-        days: body.dias,
+        days: body.dias ?? 1,
+        duration: body.duracion,
+        hours:
+          body.hora_entrada && body.hora_salida
+            ? { from: body.hora_entrada, to: body.hora_salida }
+            : undefined,
         dailyPayUsd: body.pago_diario_usd,
         contractType: body.tipo_contrato,
         createdVia: "voz",

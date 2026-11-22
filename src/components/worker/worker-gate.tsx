@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { createContext, type ReactNode, use, useState } from "react";
 
 import { apiRequest, errorMessage } from "@/client/api";
+import { type AccessKey, findAccess, rememberAccess } from "@/client/demo-access";
 import { createLiveStore, type LiveStore } from "@/client/live-store";
 import {
   createWorkerApi,
@@ -13,6 +14,7 @@ import {
   type WorkerOffer,
   type WorkerSignupInput,
 } from "@/client/worker-api";
+import { NOT_ON_THIS_PHONE } from "@/components/access/account-key";
 import { Button } from "@/components/ui/button";
 import { LoadingText, Notice } from "@/components/ui/notice";
 
@@ -64,11 +66,18 @@ function useAccessActions(stores: SessionStores, done: () => void) {
     await stores.api.enter(workerId);
     await reloadSession();
   });
-  const register = useAction(async (input: WorkerSignupInput) => {
-    await stores.api.register(input);
+  const register = useAction(async ({ input, access }: { input: WorkerSignupInput; access: AccessKey }) => {
+    const { profile } = await stores.api.register(input);
+    await rememberAccess("worker", access, profile.workerId);
     await reloadSession();
   });
-  return { enter, register, reloadSession };
+  const login = async (key: AccessKey): Promise<string | null> => {
+    const workerId = await findAccess("worker", key);
+    if (!workerId) return NOT_ON_THIS_PHONE;
+    await enter.invoke(workerId);
+    return null;
+  };
+  return { enter, register, login, reloadSession };
 }
 
 function GateMessage({ children }: { readonly children: ReactNode }) {
@@ -85,7 +94,7 @@ export function WorkerGate({ children }: { readonly children: ReactNode }) {
   const demoMode = useSearchParams().get("demo") === "1";
   const [startedInDemo] = useState(demoMode);
   const state = useLive(stores.state);
-  const { enter, register, reloadSession } = useAccessActions(stores, () => setChoosing(false));
+  const { enter, register, login, reloadSession } = useAccessActions(stores, () => setChoosing(false));
 
   if (state.loading) {
     return (
@@ -114,7 +123,8 @@ export function WorkerGate({ children }: { readonly children: ReactNode }) {
           accounts={personas.workers}
           initialTab={choosing ? "entrar" : "crear"}
           onPick={(workerId) => void enter.invoke(workerId)}
-          onRegister={(input) => void register.invoke(input)}
+          onRegister={(input, access) => void register.invoke({ input, access })}
+          onLogin={login}
           onRegistered={() => void reloadSession()}
           pending={enter.pending || register.pending}
           error={register.error ?? enter.error}

@@ -2,12 +2,19 @@ import { and, desc, eq, gte, isNotNull } from "drizzle-orm";
 
 import { localDate } from "@/lib/dates";
 import { round2 } from "@/lib/money";
-import { type FeePaymentMethod, planObraMonthlyCost, type PriceWithIva } from "@/lib/pricing";
+import {
+  type FeePaymentMethod,
+  NIVEL_BILLING,
+  planObraMonthlyCost,
+  type PriceWithIva,
+  toBolivares,
+} from "@/lib/pricing";
 
 import type { Actor } from "../actor";
 import type { AppContext } from "../context";
-import { fees } from "../db/schema";
+import { academies, companies, fees } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
+import { getDemoValue } from "./demo-state";
 import { logEvent } from "./events";
 
 /**
@@ -29,6 +36,8 @@ export interface FeeLine {
   readonly status: FeeRow["status"];
   readonly method: FeeRow["method"];
   readonly createdAt: string;
+  readonly reference: string | null;
+  readonly paidAt: string | null;
 }
 
 export interface PlanSuggestion {
@@ -67,6 +76,8 @@ const toLine = (fee: FeeRow): FeeLine => ({
   status: fee.status,
   method: fee.method,
   createdAt: fee.createdAt,
+  reference: fee.reference,
+  paidAt: fee.paidAt,
 });
 
 function totalOf(lines: readonly FeeLine[]): PriceWithIva {
@@ -110,7 +121,11 @@ export async function listMyFees(context: AppContext, actor: Actor): Promise<Fee
 export async function payFee(
   context: AppContext,
   actor: Actor,
-  input: { readonly feeId: string; readonly method: FeePaymentMethod },
+  input: {
+    readonly feeId: string;
+    readonly method: FeePaymentMethod;
+    readonly reference?: string | undefined;
+  },
 ): Promise<FeeLine> {
   const payer = requirePayer(actor);
   const [fee] = await context.db.select().from(fees).where(eq(fees.id, input.feeId));
@@ -120,7 +135,12 @@ export async function payFee(
   if (!isOwner) throw new ForbiddenError();
   const [paid] = await context.db
     .update(fees)
-    .set({ status: "pagado", method: input.method })
+    .set({
+      status: "pagado",
+      method: input.method,
+      reference: input.reference?.trim() || null,
+      paidAt: context.now().toISOString(),
+    })
     .where(and(eq(fees.id, fee.id), eq(fees.status, "por_pagar")))
     .returning();
   if (!paid) throw new ConflictError("Esta tarifa ya está pagada.");
@@ -131,4 +151,63 @@ export async function payFee(
     detail: { feeId: paid.id, totalUsd: paid.totalUsd },
   });
   return toLine(paid);
+}
+
+/** Factura digital (simulada) de una tarifa pagada, con su monto en bolívares a la tasa de ejemplo. */
+export interface Invoice {
+  readonly invoiceNumber: string;
+  readonly controlNumber: string;
+  readonly issuer: { readonly name: string; readonly rif: string };
+  readonly customer: { readonly name: string; readonly rif: string };
+  readonly concept: string;
+  readonly base: number;
+  readonly iva: number;
+  readonly total: number;
+  readonly totalBs: number;
+  readonly rateBsPerUsd: number;
+  readonly method: FeeRow["method"];
+  readonly reference: string | null;
+  readonly paidAt: string | null;
+  readonly status: FeeRow["status"];
+}
+
+export async function getInvoice(context: AppContext, actor: Actor, feeId: string): Promise<Invoice> {
+  const [row] = await context.db
+    .select({ fee: fees, company: companies, academy: academies })
+    .from(fees)
+    .leftJoin(companies, eq(fees.companyId, companies.id))
+    .leftJoin(academies, eq(fees.academyId, academies.id))
+    .where(eq(fees.id, feeId));
+  if (!row) throw new NotFoundError("la factura");
+  const { fee } = row;
+  const isOwner =
+    actor.role === "admin" ||
+    (actor.role === "company" && fee.companyId === actor.companyId) ||
+    (actor.role === "academy" && fee.academyId === actor.academyId);
+  if (!isOwner) throw new ForbiddenError();
+  const customer = row.company ?? row.academy;
+  const rate = await exampleRateBs(context);
+  return {
+    invoiceNumber: fee.invoiceNumber,
+    controlNumber: `00-${fee.invoiceNumber.replace(/\D/g, "").padStart(8, "0").slice(-8)}`,
+    issuer: { name: NIVEL_BILLING.name, rif: NIVEL_BILLING.rif },
+    customer: { name: customer?.name ?? "", rif: customer?.rif ?? "" },
+    concept: fee.concept,
+    base: fee.baseUsd,
+    iva: fee.ivaUsd,
+    total: fee.totalUsd,
+    totalBs: toBolivares(fee.totalUsd, rate),
+    rateBsPerUsd: rate,
+    method: fee.method,
+    reference: fee.reference,
+    paidAt: fee.paidAt,
+    status: fee.status,
+  };
+}
+
+const FALLBACK_RATE = 36.5;
+
+export async function exampleRateBs(context: AppContext): Promise<number> {
+  const rate = Number(await getDemoValue(context, "example_rate_bs_per_usd"));
+  return Number.isFinite(rate) && rate > 0 ? rate : FALLBACK_RATE;
 }

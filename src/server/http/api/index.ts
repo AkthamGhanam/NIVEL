@@ -1,6 +1,6 @@
 // Todas las rutas de la API, listas para montarse en src/app/api.
 import type { RuntimeProvider } from "../endpoint";
-import { feeRoutes, metricRoutes } from "./business";
+import { contributionRoutes, feeRoutes, metricRoutes } from "./business";
 import { levelRoutes, paymentRoutes, ratingRoutes } from "./closing";
 import { academyRoutes, learningRoutes } from "./learning";
 import { meRoutes } from "./me";
@@ -32,6 +32,7 @@ export const createApi = (runtime: RuntimeProvider) => ({
   learning: learningRoutes(runtime),
   academy: academyRoutes(runtime),
   fees: feeRoutes(runtime),
+  contributions: contributionRoutes(runtime),
   metrics: metricRoutes(runtime),
   telegram: telegramRoutes(runtime),
   tools: {

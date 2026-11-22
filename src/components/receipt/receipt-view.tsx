@@ -1,5 +1,6 @@
 import type { Receipt } from "@/client/company-api";
 import { DemoFooter, NivelMark } from "@/components/brand/brand";
+import { LiquidationList } from "@/components/ui/liquidation-list";
 import { Tag } from "@/components/ui/tag";
 import { formatBs, formatDateTime, formatUsd, plural } from "@/lib/format";
 import { EXAMPLE_RATE_LABEL, NOT_EMPLOYER_NOTICE } from "@/lib/legal-copy";
@@ -39,6 +40,9 @@ export function ReceiptView({ receipt }: { readonly receipt: Receipt }) {
         <Row label="Detalle">
           {plural(receipt.days, "día", "días")} a {formatUsd(receipt.dailyPayUsd)}
         </Row>
+        <div className="py-3">
+          <LiquidationList items={receipt.items} total={receipt.amountUsd} />
+        </div>
         <Row label="Monto pagado">
           <span className="text-2xl font-extrabold tabular-nums">{formatUsd(receipt.amountUsd)}</span>
           <span className="block text-sm font-normal text-muted">

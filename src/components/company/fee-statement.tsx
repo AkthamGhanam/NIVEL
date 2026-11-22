@@ -1,18 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import Link from "next/link";
+import { type FormEvent, useState } from "react";
 
 import type { FeeStatement } from "@/client/company-api";
 import { Button } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
-import { Notice } from "@/components/ui/notice";
+import { TextField } from "@/components/ui/field";
+import { LoadingText, Notice } from "@/components/ui/notice";
 import { Tag } from "@/components/ui/tag";
-import { formatUsd, plural } from "@/lib/format";
+import { formatBs, formatUsd, plural } from "@/lib/format";
 import { FEE_PAYMENT_NOTICE } from "@/lib/legal-copy";
 import {
   FEE_PAYMENT_METHODS,
   type FeePaymentMethod,
   HIRING_FEE_USD,
+  NIVEL_BILLING,
   PAYMENT_METHOD_LABELS,
   PLANS,
   type PriceWithIva,
@@ -20,8 +23,11 @@ import {
 
 import { useAction } from "../hooks/use-action";
 
+/** Tasa de ejemplo del seed (Bs por dólar). */
+const EXAMPLE_RATE = 36.5;
+
 type FeeLine = FeeStatement["fees"][number];
-type PayFee = (feeId: string, method: FeePaymentMethod) => Promise<void>;
+type PayFee = (feeId: string, method: FeePaymentMethod, reference: string) => Promise<void>;
 
 /** Base, IVA 16 % aparte y total, en una línea que un lector de pantalla lee con sus nombres. */
 function Amounts({ price }: { readonly price: PriceWithIva }) {
@@ -43,51 +49,184 @@ function Amounts({ price }: { readonly price: PriceWithIva }) {
   );
 }
 
-function FeeRow({ fee, onPay }: { readonly fee: FeeLine; readonly onPay: PayFee }) {
-  const [method, setMethod] = useState<FeePaymentMethod>("pago_movil");
-  const pay = useAction(onPay);
+type PayStage = "idle" | "datos" | "verificando";
+
+/** Cuánto tarda la "verificación" del pago simulado: lo justo para que se entienda el paso. */
+const VERIFY_MS = 1600;
+const REFERENCE_PATTERN = /^[A-Za-z0-9-]{4,30}$/;
+
+function BillingData({ method, totalBs }: { readonly method: FeePaymentMethod; readonly totalBs: string }) {
+  return (
+    <dl className="grid gap-1 rounded-control bg-canvas px-3.5 py-3 text-[0.9375rem]">
+      <div className="flex justify-between gap-3">
+        <dt className="text-muted">Monto a pagar</dt>
+        <dd className="font-extrabold tabular-nums">{totalBs}</dd>
+      </div>
+      <div className="flex justify-between gap-3">
+        <dt className="text-muted">Banco</dt>
+        <dd className="font-semibold">{NIVEL_BILLING.bank}</dd>
+      </div>
+      <div className="flex justify-between gap-3">
+        <dt className="text-muted">{method === "pago_movil" ? "Teléfono" : "Cuenta"}</dt>
+        <dd className="font-semibold tabular-nums">
+          {method === "pago_movil" ? NIVEL_BILLING.pagoMovilPhone : NIVEL_BILLING.account}
+        </dd>
+      </div>
+      <div className="flex justify-between gap-3">
+        <dt className="text-muted">RIF</dt>
+        <dd className="font-semibold">{NIVEL_BILLING.rif}</dd>
+      </div>
+      <p className="text-xs text-muted">Datos de ejemplo: la demo no cobra de verdad.</p>
+    </dl>
+  );
+}
+
+interface PayFormProps {
+  readonly fee: FeeLine;
+  readonly rateBs: number;
+  readonly method: FeePaymentMethod;
+  readonly onMethod: (method: FeePaymentMethod) => void;
+  readonly reference: string;
+  readonly onReference: (reference: string) => void;
+  readonly problem: string | undefined;
+  readonly error: string | null;
+  readonly onSubmit: (event: FormEvent) => void;
+  readonly onCancel: () => void;
+}
+
+/** Datos para pagarle a NIVEL y la referencia del pago hecho. */
+function PayForm(props: PayFormProps) {
+  const { fee, rateBs, method, onMethod, reference, onReference, problem, error, onSubmit, onCancel } = props;
   const selectId = `tarifa-${fee.id}-medio`;
+  return (
+    <form onSubmit={onSubmit} noValidate className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <label htmlFor={selectId} className="text-sm font-bold text-ink-2">
+          Medio de pago
+        </label>
+        <select
+          id={selectId}
+          value={method}
+          onChange={(event) => onMethod(event.target.value as FeePaymentMethod)}
+          className="min-h-12 rounded-control border-[1.5px] border-line bg-surface px-3"
+        >
+          {FEE_PAYMENT_METHODS.map((option) => (
+            <option key={option} value={option}>
+              {PAYMENT_METHOD_LABELS[option]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <BillingData method={method} totalBs={`${formatBs(fee.total * rateBs)} (tasa de ejemplo)`} />
+      <TextField
+        id={`tarifa-${fee.id}-referencia`}
+        label="Referencia de tu pago"
+        autoComplete="off"
+        maxLength={30}
+        value={reference}
+        error={problem}
+        onChange={(event) => onReference(event.target.value)}
+      />
+      {error ? (
+        <Notice tone="alert" urgent>
+          {error}
+        </Notice>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit">Ya pagué</Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function PayFlow({
+  fee,
+  onPay,
+  rateBs,
+}: {
+  readonly fee: FeeLine;
+  readonly onPay: PayFee;
+  readonly rateBs: number;
+}) {
+  const [stage, setStage] = useState<PayStage>("idle");
+  const [method, setMethod] = useState<FeePaymentMethod>("pago_movil");
+  const [reference, setReference] = useState("");
+  const [problem, setProblem] = useState<string>();
+  const pay = useAction(async () => {
+    setStage("verificando");
+    await new Promise((resolve) => setTimeout(resolve, VERIFY_MS));
+    await onPay(fee.id, method, reference.trim());
+  });
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!REFERENCE_PATTERN.test(reference.trim())) {
+      setProblem("Escribe la referencia: de 4 a 30 letras o números.");
+      return;
+    }
+    setProblem(undefined);
+    void pay.invoke().then((ok) => {
+      if (!ok) setStage("datos");
+    });
+  };
+  if (stage === "idle") {
+    return (
+      <Button className="self-start" onClick={() => setStage("datos")}>
+        Pagar factura<span className="sr-only"> {fee.invoiceNumber}</span>
+      </Button>
+    );
+  }
+  if (stage === "verificando") {
+    return <LoadingText>Verificando tu pago con el banco (simulado)…</LoadingText>;
+  }
+  return (
+    <PayForm
+      fee={fee}
+      rateBs={rateBs}
+      method={method}
+      onMethod={setMethod}
+      reference={reference}
+      onReference={setReference}
+      problem={problem}
+      error={pay.error}
+      onSubmit={submit}
+      onCancel={() => setStage("idle")}
+    />
+  );
+}
+
+function FeeRow({
+  fee,
+  onPay,
+  rateBs,
+}: {
+  readonly fee: FeeLine;
+  readonly onPay: PayFee;
+  readonly rateBs: number;
+}) {
+  const paid = fee.status === "pagado";
   return (
     <li className="flex flex-col gap-2 px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-bold">{fee.concept}</p>
-        <Tag tone={fee.status === "pagado" ? "ok" : "pending"}>
-          {fee.status === "pagado" && fee.method
-            ? `Pagada por ${PAYMENT_METHOD_LABELS[fee.method]}`
-            : "Por pagar"}
+        <Tag tone={paid ? "ok" : "pending"}>
+          {paid && fee.method ? `Pagada por ${PAYMENT_METHOD_LABELS[fee.method]}` : "Por pagar"}
         </Tag>
       </div>
       <p className="text-sm text-muted">Factura simulada N.º {fee.invoiceNumber}</p>
       <Amounts price={fee} />
-      {fee.status === "por_pagar" ? (
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="flex flex-col gap-1">
-            <label htmlFor={selectId} className="text-sm font-bold text-ink-2">
-              Medio de pago
-            </label>
-            <select
-              id={selectId}
-              value={method}
-              onChange={(event) => setMethod(event.target.value as FeePaymentMethod)}
-              className="min-h-12 rounded-control border-[1.5px] border-line bg-surface px-3"
-            >
-              {FEE_PAYMENT_METHODS.map((option) => (
-                <option key={option} value={option}>
-                  {PAYMENT_METHOD_LABELS[option]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <Button variant="outline" disabled={pay.pending} onClick={() => void pay.invoke(fee.id, method)}>
-            Marcar como pagada<span className="sr-only">: factura {fee.invoiceNumber}</span>
-          </Button>
-        </div>
-      ) : null}
-      {pay.error ? (
-        <Notice tone="alert" urgent>
-          {pay.error}
-        </Notice>
-      ) : null}
+      {paid ? (
+        <Link
+          href={`/factura/${encodeURIComponent(fee.id)}`}
+          className="inline-flex min-h-12 items-center self-start font-semibold text-brand underline decoration-2"
+        >
+          Ver factura digital
+        </Link>
+      ) : (
+        <PayFlow fee={fee} onPay={onPay} rateBs={rateBs} />
+      )}
     </li>
   );
 }
@@ -166,10 +305,12 @@ export function PlansCard({ recommended }: { readonly recommended: "Pago por con
 interface FeeStatementViewProps {
   readonly statement: FeeStatement;
   readonly onPay: PayFee;
+  /** Tasa de ejemplo para mostrar el monto en bolívares. */
+  readonly rateBs?: number;
 }
 
 /** Tarifas de NIVEL de la empresa: lo pendiente, lo pagado y cada factura simulada. */
-export function FeeStatementView({ statement, onPay }: FeeStatementViewProps) {
+export function FeeStatementView({ statement, onPay, rateBs = EXAMPLE_RATE }: FeeStatementViewProps) {
   return (
     <section aria-labelledby="tarifas-titulo" className="flex flex-col gap-3">
       <h2 id="tarifas-titulo" className="bar-title text-xl font-extrabold">
@@ -199,7 +340,7 @@ export function FeeStatementView({ statement, onPay }: FeeStatementViewProps) {
         <Card className="p-0">
           <ul className="divide-y divide-line-2">
             {statement.fees.map((fee) => (
-              <FeeRow key={fee.id} fee={fee} onPay={onPay} />
+              <FeeRow key={fee.id} fee={fee} onPay={onPay} rateBs={rateBs} />
             ))}
           </ul>
         </Card>

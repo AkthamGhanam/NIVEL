@@ -1,7 +1,9 @@
 // Todo lo que la pantalla del contratista le pide al servidor, con sus tipos.
 import type { GeoFix } from "@/lib/geo";
+import type { Institution } from "@/lib/legal-cost";
 import type { FeePaymentMethod } from "@/lib/pricing";
-import type { FeeStatement } from "@/server/use-cases/billing";
+import type { FeeStatement, Invoice } from "@/server/use-cases/billing";
+import type { ContributionPeriod } from "@/server/use-cases/contributions";
 import type { PaymentRow, Receipt } from "@/server/use-cases/payments";
 import type { DemoState } from "@/server/use-cases/personas";
 import type { CompanyCreated, CompanySignup } from "@/server/use-cases/registration";
@@ -15,7 +17,7 @@ import type {
 
 import type { ApiRequest } from "./api";
 
-export type { DemoState, FeeStatement, PaymentRow, Receipt, RequestBoard };
+export type { ContributionPeriod, DemoState, FeeStatement, Invoice, PaymentRow, Receipt, RequestBoard };
 export type CompanyPersona = DemoState["personas"]["companies"][number];
 export type RequestInput = Omit<NewJobRequest, "createdVia">;
 export type RatingInput = NewRating;
@@ -64,8 +66,15 @@ export function createCompanyApi(request: ApiRequest) {
       get<Receipt>(`/api/payments/${segment(paymentId)}/receipt`, signal),
 
     fees: (signal?: AbortSignal) => get<FeeStatement>("/api/fees", signal),
-    payFee: (feeId: string, method: FeePaymentMethod) =>
-      post<unknown>(`/api/fees/${segment(feeId)}/pay`, { method }),
+    payFee: (feeId: string, method: FeePaymentMethod, reference?: string) =>
+      post<unknown>(`/api/fees/${segment(feeId)}/pay`, reference ? { method, reference } : { method }),
+
+    invoice: (feeId: string, signal?: AbortSignal) =>
+      get<Invoice>(`/api/fees/${segment(feeId)}/invoice`, signal),
+    contributions: async (signal?: AbortSignal) =>
+      (await get<{ periods: ContributionPeriod[] }>("/api/contributions", signal)).periods,
+    declareContribution: async (input: { period: string; institution: Institution; reference: string }) =>
+      (await post<{ periods: ContributionPeriod[] }>("/api/contributions", input)).periods,
 
     rate: (input: RatingInput) => post<RatingSubmitted>("/api/ratings", input),
   };

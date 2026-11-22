@@ -102,6 +102,7 @@ describe("entrada del contratista", () => {
           accounts={accounts}
           onPick={noop}
           onRegister={noop}
+          onLogin={async () => null}
           pending={false}
           error={error}
           initialTab={tab}
@@ -115,7 +116,10 @@ describe("entrada del contratista", () => {
     // Una sola empresa de ejemplo: las del historial de los trabajadores no se ofrecen para entrar.
     expect(state.personas.companies).toHaveLength(1);
     expect(create).toContain("Registrar mi empresa");
-    expect(create).toContain('name="rif"');
+    expect(create).toContain('id="empresa-rif"');
+    expect(create).toContain("Petróleo, gas y energía");
+    expect(create).toContain("Zonas de trabajo");
+    expect(enter).toContain('id="entrar-documento"');
     expect(enter).toContain("Cuentas de demostración");
     expect(enter).toContain("Constructora Los Guayos");
     expect(enter).toContain("RIF J-50123456-7");
@@ -176,11 +180,11 @@ describe("pedir cuadrilla y tablero en vivo", () => {
     const plain = text(markup);
 
     expect(plain).toContain("Salario (5 días) $125");
-    expect(plain).toContain("Por persona $196,67");
-    expect(plain).toContain("Por 3 personas $590");
+    expect(plain).toContain("Por persona $300,83");
+    expect(plain).toContain("Por 3 personas $902,50");
     expect(plain).toContain("Estimado. Valídalo con tu contador.");
     // A dónde va cada dólar: al trabajador y al Estado. Nada de eso es de NIVEL.
-    expect(plain).toContain("Va al trabajador $166,67");
+    expect(plain).toContain("Va al trabajador $270,83");
     expect(plain).toContain("Va al Estado $30");
     expect(plain).toContain("No es una factura");
     expect(plain).toContain("Lo único que cobra NIVEL");
@@ -286,11 +290,14 @@ describe("obra en curso", () => {
 });
 
 describe("pagos", () => {
-  it("la empresa registra el pago directo y queda el recibo; el dinero no pasa por NIVEL", async () => {
+  it("la empresa registra la liquidación completa, con cada concepto, y queda el recibo", async () => {
     const before = html(<WagePayments board={await boardNow()} onRegister={idle} />);
-    expect(before).toContain("El dinero no pasa por NIVEL");
-    expect(text(before)).toContain("Carlos R. 5 días a $25 $125");
-    expect(before.match(/Registrar pago/g)).toHaveLength(1);
+    expect(before).toContain("liquidación completa, directo");
+    expect(text(before)).toContain("Carlos R. 5 días a $25 $270,83");
+    expect(text(before)).toContain(
+      "Salario $125 Utilidades proporcionales $10,42 Vacaciones y bono vacacional $10,42 Prestaciones sociales $125 Total $270,83",
+    );
+    expect(before.match(/Registrar liquidación pagada/g)).toHaveLength(1);
     expect(before).toContain("Pago Móvil");
     expect(before).toContain("Transferencia");
 
@@ -302,10 +309,10 @@ describe("pagos", () => {
     paymentId = payment.id;
     const registered = html(<WagePayments board={await boardNow()} onRegister={idle} />);
 
-    expect(payment.amountUsd).toBe(125);
-    expect(registered).toContain("Pago registrado. Falta que Carlos R. confirme");
+    expect(payment.amountUsd).toBe(270.83);
+    expect(registered).toContain("Liquidación registrada. Falta que Carlos R. confirme");
     expect(registered).toContain(`href="/recibo/${paymentId}?vista=empresa"`);
-    expect(registered).not.toContain("Registrar pago");
+    expect(registered).not.toContain("Registrar liquidación pagada");
   });
 
   it("no acepta una referencia con símbolos: el servidor valida aunque la pantalla ya lo haga", async () => {
@@ -321,13 +328,15 @@ describe("pagos", () => {
     const markup = html(<ReceiptView receipt={receipt} />);
     const plain = text(markup);
 
-    expect(wages).toContain("Carlos R. confirmó que recibió el pago");
+    expect(wages).toContain("Carlos R. confirmó que recibió su liquidación");
     expect(plain).toContain("Recibo de pago");
     expect(plain).toContain("Artículo 106 de la LOTTT");
     expect(plain).toContain("Patrono Constructora Los Guayos RIF J-50123456-7");
     expect(plain).toContain("Trabajador Carlos Rodríguez");
     expect(plain).toContain("5 días a $25");
-    expect(plain).toContain("$125");
+    expect(plain).toContain("Salario $125");
+    expect(plain).toContain("Prestaciones sociales $125");
+    expect(plain).toContain("Total $270,83");
     expect(plain).toContain("(tasa de ejemplo)");
     expect(plain).toContain("Pago Móvil · referencia 0102-123456");
     expect(plain).toMatch(/Recibido · \w{3} \d{1,2} \w{3}, \d{1,2}:\d{2} [ap]\. m\./);
@@ -356,12 +365,16 @@ describe("pagos", () => {
     expect(text(markup)).toContain("Por pagar Tarifa $80 IVA 16 % $12,80 Total $92,80");
     expect(markup).toContain("Factura simulada N.º");
     expect(markup).toContain("Factura digital (simulada)");
-    expect(markup.match(/Marcar como pagada/g)).toHaveLength(3);
+    expect(markup.match(/Pagar factura/g)).toHaveLength(3);
 
-    await company.payFee(pending[0]!.id, "transferencia");
+    await company.payFee(pending[0]!.id, "transferencia", "TR-55667");
     const after = await company.fees();
     expect(after.pending.total).toBeLessThan(statement.pending.total);
-    expect(html(<FeeStatementView statement={after} onPay={idle} />)).toContain("Pagada por Transferencia");
+    const paidMarkup = html(<FeeStatementView statement={after} onPay={idle} />);
+    expect(paidMarkup).toContain("Pagada por Transferencia");
+    expect(paidMarkup).toContain(`href="/factura/${pending[0]!.id}"`);
+    const invoice = await company.invoice(pending[0]!.id);
+    expect(invoice).toMatchObject({ reference: "TR-55667", method: "transferencia", status: "pagado" });
     await expect(company.payFee(pending[0]!.id, "transferencia")).rejects.toMatchObject({ status: 409 });
   });
 

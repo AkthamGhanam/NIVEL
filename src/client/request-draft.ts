@@ -1,6 +1,8 @@
 import { addDays, type IsoDate } from "@/lib/dates";
 import type { Level } from "@/lib/level";
+import { durationOf, type HireDuration } from "@/lib/profile-options";
 import type { ContractType, Trade } from "@/lib/trades";
+import { describePlace, findPlace, hasMunicipalityList } from "@/lib/venezuela";
 
 import type { RequestInput } from "./company-api";
 
@@ -14,9 +16,15 @@ export interface RequestDraft {
   readonly trade: Trade;
   readonly quantity: string;
   readonly minLevel: string;
-  readonly zone: string;
+  /** Estado y municipio de la obra. */
+  readonly state: string;
+  readonly municipality: string;
   readonly startDate: string;
-  readonly days: string;
+  /** Horario, "07:00" a "16:00". */
+  readonly startTime: string;
+  readonly endTime: string;
+  /** Cuánto tiempo quiere contratar. */
+  readonly duration: HireDuration;
   readonly dailyPayUsd: string;
   readonly contractType: ContractType;
   readonly notes: string;
@@ -42,13 +50,17 @@ export const REQUEST_LIMITS = Object.freeze({
 const DEFAULT_LEAD_DAYS = 2;
 
 export function newRequestDraft(zone: string, today: IsoDate): RequestDraft {
+  const place = findPlace(zone) ?? { state: "Carabobo" };
   return {
     trade: "soldador",
     quantity: "3",
     minLevel: "2",
-    zone,
+    state: place.state,
+    municipality: place.municipality ?? "",
     startDate: addDays(today, DEFAULT_LEAD_DAYS),
-    days: "5",
+    startTime: "07:00",
+    endTime: "16:00",
+    duration: "semana",
     dailyPayUsd: "25",
     contractType: "obra_determinada",
     notes: "",
@@ -58,6 +70,22 @@ export function newRequestDraft(zone: string, today: IsoDate): RequestDraft {
 const WHOLE_NUMBER = /^\d{1,4}$/;
 const AMOUNT = /^\d{1,4}([.,]\d{1,2})?$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+const WRITTEN_NAME = /^\p{L}[\p{L} .'-]{1,59}$/u;
+
+function placeProblem(draft: RequestDraft): string | undefined {
+  const municipality = draft.municipality.trim();
+  if (municipality === "") return "Elige el municipio de la obra.";
+  if (!hasMunicipalityList(draft.state) && !WRITTEN_NAME.test(municipality)) return "Escribe el municipio.";
+  return undefined;
+}
+
+function hoursProblem(draft: RequestDraft): string | undefined {
+  if (!CLOCK.test(draft.startTime) || !CLOCK.test(draft.endTime))
+    return "Elige la hora de entrada y de salida.";
+  if (draft.startTime === draft.endTime) return "La salida debe ser a otra hora que la entrada.";
+  return undefined;
+}
 
 function wholeBetween(text: string, max: number): number | undefined {
   if (!WHOLE_NUMBER.test(text.trim())) return undefined;
@@ -75,23 +103,25 @@ export function parseRequestDraft(draft: RequestDraft, today: IsoDate): DraftRes
   const problems: DraftProblems = {};
   const quantity = wholeBetween(draft.quantity, REQUEST_LIMITS.quantity);
   const minLevel = wholeBetween(draft.minLevel, 5);
-  const days = wholeBetween(draft.days, REQUEST_LIMITS.days);
+  const days = durationOf(draft.duration).days;
   const dailyPayUsd = amountUpTo(draft.dailyPayUsd, REQUEST_LIMITS.dailyPayUsd);
-  const zone = draft.zone.trim();
+  const place = { state: draft.state, municipality: draft.municipality.trim() };
+  const zone = describePlace(place);
   const notes = draft.notes.trim();
 
   if (quantity === undefined)
     problems.quantity = `Escribe cuántas personas, de 1 a ${REQUEST_LIMITS.quantity}.`;
   if (minLevel === undefined) problems.minLevel = "Elige un nivel del 1 al 5.";
-  if (zone.length < 2 || zone.length > REQUEST_LIMITS.zone) problems.zone = "Escribe la zona de la obra.";
+  const where = placeProblem(draft);
+  if (where) problems.municipality = where;
+  const hours = hoursProblem(draft);
+  if (hours) problems.endTime = hours;
   if (!ISO_DATE.test(draft.startDate)) problems.startDate = "Elige el día en que empieza la obra.";
   else if (draft.startDate < today) problems.startDate = "La obra no puede empezar en una fecha pasada.";
-  if (days === undefined) problems.days = `Escribe cuántos días, de 1 a ${REQUEST_LIMITS.days}.`;
   if (dailyPayUsd === undefined) problems.dailyPayUsd = "Escribe el pago diario en dólares, por ejemplo 25.";
   if (notes.length > REQUEST_LIMITS.notes) problems.notes = "La nota es demasiado larga.";
 
-  const complete =
-    quantity !== undefined && minLevel !== undefined && days !== undefined && dailyPayUsd !== undefined;
+  const complete = quantity !== undefined && minLevel !== undefined && dailyPayUsd !== undefined;
   if (!complete || Object.keys(problems).length > 0) return { ok: false, problems };
   return {
     ok: true,
@@ -100,8 +130,11 @@ export function parseRequestDraft(draft: RequestDraft, today: IsoDate): DraftRes
       quantity,
       minLevel: minLevel as Level,
       zone,
+      place,
       startDate: draft.startDate,
       days,
+      duration: draft.duration,
+      hours: { from: draft.startTime, to: draft.endTime },
       dailyPayUsd,
       contractType: draft.contractType,
       ...(notes === "" ? {} : { notes }),
@@ -113,9 +146,10 @@ const API_FIELDS: ReadonlySet<string> = new Set<DraftField>([
   "trade",
   "quantity",
   "minLevel",
-  "zone",
+  "municipality",
   "startDate",
-  "days",
+  "endTime",
+  "duration",
   "dailyPayUsd",
   "contractType",
   "notes",

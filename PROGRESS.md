@@ -377,3 +377,15 @@ Sin probar: el bot contra Telegram real, Nivi con las variables nuevas en Eleven
 - [x] En `/t/obra` sin trabajo: muestra las ofertas ahí mismo o pregunta antes de ir al inicio
 - [x] Una sola empresa de ejemplo, sin tarifas ni pagos precargados; el historial vive en otras empresas
 - [x] 719 pruebas
+
+## Fase 14 · Liquidación, aportes al Estado y pago a NIVEL — lista (todo simulado)
+
+- [x] El pago al trabajador es su liquidación completa (salario, utilidades, vacaciones con bono y
+      prestaciones proporcionales), con cada concepto en el recibo; el trabajador confirma "Sí, recibí todo" o
+      "Me falta una parte" (abre un reporte). Aviso por Telegram al registrarla
+- [x] Planilla mensual de aportes (IVSS 11 %, FAOV 2 %, INCES 2 %, pensiones 9 %) calculada sobre los salarios
+      pagados; la empresa registra el comprobante de cada institución. `GET/POST /api/contributions`
+- [x] Sello "Paga en regla" en las ofertas: liquidaciones confirmadas y aportes al día
+- [x] Pago simulado de la factura de NIVEL: datos de cobro de ejemplo, monto en bolívares, referencia,
+      verificación y factura digital simulada en `/factura/[id]`
+- [x] 727 pruebas

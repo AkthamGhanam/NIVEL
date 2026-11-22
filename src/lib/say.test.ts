@@ -42,7 +42,7 @@ describe("sayRequestCreated", () => {
   it("dice la frase del guion para el pedido de 3 soldadores", () => {
     expect(sayRequestCreated(SCRIPT)).toBe(
       "Listo. 6 soldadores de nivel 2 o más cumplen cerca de Los Guayos. " +
-        "El costo legal estimado es de unos 197 dólares por persona por los 5 días. " +
+        "El costo legal estimado es de unos 301 dólares por persona por los 5 días. " +
         "La tarifa de NIVEL va de 20 a 30 dólares por contratación según el nivel, más IVA. " +
         "¿Invito a los 3 mejores?",
     );
@@ -82,7 +82,7 @@ describe("otras frases del contratista", () => {
     const single = sayLegalCost(estimateLegalCost({ dailyPayUsd: 25, days: 1, quantity: 1 }), 1);
 
     expect(crew).toContain("Para 3 personas durante 5 días");
-    expect(crew).toContain("unos 590 dólares en total, unos 197 dólares por persona");
+    expect(crew).toContain("unos 903 dólares en total, unos 301 dólares por persona");
     expect(crew).toMatch(/Estimado\. Valídalo con tu contador\.$/);
     expect(single).toContain("Para 1 persona durante 1 día");
   });

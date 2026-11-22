@@ -106,7 +106,10 @@ function WhereMoneyGoes() {
           "El salario va directo de la empresa al trabajador. Nunca pasa por NIVEL ni NIVEL lo retiene.",
           "El costo legal estimado (utilidades, vacaciones, prestaciones y aportes) no es un cobro de NIVEL: es lo que la ley le exige a la empresa como patrono. Una parte la recibe el trabajador y otra va a la seguridad social.",
           "Lo único que cobra NIVEL a la empresa es la tarifa por contratación o su plan, más IVA. El IVA se entrega al SENIAT: no es ingreso de NIVEL.",
-          "Por cada pago de salario la empresa emite un recibo al trabajador (LOTTT, art. 106). Por cada tarifa, NIVEL emite una factura a la empresa.",
+          "Al terminar la obra la empresa le paga al trabajador su liquidación completa: salario, utilidades, vacaciones con su bono y prestaciones proporcionales. NIVEL la calcula, genera el recibo (LOTTT, art. 106) y el trabajador confirma en la app que recibió cada parte.",
+          "Cada mes NIVEL calcula los aportes de la empresa al IVSS, BANAVIH (FAOV), INCES y la contribución de pensiones. La empresa los paga en el portal de cada institución y registra el comprobante en la app.",
+          "La empresa que liquida completo y tiene sus aportes al día muestra el sello «Paga en regla» a los trabajadores.",
+          "Por cada tarifa, NIVEL emite una factura digital a la empresa.",
         ]}
       />
     </LegalSection>

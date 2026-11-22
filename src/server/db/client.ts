@@ -29,6 +29,8 @@ const INDEXES: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS "idx_ratings_contract" ON "ratings" ("contract_id")`,
   `CREATE INDEX IF NOT EXISTS "idx_events_ts" ON "events" ("ts")`,
   `CREATE INDEX IF NOT EXISTS "idx_reports_status" ON "reports" ("status", "created_at")`,
+  // Un comprobante por empresa, mes e institución, aunque lleguen dos toques a la vez.
+  `CREATE UNIQUE INDEX IF NOT EXISTS "uq_contributions" ON "contributions" ("company_id", "period", "institution")`,
   // Una inscripción y una constancia por persona y curso, aunque lleguen dos toques a la vez.
   `CREATE UNIQUE INDEX IF NOT EXISTS "uq_enrollments_worker_course" ON "enrollments" ("worker_id", "course_id")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "uq_certificates_worker_course" ON "certificates" ("worker_id", "course_id")`,

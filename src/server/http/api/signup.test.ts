@@ -24,12 +24,13 @@ function newClient() {
 
 const WORKER = {
   name: "María Fernanda Rojas",
-  isAdult: true,
-  trade: "electricista",
-  yearsExp: 6,
-  skills: ["tableros", "cableado industrial"],
-  zone: "vivo en San Diego",
-  availability: "Inmediata",
+  birthDate: "1994-03-12",
+  trades: ["electricista", "plomero"],
+  yearsExp: 5,
+  skills: ["Tableros eléctricos", "Cableado industrial"],
+  workArea: { scope: "municipal", places: [{ state: "Carabobo", municipality: "San Diego" }] },
+  availability: "Ya mismo",
+  nightShift: true,
   consent: true,
 } as const;
 
@@ -80,7 +81,7 @@ describe("registro del trabajador escribiendo", () => {
     expect(created.status).toBe(201);
     expect(created.data.profile).toMatchObject({ firstName: "María", level: 1 });
     const me = await client.get<{ firstName: string; zone: string }>("/api/me", { as: "worker" });
-    expect(me).toMatchObject({ firstName: "María", zone: "San Diego" });
+    expect(me).toMatchObject({ firstName: "María", zone: "San Diego (Carabobo)" });
     const state = await client.get<DemoState>("/api/state");
     expect(state.active.workerId).not.toBeNull();
     expect(state.personas.workers.find((worker) => worker.registered)).toMatchObject({ name: "María F." });
@@ -91,10 +92,16 @@ describe("registro del trabajador escribiendo", () => {
     const noConsent = await client.call("POST", "/api/workers/register", {
       body: { ...WORKER, consent: false },
     });
-    const minor = await client.call("POST", "/api/workers/register", { body: { ...WORKER, isAdult: false } });
+    const minor = await client.call("POST", "/api/workers/register", {
+      body: { ...WORKER, birthDate: "2012-05-01" },
+    });
+    const outsideList = await client.call("POST", "/api/workers/register", {
+      body: { ...WORKER, workArea: { scope: "estadal", states: ["Narnia"] } },
+    });
 
     expect(noConsent.status).toBe(422);
     expect(minor.status).toBe(422);
+    expect(outsideList.status).toBe(422);
     expect((await client.get<DemoState>("/api/state")).active.workerId).toBeNull();
   });
 });
