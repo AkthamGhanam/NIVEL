@@ -11,7 +11,7 @@ import type { FeePaymentMethod } from "@/lib/pricing";
 import { useLive } from "../hooks/use-live";
 import { BoardGate } from "./board-gate";
 import { useCompany } from "./company-gate";
-import { FeeStatementView } from "./fee-statement";
+import { FeeStatementView, PlansCard } from "./fee-statement";
 import { WagePayments } from "./wage-payments";
 
 /** Las tarifas cambian solo cuando alguien acepta: se consultan con menos frecuencia que el tablero. */
@@ -29,6 +29,9 @@ function FeeSection() {
   return (
     <>
       {live.error === undefined ? null : <Notice tone="pending">{errorMessage(live.error)}</Notice>}
+      {live.data ? (
+        <PlansCard recommended={live.data.planSuggestion ? "Plan Obra" : "Pago por contratación"} />
+      ) : null}
       {live.data ? <FeeStatementView statement={live.data} onPay={pay} /> : null}
     </>
   );

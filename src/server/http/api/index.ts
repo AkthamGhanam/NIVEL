@@ -7,6 +7,7 @@ import { meRoutes } from "./me";
 import { requestRoutes } from "./requests";
 import { signupRoutes } from "./signup";
 import { stateRoutes } from "./state";
+import { telegramRoutes } from "./telegram";
 import { demoRoutes, eventRoutes, reportRoutes, voiceSetupRoutes } from "./team";
 import { companyTools, crewTools, offerTools, workerTools } from "./tools";
 import { voiceRoutes } from "./voice";
@@ -32,6 +33,7 @@ export const createApi = (runtime: RuntimeProvider) => ({
   academy: academyRoutes(runtime),
   fees: feeRoutes(runtime),
   metrics: metricRoutes(runtime),
+  telegram: telegramRoutes(runtime),
   tools: {
     ...workerTools(runtime),
     ...offerTools(runtime),

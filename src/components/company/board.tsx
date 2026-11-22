@@ -16,7 +16,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
-import { Progress } from "@/components/ui/progress";
+import { SeatRing } from "@/components/ui/rings";
 import { LevelBadge, Tag } from "@/components/ui/tag";
 import { cx } from "@/lib/cx";
 import { tradeCount } from "@/lib/trades";
@@ -62,27 +62,40 @@ function CandidateSummary({
   );
 }
 
+/** La consola del contratista: un tramo del anillo por puesto; se enciende cuando alguien acepta. */
 export function CrewBanner({ board }: { readonly board: RequestBoard }) {
   const progress = crewProgress(board);
-  if (progress.complete) {
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border-[1.5px] border-brand bg-brand-tint px-5 py-4">
-        <p role="status" className="display text-2xl text-brand">
+  const { quantity } = board.request;
+  const filled = Math.min(board.accepted, quantity);
+  const open = quantity - filled;
+  return (
+    <section
+      aria-label="Avance de la cuadrilla"
+      className="console flex flex-col items-center gap-5 rounded-panel p-5 sm:flex-row sm:p-6"
+    >
+      <SeatRing filled={filled} total={quantity} label={progress.label} className="w-36 shrink-0">
+        <span aria-hidden="true" className="display figures block text-5xl leading-none">
+          {filled}
+        </span>
+        <span aria-hidden="true" className="figures text-sm font-semibold text-muted-on-ink">
+          de {quantity}
+        </span>
+      </SeatRing>
+      <div className="flex min-w-0 flex-1 flex-col items-center gap-3 text-center sm:items-start sm:text-left">
+        <p role="status" className={cx("display text-2xl sm:text-3xl", progress.complete && "text-signal")}>
           {progress.label}
         </p>
-        <ButtonLink href="/c/obra" variant="ink">
-          Ver la obra
-        </ButtonLink>
+        {progress.complete ? (
+          <ButtonLink href="/c/obra" variant="outline" className="border-transparent">
+            Ver la obra
+          </ButtonLink>
+        ) : (
+          <p className="text-muted-on-ink">
+            {open === 1 ? "Falta 1 puesto por ocupar." : `Faltan ${open} puestos por ocupar.`}
+          </p>
+        )}
       </div>
-    );
-  }
-  return (
-    <Card className="flex flex-col gap-2">
-      <p role="status" className="text-lg font-extrabold">
-        {progress.label}
-      </p>
-      <Progress value={board.accepted / board.request.quantity} label={progress.label} />
-    </Card>
+    </section>
   );
 }
 
@@ -130,14 +143,18 @@ export function ReplacementCard({
   pending,
 }: InviteProps & { readonly candidate: Candidate }) {
   return (
-    <Card selected className="flex animate-enter flex-wrap items-center gap-3">
+    <Card selected className="flex animate-enter flex-col gap-3 sm:flex-row sm:items-center">
       <div className="min-w-0 flex-1">
         <Eyebrow className="text-brand">Reemplazo sugerido</Eyebrow>
         <div className="mt-1.5">
           <CandidateSummary candidate={candidate} />
         </div>
       </div>
-      <Button onClick={() => onInvite({ workerIds: [candidate.workerId] })} disabled={pending}>
+      <Button
+        onClick={() => onInvite({ workerIds: [candidate.workerId] })}
+        disabled={pending}
+        className="w-full sm:w-auto"
+      >
         Invitar<span className="sr-only"> a {candidate.shortName}</span>
       </Button>
     </Card>
@@ -217,9 +234,7 @@ function SelectableList({
 }) {
   return (
     <>
-      <p className="text-ink-2">
-        Marca a quien quieras invitar. La primera persona que acepte ocupa el puesto.
-      </p>
+      <p className="text-ink-2">Marca a quien quieras invitar.</p>
       <Card className="p-0">
         <ul aria-label="Personas que cumplen" className="divide-y divide-line-2 overflow-hidden rounded-card">
           {candidates.map((candidate) => (

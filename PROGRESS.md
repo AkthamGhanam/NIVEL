@@ -396,3 +396,31 @@ Pendiente:
   `/api/el/token` falla y no se pueden publicar los agentes.
 - HUMANO: con la URL de Vercel lista, correr `npm run agents:setup` (con `NEXT_PUBLIC_APP_URL` y `TOOL_SECRET`
   iguales a los de Vercel), poner en Vercel los `EL_AGENT_*_ID` que imprime y correr `npm run voice:check`.
+
+## Fase 12 · Ubicación de la obra, identidad en Nivi, Telegram y costos claros — lista en código, sin probar con servicios reales
+
+- [x] El contratista fija la obra con su ubicación (formulario, `/c/obra` o enviándola al bot). La llegada se
+      verifica contra ese punto con el margen de error del GPS a favor de la persona (tope 80 m); con señal
+      inservible se pide otra lectura en vez de decir "estás fuera". `POST /api/requests/:id/site`
+- [x] Nivi recibe del servidor con quién habla (`nivi_saludo`, `nivi_persona`) y reglas para atender solo a
+      esa persona; botón para pausar el micrófono. Hay que volver a publicar los agentes desde `/admin/datos`
+- [x] Bot de Telegram: conectar el chat desde la app con un código de un solo uso, ofertas con botones,
+      código de firma, pedir personal paso a paso, cuadrilla, ubicación de la obra y avisos de aceptación y
+      llegada. `TELEGRAM_BOT_TOKEN` + botón "Conectar el bot de Telegram" en `/admin/datos`
+- [x] Panel de costos: a dónde va cada dólar (trabajador, Estado, NIVEL), comprobantes y los tres planes
+- [x] Términos y privacidad con las bases legales de la revisión
+- [x] 692 pruebas
+
+Sin probar: el bot contra Telegram real, Nivi con las variables nuevas en ElevenLabs y el GPS en un teléfono.
+
+## Fase 13 · Experiencia más simple — lista en código, sin probar con servicios reales
+
+- [x] Un paso por pantalla en `/t` y `/c`: lo que toca hacer va primero; costos, otro pedido, Telegram y
+      avisos quedan plegados. Menos texto en todas las tarjetas
+- [x] Nivi por turnos: el micrófono se cierra solo mientras ella habla (no se oye a sí misma por el altavoz)
+      y pregunta un dato a la vez. Hay que tocar "Reconectar a Nivi" para publicar el prompt
+- [x] Bot de Telegram: entiende frases completas y notas de voz (Scribe), además de los botones; registro
+      de trabajador o empresa desde el chat y enlace de un solo uso para abrir la app con esa cuenta
+- [x] En `/t/obra` sin trabajo: muestra las ofertas ahí mismo o pregunta antes de ir al inicio
+- [x] Una sola empresa de ejemplo, sin tarifas ni pagos precargados; el historial vive en otras empresas
+- [x] 719 pruebas

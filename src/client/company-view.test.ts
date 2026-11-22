@@ -39,6 +39,7 @@ const request: RequestBoard["request"] = {
   zone: "Los Guayos",
   lat: 10.19,
   lng: -67.93,
+  sitePinnedAt: null,
   startDate: "2026-11-24",
   days: 5,
   dailyPayUsd: 25,

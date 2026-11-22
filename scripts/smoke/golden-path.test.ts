@@ -101,8 +101,8 @@ describe("smoke del camino dorado por las rutas reales", () => {
     }>("/api/invitations");
 
     expect(offers[0]?.company.verified).toBe(true);
-    expect(offers[0]?.company.paysOnTimePercent).toBeGreaterThanOrEqual(0);
-    expect(offers[0]?.company.paysOnTimePercent).toBeLessThanOrEqual(100);
+    // La empresa de la demo arranca sin historial: aún no hay dato de puntualidad que mostrar.
+    expect(offers[0]?.company.paysOnTimePercent).toBeNull();
   });
 
   it("el estado público lista personajes del seed y la persona activa de cada vista", async () => {

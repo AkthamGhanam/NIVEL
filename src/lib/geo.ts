@@ -39,3 +39,54 @@ export function isInsideGeofence(point: GeoPoint, fence: Geofence): boolean {
   ensure(fence.radiusMeters > 0, "El radio de la geocerca debe ser mayor que cero");
   return haversineKm(point, fence.center) * METERS_PER_KM <= fence.radiusMeters;
 }
+
+/** Un punto con el margen de error que reporta el GPS del teléfono, en metros. */
+export interface GeoFix extends GeoPoint {
+  readonly accuracyM?: number | undefined;
+}
+
+/** Margen de error del GPS que se tolera como máximo al comparar con la geocerca. */
+export const MAX_TOLERATED_ACCURACY_M = 80;
+/** Con un margen mayor a este la lectura no sirve para decidir: se pide otra. */
+export const UNUSABLE_ACCURACY_M = 250;
+/** La obra solo se fija con una lectura buena: de ella depende verificar cada llegada. */
+export const SITE_PIN_MAX_ACCURACY_M = 100;
+
+export type ArrivalVerdict = "dentro" | "fuera" | "senal_debil";
+
+export interface ArrivalCheck {
+  readonly verdict: ArrivalVerdict;
+  /** Distancia al centro de la obra, redondeada a metros. */
+  readonly distanceM: number;
+}
+
+const usableAccuracy = (accuracyM: number | undefined) =>
+  accuracyM !== undefined && Number.isFinite(accuracyM) && accuracyM > 0 ? accuracyM : 0;
+
+/**
+ * ¿La persona llegó a la obra? El GPS de un teléfono nunca es exacto, así que
+ * su margen de error cuenta a favor de la persona, con un tope. Si la lectura
+ * es demasiado imprecisa para decidir, no se le dice "estás fuera": se le pide
+ * otra lectura.
+ */
+export function checkArrival(fix: GeoFix, fence: Geofence): ArrivalCheck {
+  ensure(fence.radiusMeters > 0, "El radio de la geocerca debe ser mayor que cero");
+  const distanceM = Math.round(haversineKm(fix, fence.center) * METERS_PER_KM);
+  const accuracyM = usableAccuracy(fix.accuracyM);
+  if (distanceM <= fence.radiusMeters + Math.min(accuracyM, MAX_TOLERATED_ACCURACY_M)) {
+    return { verdict: "dentro", distanceM };
+  }
+  const couldBeInside = distanceM - accuracyM <= fence.radiusMeters;
+  return { verdict: accuracyM > UNUSABLE_ACCURACY_M && couldBeInside ? "senal_debil" : "fuera", distanceM };
+}
+
+const ROUND_TO_M = 10;
+const KM_THRESHOLD_M = 1000;
+
+/** "unos 350 m" o "unos 2,4 km": distancia dicha como la diría una persona. */
+export function approximateDistance(distanceM: number): string {
+  if (distanceM >= KM_THRESHOLD_M) {
+    return `unos ${(distanceM / METERS_PER_KM).toFixed(1).replace(".", ",")} km`;
+  }
+  return `unos ${Math.max(ROUND_TO_M, Math.round(distanceM / ROUND_TO_M) * ROUND_TO_M)} m`;
+}

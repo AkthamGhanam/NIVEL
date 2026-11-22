@@ -2,7 +2,7 @@
 "use client";
 
 import { useConversation } from "@elevenlabs/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { errorMessage } from "@/client/api";
 import { WORKLET_PATHS } from "@/client/voice-worklets";
@@ -30,6 +30,15 @@ export function orbState(status: string, isSpeaking: boolean, starting: boolean)
   return isSpeaking ? "speaking" : "listening";
 }
 
+/** El micrófono se cierra si la persona lo pausó o, en voz, mientras Nivi está hablando. */
+export function micShouldClose(state: {
+  readonly voice: boolean;
+  readonly isSpeaking: boolean;
+  readonly paused: boolean;
+}): boolean {
+  return state.paused || (state.voice && state.isSpeaking);
+}
+
 export function addBubble(list: readonly NiviBubble[], from: NiviBubble["from"], text: string): NiviBubble[] {
   const clean = text.trim();
   const last = list.at(-1);
@@ -37,7 +46,7 @@ export function addBubble(list: readonly NiviBubble[], from: NiviBubble["from"],
   return [...list, { id: `${list.length}-${from}`, from, text: clean }];
 }
 
-export function useNivi(openSession: () => Promise<NiviSession>) {
+function useNiviSession(openSession: () => Promise<NiviSession>) {
   const [starting, setStarting] = useState(false);
   const [mode, setMode] = useState<NiviMode>("voz");
   const [problem, setProblem] = useState<string | null>(null);
@@ -83,16 +92,33 @@ export function useNivi(openSession: () => Promise<NiviSession>) {
     setBubbles((current) => addBubble(current, "tu", text));
     conversation.sendUserMessage(text.trim());
   };
+  return { ...conversation, start, send, starting, mode, problem, bubbles, conversationId, ended };
+}
 
-  const { status, isSpeaking } = conversation;
+export function useNivi(openSession: () => Promise<NiviSession>) {
+  const session = useNiviSession(openSession);
+  const { start, send, starting, mode, problem, bubbles, conversationId, ended } = session;
+
+  const { status, isSpeaking, setMuted } = session;
+  const [paused, setPaused] = useState(false);
+  // Por turnos: mientras Nivi habla, el micrófono se cierra solo. Así no se oye a sí misma por el
+  // altavoz del teléfono ni se responde sola; al terminar, vuelve a escuchar a la persona.
+  const micClosed = micShouldClose({ voice: mode === "voz", isSpeaking, paused });
+  useEffect(() => {
+    if (status === "connected") setMuted(micClosed);
+  }, [status, micClosed, setMuted]);
   return {
+    /** Micrófono en pausa por la persona: Nivi no oye nada hasta que ella lo reactiva. */
+    muted: paused,
+    toggleMute: () => setPaused((current) => !current),
     start,
     send,
-    stop: conversation.endSession,
+    stop: session.endSession,
     mode,
     live: status === "connected" || status === "connecting",
     connected: status === "connected",
     orb: orbState(status, isSpeaking, starting),
+    voice: mode === "voz",
     starting,
     problem,
     bubbles,

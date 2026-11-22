@@ -1,8 +1,10 @@
 "use client";
 
-import { currentPosition } from "@/client/geolocation";
-import type { AttendanceInput, ContractDetail } from "@/client/worker-api";
-import { currentJob, jobStep, type JobStep, stepAction } from "@/client/worker-view";
+import { useState } from "react";
+
+import { precisePosition } from "@/client/geolocation";
+import type { AttendanceInput, ContractDetail, WorkerOffer } from "@/client/worker-api";
+import { currentJob, jobStep, type JobStep, pendingOffers, stepAction } from "@/client/worker-view";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
@@ -11,7 +13,7 @@ import { formatDay, formatTime } from "@/lib/format";
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
 import { ContractGate } from "./contract-gate";
-import { HelpLink, NextStep } from "./home-screen";
+import { HelpLink, NextStep, OfferList } from "./home-screen";
 import { useWorker } from "./worker-gate";
 
 type Mark = (simulated: boolean) => void;
@@ -32,9 +34,7 @@ export function MarkControls({ step, onMark, pending, error, canSimulate }: Mark
       <Button block disabled={pending} onClick={() => onMark(false)}>
         {pending ? "Confirmando dónde estás…" : arriving ? "Llegué a la obra" : "Marcar mi salida"}
       </Button>
-      <p className="text-sm text-muted">
-        Usamos tu ubicación solo en este momento, para confirmar que estás en la obra. No te seguimos.
-      </p>
+      <p className="text-sm text-muted">Usamos tu ubicación solo en este momento. No te seguimos.</p>
       {error ? (
         <Notice tone="alert" urgent>
           {error}
@@ -110,7 +110,7 @@ function SiteControls({ contract, refresh }: SiteControlsProps) {
   const action = useAction(async (simulated: boolean) => {
     const input: AttendanceInput = simulated
       ? { contractId: contract.id, simulated: true }
-      : { contractId: contract.id, position: await currentPosition() };
+      : { contractId: contract.id, position: await precisePosition() };
     await (leaving ? api.checkOut(input) : api.checkIn(input));
     await refresh();
   });
@@ -125,6 +125,36 @@ function SiteControls({ contract, refresh }: SiteControlsProps) {
   );
 }
 
+/**
+ * Sin trabajo activo: las ofertas se ven aquí mismo. Si no hay ninguna, se dice
+ * y se pregunta antes de llevar a la persona a otra pantalla.
+ */
+export function NoJob({ offers }: { readonly offers: readonly WorkerOffer[] }) {
+  const [asked, setAsked] = useState(false);
+  const pending = pendingOffers(offers);
+  if (pending.length > 0) return <OfferList offers={offers} />;
+  return (
+    <>
+      <Notice tone="pending">Aún no tienes un trabajo activo.</Notice>
+      {asked ? (
+        <div role="status" className="flex flex-col gap-3">
+          <p className="text-lg font-bold">No tienes ofertas por ahora. ¿Quieres ir al inicio?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <ButtonLink href="/t">Ir al inicio</ButtonLink>
+            <Button variant="outline" onClick={() => setAsked(false)}>
+              Quedarme aquí
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button variant="outline" block onClick={() => setAsked(true)}>
+          Ver mis ofertas
+        </Button>
+      )}
+    </>
+  );
+}
+
 export function SiteScreen() {
   const { offers: store } = useWorker();
   const live = useLive(store);
@@ -133,16 +163,7 @@ export function SiteScreen() {
     <>
       <h1 className="display text-3xl">Tu obra</h1>
       {live.loading ? <LoadingText>Nivi está buscando tu trabajo…</LoadingText> : null}
-      {!live.loading && !job ? (
-        <>
-          <Notice tone="pending">
-            Aún no tienes un trabajo activo. Cuando aceptes una oferta, aquí marcarás tu entrada.
-          </Notice>
-          <ButtonLink href="/t" variant="outline" block>
-            Ver mis ofertas
-          </ButtonLink>
-        </>
-      ) : null}
+      {!live.loading && !job ? <NoJob offers={live.data ?? []} /> : null}
       {job ? (
         <ContractGate key={job.contractId} contractId={job.contractId}>
           {(contract, refresh) => <SiteControls contract={contract} refresh={refresh} />}

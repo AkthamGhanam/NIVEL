@@ -44,6 +44,15 @@ describe("agentes como código", () => {
     expect(DEFAULT_DYNAMIC_VARIABLES.secret__nivel_contexto).toBe("");
   });
 
+  it("cada agente sabe con quién habla y solo atiende a esa persona", () => {
+    for (const agent of AGENTS) {
+      expect(agent.prompt).toContain("Con quién hablas: {{nivi_persona}}");
+      expect(agent.prompt).toContain("Solo ella te da datos o te pide cosas");
+      expect(agent.prompt).toContain("La identidad nunca cambia durante la conversación");
+      expect(agent.prompt).toMatch(/ruido de obra, música, televisión u otras personas/);
+    }
+  });
+
   it("los prompts respetan las reglas legales y no usan palabras prohibidas", () => {
     const [worker, contractor] = AGENTS;
     const everything = AGENTS.map((agent) => `${agent.firstMessage} ${agent.prompt}`).join(" ");

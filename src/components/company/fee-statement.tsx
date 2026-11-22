@@ -12,6 +12,7 @@ import { FEE_PAYMENT_NOTICE } from "@/lib/legal-copy";
 import {
   FEE_PAYMENT_METHODS,
   type FeePaymentMethod,
+  HIRING_FEE_USD,
   PAYMENT_METHOD_LABELS,
   PLANS,
   type PriceWithIva,
@@ -104,6 +105,61 @@ export function PlanCard({ plan }: { readonly plan: NonNullable<FeeStatement["pl
         {formatUsd(PLANS.obra.extraHireUsd)} + IVA: serían {formatUsd(plan.planObra.total)} con IVA.
       </p>
     </Card>
+  );
+}
+
+interface PlanOption {
+  readonly name: string;
+  readonly price: string;
+  readonly detail: string;
+  readonly fits: string;
+}
+
+const PLAN_OPTIONS: readonly PlanOption[] = [
+  {
+    name: "Pago por contratación",
+    price: `${formatUsd(HIRING_FEE_USD[1])} a ${formatUsd(HIRING_FEE_USD[5])} + IVA por persona`,
+    detail: "Según el nivel de quien contratas. Solo pagas cuando alguien acepta.",
+    fits: "Si contratas de vez en cuando.",
+  },
+  {
+    name: "Plan Obra",
+    price: `${formatUsd(PLANS.obra.monthlyUsd)} al mes + IVA`,
+    detail: `Incluye ${PLANS.obra.includedHires} contrataciones al mes. Cada una adicional, ${formatUsd(PLANS.obra.extraHireUsd)} + IVA.`,
+    fits: "Si armas cuadrilla todos los meses.",
+  },
+  {
+    name: "Plan Empresa",
+    price: `${formatUsd(PLANS.empresa.monthlyUsd)} al mes + IVA`,
+    detail: "Para industria y logística con contratación continua. Disponible en la siguiente fase.",
+    fits: "Si contratas 10 o más personas al mes.",
+  },
+];
+
+/** Los tres planes, con el que le conviene hoy a esta empresa marcado según sus contrataciones del mes. */
+export function PlansCard({ recommended }: { readonly recommended: "Pago por contratación" | "Plan Obra" }) {
+  return (
+    <section aria-labelledby="planes-titulo" className="flex flex-col gap-3">
+      <h2 id="planes-titulo" className="bar-title text-xl font-extrabold">
+        Cómo cobra NIVEL
+      </h2>
+      <p className="text-sm text-muted">
+        El trabajador nunca paga. El salario va directo de tu empresa a cada persona: no pasa por NIVEL.
+      </p>
+      <ul className="grid gap-3 md:grid-cols-3">
+        {PLAN_OPTIONS.map((plan) => (
+          <li key={plan.name}>
+            <Card selected={plan.name === recommended} className="flex h-full flex-col gap-1.5">
+              {plan.name === recommended ? <Tag tone="ok">Te conviene hoy</Tag> : null}
+              <h3 className="text-lg font-extrabold">{plan.name}</h3>
+              <p className="font-bold tabular-nums">{plan.price}</p>
+              <p className="text-sm text-ink-2">{plan.detail}</p>
+              <p className="mt-auto pt-1 text-sm font-semibold text-muted">{plan.fits}</p>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

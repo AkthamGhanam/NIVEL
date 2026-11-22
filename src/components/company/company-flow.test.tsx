@@ -112,7 +112,8 @@ describe("entrada del contratista", () => {
 
     expect(state.active.companyId).toBeNull();
     expect(state.activeCompany).toBeNull();
-    expect(state.personas.companies).toHaveLength(4);
+    // Una sola empresa de ejemplo: las del historial de los trabajadores no se ofrecen para entrar.
+    expect(state.personas.companies).toHaveLength(1);
     expect(create).toContain("Registrar mi empresa");
     expect(create).toContain('name="rif"');
     expect(enter).toContain("Cuentas de demostración");
@@ -178,12 +179,18 @@ describe("pedir cuadrilla y tablero en vivo", () => {
     expect(plain).toContain("Por persona $196,67");
     expect(plain).toContain("Por 3 personas $590");
     expect(plain).toContain("Estimado. Valídalo con tu contador.");
-    expect(plain).toContain("Tarifa $20 a $30");
-    expect(plain).toContain("IVA 16 % $3,20 a $4,80");
-    expect(plain).toContain("Total $23,20 a $34,80");
+    // A dónde va cada dólar: al trabajador y al Estado. Nada de eso es de NIVEL.
+    expect(plain).toContain("Va al trabajador $166,67");
+    expect(plain).toContain("Va al Estado $30");
+    expect(plain).toContain("No es una factura");
+    expect(plain).toContain("Lo único que cobra NIVEL");
+    expect(plain).toContain("Tarifa de NIVEL por contratación $20 a $30");
+    expect(plain).toContain("IVA 16 % (va al SENIAT) $3,20 a $4,80");
+    expect(plain).toContain("Total por persona $23,20 a $34,80");
+    expect(plain).toContain("Recibo de pago del trabajador");
+    expect(plain).toContain("Factura de NIVEL");
     expect(plain).toContain("Pago Móvil o transferencia");
     expect(plain).toContain("Garantía de búsqueda de 7 días");
-    expect(plain).toContain(NOT_EMPLOYER_NOTICE);
     expect(text(html(<CostPanel board={null} />))).not.toContain("Costo legal estimado");
   });
 

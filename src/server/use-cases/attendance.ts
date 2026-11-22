@@ -2,8 +2,9 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 
 import { addDays, type IsoDate, localDate } from "@/lib/dates";
 import { ensure } from "@/lib/errors";
-import { formatDay } from "@/lib/format";
-import { type GeoPoint, isInsideGeofence } from "@/lib/geo";
+import { formatDay, formatTime } from "@/lib/format";
+import { shortName } from "@/lib/matching";
+import { approximateDistance, checkArrival, type GeoFix, type GeoPoint } from "@/lib/geo";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
@@ -11,6 +12,7 @@ import { attendance, contracts, jobRequests, workers } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { isDemoFlagOn } from "./demo-state";
 import { logEvent } from "./events";
+import { notifyByTelegram } from "./telegram-notify";
 
 /** Radio de la obra dentro del cual se puede marcar entrada o salida (regla legal 8.7). */
 export const SITE_GEOFENCE_METERS = 120;
@@ -19,8 +21,8 @@ export type AttendanceRow = typeof attendance.$inferSelect;
 
 export interface AttendanceMark {
   readonly contractId: string;
-  /** Posición del teléfono al marcar. No se guarda: solo se compara con la geocerca. */
-  readonly position?: GeoPoint | undefined;
+  /** Posición del teléfono al marcar, con su margen de error. No se guarda: solo se compara con la geocerca. */
+  readonly position?: GeoFix | undefined;
   /**
    * Control de demo "Simular que estoy en la obra": omite el GPS y, si la obra aún
    * no empieza, usa su primer día. Solo funciona con la simulación activada y deja nota.
@@ -49,10 +51,17 @@ async function loadActiveContract(context: AppContext, actor: Actor, contractId:
   return row;
 }
 
-function assertInsideSite(position: GeoPoint | undefined, site: GeoPoint): void {
+function assertInsideSite(position: GeoFix | undefined, site: GeoPoint): void {
   ensure(position !== undefined, "Necesitamos tu ubicación solo para confirmar que estás en la obra.");
-  const inside = isInsideGeofence(position, { center: site, radiusMeters: SITE_GEOFENCE_METERS });
-  ensure(inside, "Estás fuera de la obra. Acércate a la entrada para marcar.");
+  const { verdict, distanceM } = checkArrival(position, { center: site, radiusMeters: SITE_GEOFENCE_METERS });
+  ensure(
+    verdict !== "senal_debil",
+    "La señal de ubicación está débil. Sal a un lugar abierto, espera unos segundos y vuelve a marcar.",
+  );
+  ensure(
+    verdict === "dentro",
+    `Estás a ${approximateDistance(distanceM)} de la obra. Acércate a la entrada para marcar.`,
+  );
 }
 
 interface WorkDay {
@@ -117,6 +126,15 @@ export async function checkIn(
     label: simulated ? "Entrada a la obra (ubicación simulada)" : "Entrada a la obra dentro de la geocerca",
     detail: { contractId: contract.id },
   });
+  await notifyByTelegram(
+    context,
+    { role: "company", subjectId: contract.companyId },
+    {
+      text:
+        `${shortName(workerName)} llegó a la obra a las ${formatTime(now.toISOString())}. ` +
+        (simulated ? "Ubicación simulada (demo)." : "Ubicación verificada en la obra."),
+    },
+  );
   return row;
 }
 

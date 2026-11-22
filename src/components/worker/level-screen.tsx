@@ -10,6 +10,7 @@ import { levelFacts } from "@/client/worker-view";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
+import { LevelRings } from "@/components/ui/rings";
 import { formatUsd } from "@/lib/format";
 import { REFERENCE_BAND_NOTICE } from "@/lib/legal-copy";
 
@@ -26,16 +27,18 @@ interface LevelViewProps {
 export function LevelView({ level, celebrate }: LevelViewProps) {
   return (
     <>
-      <div className="flex flex-col items-center gap-2 rounded-card bg-ink px-4 py-8 text-center text-white">
+      <div className="console flex flex-col items-center gap-4 rounded-panel px-4 py-8 text-center">
         {celebrate ? (
-          <p role="status" className="display animate-enter text-3xl text-brand-on-ink">
+          <p role="status" className="display animate-enter text-3xl text-signal">
             ¡Subiste de nivel!
           </p>
         ) : null}
-        <p className="eyebrow text-muted-on-ink">Tu nivel</p>
+        <LevelRings level={level.level} className="w-56 sm:w-64">
+          <p className="eyebrow text-muted-on-ink">Tu nivel</p>
+        </LevelRings>
         <h1 className="display text-5xl">
           Nivel {level.level}
-          <span className="mt-1 block text-3xl text-brand-on-ink">{level.levelName}</span>
+          <span className="mt-1 block text-3xl text-signal">{level.levelName}</span>
         </h1>
       </div>
       <Card>

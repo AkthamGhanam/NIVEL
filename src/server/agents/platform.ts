@@ -1,6 +1,7 @@
 import {
   type AgentDefinition,
-  DEFAULT_DYNAMIC_VARIABLES,
+  dynamicDefaults,
+  FIRST_MESSAGE_TEMPLATE,
   TOOL_HEADERS,
   type ToolDefinition,
   type ToolParameter,
@@ -101,9 +102,9 @@ export function agentPayload(agent: AgentDefinition, target: AgentTarget): JsonS
     tags: [AGENT_TAG, agent.key],
     conversation_config: {
       agent: {
-        first_message: agent.firstMessage,
+        first_message: FIRST_MESSAGE_TEMPLATE,
         language: agent.language,
-        dynamic_variables: { dynamic_variable_placeholders: { ...DEFAULT_DYNAMIC_VARIABLES } },
+        dynamic_variables: { dynamic_variable_placeholders: { ...dynamicDefaults(agent) } },
         prompt: {
           prompt: agent.prompt,
           llm: AGENT_LLM,
