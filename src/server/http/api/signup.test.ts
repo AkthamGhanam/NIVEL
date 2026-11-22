@@ -163,4 +163,18 @@ describe("registro de empresa", () => {
     });
     expect(state.personas.companies).toHaveLength(4);
   });
+
+  it("borrar todo también se lleva a las empresas y personas reales", async () => {
+    const client = newClient();
+    await client.post("/api/companies/register", {
+      body: { ...COMPANY, rif: "J-48888888-2", name: "Se Va C.A." },
+    });
+
+    await newClient().post("/api/demo/reset?all=1", { as: "admin" });
+
+    const state = await client.get<DemoState>("/api/state");
+    expect(state.activeCompany).toBeNull();
+    expect(state.personas.companies).toHaveLength(4);
+    expect(state.personas.workers.length).toBeGreaterThan(0);
+  });
 });

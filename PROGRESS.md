@@ -308,7 +308,9 @@ Pendiente de estas vistas:
 - [x] Las apps dejan de verse como presentación y siguen en `/t` (trabajador) y `/c` (contratista);
       `/trabajador` y `/contratista` redirigen ahí. La portada enlaza a cada app
 - [x] Trabajador sin marco de teléfono: menú lateral oscuro en escritorio, encabezado y barra inferior en el
-      teléfono. El marco queda solo para el Modo Jurado y `/estilo`
+      teléfono. El marco queda solo en `/estilo`
+- [x] **Sin Modo Jurado**: se quita `/demo`; la demo se presenta directo en `/t` y `/c`. Reiniciar datos (conservando
+      o borrando también los registros reales), el bot y "avanzar la obra" pasan a `/admin/datos`
 - [x] Acceso del trabajador: crear el perfil **hablando con Nivi** (`@elevenlabs/react`, WebRTC con el token y
       el contexto firmado de `/api/el/token`; la pantalla reclama el perfil por la conversación) o **escribiendo**
       (`POST /api/workers/register`). Las cuentas de prueba quedan plegadas en "¿Vienes a probar NIVEL?"

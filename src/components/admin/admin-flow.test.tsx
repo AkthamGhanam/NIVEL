@@ -13,6 +13,7 @@ import { createBrowserFetch } from "@/server/testing/browser-fetch";
 import { type InProcessApi, startInProcessApi } from "@/server/testing/in-process-api";
 
 import { AdminShell } from "./admin-shell";
+import { ConfirmButton, resetNotice } from "./data-screen";
 import { IncomeTable, LevelDistribution, MetricsView } from "./metrics-view";
 import { HUMAN_REVIEW_RULE, ReportCard, ReviewQueue } from "./review-queue";
 
@@ -78,9 +79,34 @@ describe("acceso del equipo", () => {
     expect(markup).toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin\/revision"/);
     expect(markup).toMatch(/<a[^>]*href="\/admin"[^>]*>Métricas<\/a>/);
     expect(markup).not.toMatch(/<a[^>]*aria-current="page"[^>]*href="\/admin"[^>]*>Métricas/);
-    expect(markup).toMatch(/<a[^>]*href="\/demo"[^>]*>Modo Jurado<\/a>/);
+    expect(markup).toMatch(/<a[^>]*href="\/admin\/datos"[^>]*>Datos de la demo<\/a>/);
+    expect(markup).not.toContain("Modo Jurado");
     expect(markup.match(/<main/g)).toHaveLength(1);
     expect(markup).toContain("Demo · nombres, empresas y cifras de ejemplo");
+  });
+});
+
+describe("datos de la demo", () => {
+  it("borrar datos pide confirmar y dice qué pasará con los registros reales", () => {
+    const markup = html(
+      <ConfirmButton
+        label="Borrar todo y empezar de cero"
+        warning="No se puede deshacer."
+        confirmLabel="Sí, borrar todo"
+        danger
+        pending={false}
+        onConfirm={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain(">Borrar todo y empezar de cero<");
+    expect(markup).not.toContain("Sí, borrar todo");
+    expect(resetNotice({ insertedRows: 718, keptRealWorkers: 3 }, false)).toContain(
+      "se conservaron 3 perfiles reales",
+    );
+    expect(resetNotice({ insertedRows: 718, keptRealWorkers: 0 }, true)).toContain(
+      "No queda ningún registro real",
+    );
   });
 });
 
