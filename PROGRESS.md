@@ -344,7 +344,7 @@ Pendiente de las notas de voz:
       para no abrir la CSP a scripts `blob:`; una prueba avisa si dejan de coincidir con el paquete
 - [x] CSP: `connect-src` permite solo la propia app y `*.elevenlabs.io` (señalización y WebRTC)
 - [x] La app con sesión pasa al grupo de rutas `src/app/t/(app)`; las direcciones no cambian
-- [x] 696 pruebas; cobertura de líneas 99 %
+- [x] 698 pruebas; cobertura de líneas 99 %
 
 Recorrido en Chromium (1440 px y 390 px): hoja de permiso, estados de Nivi, selector y panel de la empresa,
 axe sin hallazgos y sin desbordes. Se comprobó en el navegador que el worklet propio carga bajo la CSP real
