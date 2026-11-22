@@ -2,6 +2,7 @@ import { randomInt, timingSafeEqual } from "node:crypto";
 
 import { and, asc, eq, sql } from "drizzle-orm";
 
+import { NOT_EMPLOYER_NOTICE } from "@/lib/legal-copy";
 import { round2 } from "@/lib/money";
 
 import { type Actor, requireRole } from "../actor";
@@ -10,8 +11,7 @@ import { attendance, companies, contracts, payments } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { logEvent } from "./events";
 
-export const NOT_EMPLOYER_NOTICE =
-  "Contrato directo empresa–trabajador. NIVEL es la plataforma, no el patrono.";
+export { NOT_EMPLOYER_NOTICE };
 
 const OTP_DIGITS = 6;
 const MAX_OTP_ATTEMPTS = 5;

@@ -22,7 +22,7 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.{ts,tsx}"],
     rules: { "max-lines-per-function": "off" },
   },
   globalIgnores([".next/**", "out/**", "build/**", "coverage/**", "next-env.d.ts"]),

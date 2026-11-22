@@ -1,21 +1,125 @@
 @import "tailwindcss";
 
-/* Tokens de la identidad Bytes (docs/spec.md, sección 11). El sistema visual completo llega en la fase 6. */
+/*
+ * Sistema visual de NIVEL con la identidad de Bytes (docs/spec.md, sección 11).
+ * Los colores de texto cumplen contraste AA sobre su fondo; el ámbar del manual
+ * (#A86A00) se oscurece a #8A5600 porque sobre su fondo claro no llegaba a 4,5:1.
+ */
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
 @theme {
   --color-brand: #19510a;
   --color-brand-2: #2c6e1b;
+  --color-brand-tint: #e6efe2;
+  --color-brand-tint-2: #cfe0c8;
+  --color-brand-on-ink: #9fd08a;
   --color-ink: #101820;
+  --color-ink-2: #2a333c;
   --color-muted: #5e6872;
+  --color-muted-on-ink: #aeb7c0;
+  --color-line: #d7d7d6;
+  --color-line-2: #ededec;
   --color-surface: #ffffff;
+  --color-canvas: #f6f6f5;
+  --color-amber: #8a5600;
+  --color-amber-bg: #fff3d6;
+  --color-danger: #b42318;
+  --color-danger-bg: #fde8e6;
+  --color-danger-line: #f3c6c1;
+
+  --radius-card: 14px;
+  --radius-control: 12px;
+  --radius-chip: 6px;
+
+  --shadow-float: 0 24px 50px rgb(16 24 32 / 0.18);
+  --shadow-phone: 0 34px 70px rgb(16 24 32 / 0.28);
+
+  --animate-orb-ring: orb-ring 1.8s ease-out infinite;
+  --animate-enter: enter 200ms ease-out both;
+
+  @keyframes orb-ring {
+    0% {
+      transform: scale(0.72);
+      opacity: 0.55;
+    }
+    100% {
+      transform: scale(1.25);
+      opacity: 0;
+    }
+  }
+
+  @keyframes enter {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
-body {
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font-family:
-    system-ui,
-    -apple-system,
-    "Segoe UI",
-    Roboto,
-    sans-serif;
+/* Titulares: Inter 900 itálica, como pide el manual de marca. */
+@utility display {
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  line-height: 1.04;
+}
+
+/* Etiquetas: mayúsculas pequeñas con tracking ancho. */
+@utility eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Barra verde que precede a un título de sección. */
+@utility bar-title {
+  &::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 0.78em;
+    margin-right: 12px;
+    background: var(--color-brand);
+    vertical-align: -0.02em;
+  }
+}
+
+@layer base {
+  body {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  /* El foco siempre se ve, también sobre fondos verdes u oscuros. */
+  :focus-visible {
+    outline: 3px solid var(--color-brand-2);
+    outline-offset: 2px;
+  }
+
+  .on-dark :focus-visible {
+    outline-color: var(--color-brand-on-ink);
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
