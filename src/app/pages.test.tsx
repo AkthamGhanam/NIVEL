@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import type { ReactElement } from "react";
@@ -111,5 +111,33 @@ describe("textos de toda la interfaz", () => {
 
     expect(files.length).toBeGreaterThan(10);
     expect(offenders).toEqual([]);
+  });
+});
+
+const IMPORT_PATTERN = /import\s+(type\s+)?\{([^}]*)\}\s+from\s+"(@\/[^"]+)"/g;
+const isClientModule = (file: string) => /^\s*"use client";/.test(readFileSync(file, "utf8"));
+
+/** Nombres con minúscula inicial que una página del servidor importa de un módulo de cliente. */
+function clientFunctionsUsedOnServer(file: string): string[] {
+  const source = readFileSync(file, "utf8");
+  if (isClientModule(file)) return [];
+  return [...source.matchAll(IMPORT_PATTERN)].flatMap(([, typeOnly, names = "", specifier = ""]) => {
+    const target = `${specifier.replace("@/", "src/")}.tsx`;
+    if (typeOnly || !existsSync(target) || !isClientModule(target)) return [];
+    return names
+      .split(",")
+      .map((name) => name.trim())
+      .filter((name) => name !== "" && !name.startsWith("type ") && !/^[A-Z]/.test(name))
+      .map((name) => `${file}: ${name} de ${specifier}`);
+  });
+}
+
+describe("frontera entre servidor y cliente", () => {
+  it("una página del servidor solo toma componentes de un módulo de cliente, nunca funciones", () => {
+    // Llamar en el servidor una función de un módulo "use client" rompe la página al abrirla.
+    const pages = sourceFiles(join("src", "app"));
+
+    expect(pages.length).toBeGreaterThan(15);
+    expect(pages.flatMap(clientFunctionsUsedOnServer)).toEqual([]);
   });
 });

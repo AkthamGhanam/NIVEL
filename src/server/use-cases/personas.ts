@@ -2,6 +2,7 @@ import { and, asc, eq, isNull } from "drizzle-orm";
 
 import type { Actor, Sessions } from "../actor";
 import type { AppContext } from "../context";
+import { IDS } from "../db/seed/cast";
 import { academies, companies, workers } from "../db/schema";
 import { ForbiddenError, NotFoundError } from "../errors";
 import { isDemoFlagOn } from "./demo-state";
@@ -41,6 +42,21 @@ export interface DemoState {
   readonly flags: { readonly bot: boolean; readonly simulation: boolean };
 }
 
+/** Protagonistas del guion de la demo, en el orden en que aparecen. */
+const STARS: readonly string[] = [IDS.carlos, IDS.rafael, IDS.jose, IDS.luis, IDS.andres];
+
+/** En el selector van primero los protagonistas; el resto queda por nombre. */
+function starsFirst<Row extends { readonly id: string }>(rows: readonly Row[]): Row[] {
+  const rank = (row: Row) => {
+    const position = STARS.indexOf(row.id);
+    return position === -1 ? STARS.length : position;
+  };
+  return rows
+    .map((row, index) => ({ row, index }))
+    .sort((a, b) => rank(a.row) - rank(b.row) || a.index - b.index)
+    .map(({ row }) => row);
+}
+
 export async function getDemoState(context: AppContext, sessions: Sessions): Promise<DemoState> {
   const [workerRows, companyRows, academyRows, bot, simulation] = await Promise.all([
     context.db
@@ -53,7 +69,7 @@ export async function getDemoState(context: AppContext, sessions: Sessions): Pro
       })
       .from(workers)
       .where(and(eq(workers.isReal, false), isNull(workers.deletedAt)))
-      .orderBy(asc(workers.id)),
+      .orderBy(asc(workers.name)),
     context.db
       .select({
         id: companies.id,
@@ -70,7 +86,7 @@ export async function getDemoState(context: AppContext, sessions: Sessions): Pro
   ]);
   const { worker, company, academy, admin } = sessions;
   return {
-    personas: { workers: workerRows, companies: companyRows, academies: academyRows },
+    personas: { workers: starsFirst(workerRows), companies: companyRows, academies: academyRows },
     active: {
       workerId: worker?.role === "worker" ? worker.workerId : null,
       companyId: company?.role === "company" ? company.companyId : null,

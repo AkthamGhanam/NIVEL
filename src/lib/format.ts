@@ -61,6 +61,12 @@ export function formatDateTime(iso: string, timeZone: string = DEMO_TIME_ZONE): 
   return `${formatDay(localDate(new Date(iso), timeZone))}, ${formatTime(iso, timeZone)}`;
 }
 
+/** Duración de un audio: 200 segundos son "3:20 min". */
+export function formatDuration(seconds: number): string {
+  const whole = Math.max(0, Math.round(seconds));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")} min`;
+}
+
 /** "1 día" o "5 días": concordancia simple para contadores. */
 export function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;

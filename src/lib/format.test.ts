@@ -4,6 +4,7 @@ import {
   formatBs,
   formatDateTime,
   formatDay,
+  formatDuration,
   formatKm,
   formatRate,
   formatTime,
@@ -41,6 +42,13 @@ describe("formato para la interfaz", () => {
   it("fecha y hora juntas usan el día de Caracas, no el de UTC", () => {
     expect(formatDateTime("2026-11-24T19:30:00.000Z")).toBe("mar 24 nov, 3:30 p. m.");
     expect(formatDateTime("2026-11-25T02:15:00.000Z")).toBe("mar 24 nov, 10:15 p. m.");
+  });
+
+  it("la duración de un audio se dice en minutos y segundos", () => {
+    expect(formatDuration(200)).toBe("3:20 min");
+    expect(formatDuration(59.6)).toBe("1:00 min");
+    expect(formatDuration(5)).toBe("0:05 min");
+    expect(formatDuration(-3)).toBe("0:00 min");
   });
 
   it("plurales e iniciales", () => {

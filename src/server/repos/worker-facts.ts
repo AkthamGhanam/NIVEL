@@ -1,4 +1,4 @@
-import { and, count, countDistinct, eq, inArray, isNotNull, isNull, or, sql, sum } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, isNotNull, isNull, sql, sum } from "drizzle-orm";
 
 import { addDays, type IsoDate } from "@/lib/dates";
 import type { Level, LevelInput, PrivateRating } from "@/lib/level";
@@ -241,7 +241,8 @@ export async function loadWorkerFacts(db: Database, filter: FactsFilter = {}): P
       ? and(
           isNull(workers.deletedAt),
           eq(workers.openToWork, true),
-          or(eq(workers.isReal, false), isNotNull(workers.consentShareProfileAt)),
+          // Sin el permiso "mostrar mi perfil" nadie aparece en una búsqueda, tampoco en la demo.
+          isNotNull(workers.consentShareProfileAt),
         )
       : undefined,
   ];

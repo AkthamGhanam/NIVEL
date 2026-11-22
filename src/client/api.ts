@@ -119,5 +119,7 @@ export const apiRequest: ApiRequest = (path, options) => createApiRequest(fetch)
 
 /** Mensaje para mostrar, venga el error de donde venga. */
 export function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : UNEXPECTED_MESSAGE;
+  // Los errores propios del cliente (API, ubicación) ya traen un texto pensado para la persona.
+  const friendly = error instanceof ApiError || (error instanceof Error && error.name === "LocationError");
+  return friendly ? (error as Error).message : UNEXPECTED_MESSAGE;
 }

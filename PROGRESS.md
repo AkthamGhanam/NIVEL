@@ -194,6 +194,52 @@ Pendiente de esta vista:
   ya se actualiza solo cuando el agente crea la solicitud, porque consulta al servidor.
 - Sin probar en Safari ni en un teléfono real.
 
+## Fase 8 · App del trabajador (`/t`) — lista sin la voz (falta `ELEVENLABS_API_KEY`)
+
+- [x] Entrada de la demo: marco de teléfono en pantallas grandes y pantalla completa en un teléfono; el
+      selector pone primero a los protagonistas (Carlos, Rafael, José, Luis, Andrés)
+- [x] `/t`: nivel con lo que falta para el siguiente, interruptor "Abierto a trabajar", el trabajo en curso
+      con su siguiente paso y las ofertas, que llegan solas (se consulta cada 3 s)
+- [x] `/t/oferta/[id]`: empresa, verificación, puntualidad de pago, trabajo y pago; aceptar o rechazar
+- [x] `/t/contrato/[id]`: resumen del contrato directo y firma con código de un solo uso (SMS simulado)
+- [x] `/t/obra`: "Llegué a la obra" y "Marcar mi salida" con la ubicación pedida solo al tocar el botón;
+      "Simular que estoy en la obra" existe solo con `?demo=1` y si el servidor lo permite
+- [x] `/t/fin/[contractId]`: "¿Recibiste tu pago?" con el recibo, salida a Ayuda si no llegó, y calificación
+      privada a la empresa; al terminar se recalcula el nivel y se celebra en `/t/nivel?subiste=1`
+- [x] `/t/nivel`, `/t/aprender` (cursos con el IVA aparte, lecciones, constancias y prueba práctica),
+      `/t/ayuda` (reporte que siempre va a revisión humana)
+- [x] `/t/mis-datos`: ver, corregir, descargar y borrar; los cinco permisos, cada uno con su interruptor; y
+      las calificaciones privadas recibidas
+- [x] Una prueba recorre el camino dorado de Carlos contra las rutas reales, y otra vigila que ninguna
+      página del servidor llame funciones de un módulo de cliente
+- [x] 529 pruebas; cobertura de líneas 99 %
+
+Cambios en el servidor que salieron de esta fase:
+
+- Retirar el permiso "mostrar mi perfil" saca de las búsquedas a cualquier persona, también a las de
+  ejemplo. Antes solo valía para las personas reales.
+- El contrato dice si quien lo consulta ya envió su calificación (`ratedByMe`).
+- El aviso de fecha al marcar entrada se lee "La obra empieza el mar 24 nov.".
+
+Recorrido completo en un navegador real (Chromium, 390 px y 1440 px) sobre el servidor de producción, con
+la empresa actuando por API: 24 estados de pantalla, axe sin hallazgos WCAG 2.1 A y AA, sin desbordes,
+objetivos táctiles de 44 px o más y cero errores de consola. Sin permiso de ubicación la app lo explica y
+no marca. Fuera del Modo Jurado no aparece el botón de simular. Al borrar la cuenta se cierra la sesión.
+Esa revisión se corre a mano; todavía no está en CI. Encontró tres fallos que las pruebas no veían y ya
+están corregidos: una página que no abría (`/t/ayuda`), el aviso "Guardamos tus cambios" que se perdía y
+contenido fuera de las regiones de la página.
+
+Pendiente de esta app:
+
+- Todo lo que usa ElevenLabs: `NiviVoice` (hablar con Nivi), `/t/registro` por voz con "Prefiero escribir",
+  nota de voz de las ofertas, reporte por nota de voz y el sonido al subir de nivel. Tampoco existe todavía
+  un registro por formulario: hoy solo se entra como persona de ejemplo.
+- Si se borra o se reinicia la demo con una sesión abierta de una persona que ya no existe, el inicio
+  muestra un aviso de error hasta tocar "cambiar".
+- La ubicación real no se pudo probar en un teléfono dentro de la obra: solo el rechazo sin permiso, y en
+  pruebas del servidor las posiciones dentro y fuera de la geocerca.
+- Sin probar en Safari ni en un teléfono real.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.
