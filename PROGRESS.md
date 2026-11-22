@@ -281,8 +281,10 @@ Pendiente de estas vistas:
 
 ## HUMANO
 
-- HUMANO: crear el proyecto en Vercel conectado a ese repositorio.
+- [x] Proyecto en Vercel conectado al repositorio. Producción: https://nivel-wheat.vercel.app
 - HUMANO: confirmar créditos de ElevenLabs (Agents, TTS, STT, Sound Effects).
 - HUMANO: crear la base en Turso y poner en Vercel `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `SESSION_SECRET`,
-  `DEMO_RESET_KEY`, `TOOL_SECRET` y `NEXT_PUBLIC_APP_URL` (ver `.env.example`).
+  `DEMO_RESET_KEY` y `TOOL_SECRET` (ver `.env.example`).
+- HUMANO: poner en Vercel `NEXT_PUBLIC_APP_URL=https://nivel-wheat.vercel.app`. De esa variable dependen las
+  cookies seguras, el QR del Modo Jurado y la dirección a la que llaman las herramientas de los agentes.
 - HUMANO: poner `ELEVENLABS_API_KEY` en Vercel y en el entorno de trabajo para publicar los agentes (fase 5).
