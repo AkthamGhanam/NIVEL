@@ -25,14 +25,14 @@ const MAX_CONFIRMATIONS = 2;
 
 const note = (message: string) => console.warn(message);
 
-async function registrationContext(appUrl: string): Promise<string> {
+async function registrationContext(appUrl: string): Promise<Record<string, string>> {
   const url = new URL("/api/el/token?agent=worker&registro=1&consent=1", appUrl);
   const response = await fetch(url, { signal: AbortSignal.timeout(15_000) });
   if (!response.ok) throw new Error(`La app respondió ${response.status} en /api/el/token`);
-  const data = (await response.json()) as { dynamicVariables?: { secret__nivel_contexto?: string } };
-  const context = data.dynamicVariables?.secret__nivel_contexto;
-  if (!context) throw new Error("La app no devolvió el contexto firmado");
-  return context;
+  const data = (await response.json()) as { dynamicVariables?: Record<string, string> };
+  if (!data.dynamicVariables?.secret__nivel_contexto)
+    throw new Error("La app no devolvió el contexto firmado");
+  return data.dynamicVariables;
 }
 
 async function profileExists(appUrl: string, conversationId: string): Promise<boolean> {
@@ -51,7 +51,7 @@ async function main(): Promise<void> {
   const messages = [PERSONA, ...Array.from({ length: MAX_CONFIRMATIONS }, () => CONFIRMATION)];
   const { conversationId, said } = await admin.chat({
     agentId,
-    dynamicVariables: { secret__nivel_contexto: context },
+    dynamicVariables: context,
     messages,
   });
   note(`2/3 Conversación ${conversationId}. Nivi dijo:\n${said.map((line) => `   · ${line}`).join("\n")}`);

@@ -11,7 +11,11 @@ import { z } from "zod";
 
 const MIN_SECRET_LENGTH = 32;
 
-const secret = z.string().min(MIN_SECRET_LENGTH, `debe tener al menos ${MIN_SECRET_LENGTH} caracteres`);
+const secret = z
+  .string()
+  .trim()
+  .min(MIN_SECRET_LENGTH, `debe tener al menos ${MIN_SECRET_LENGTH} caracteres`);
+const firstToken = z.string().transform((value) => value.trim().split(/\s+/)[0] ?? "");
 const nonEmpty = z.string().trim().min(1);
 
 const serverEnvSchema = z.object({
@@ -20,7 +24,7 @@ const serverEnvSchema = z.object({
   EL_AGENT_WORKER_ID: nonEmpty.optional(),
   EL_AGENT_CONTRACTOR_ID: nonEmpty.optional(),
   EL_VOICE_ID: nonEmpty.optional(),
-  TOOL_SECRET: secret.optional(),
+  TOOL_SECRET: firstToken.pipe(secret).optional(),
   DEMO_RESET_KEY: secret.optional(),
   SESSION_SECRET: secret.optional(),
   TURSO_DATABASE_URL: z
@@ -31,6 +35,10 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url({ protocol: /^https?$/ }).optional(),
   BLOB_READ_WRITE_TOKEN: nonEmpty.optional(),
   ANTHROPIC_API_KEY: nonEmpty.optional(),
+  /** Token del bot que entrega @BotFather. Solo cuenta su primera palabra, por si se pegó texto de más. */
+  TELEGRAM_BOT_TOKEN: firstToken
+    .pipe(z.string().regex(/^\d+:[A-Za-z0-9_-]{30,}$/, "no tiene la forma de un token de bot"))
+    .optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

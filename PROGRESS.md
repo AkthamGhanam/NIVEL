@@ -400,9 +400,9 @@ Pendiente:
 - [x] **Subir de nivel** (`/t/nivel?subiste=1`): suena el efecto y la felicitación de Nivi, que también
       queda escrita con «Escuchar la felicitación». La de Carlos a Nivel 3 usa el audio pregenerado; para
       cualquier otra persona la frase se pide al TTS. Al salir de la pantalla se calla
-- [x] 728 pruebas; cobertura de líneas 99 %
+- [x] 775 pruebas tras unir con main (PR #32); cobertura de líneas 96 %
 
-Recorrido en Chromium, ya unido con main tras el PR #26: chequeo previo en `/admin/chequeo` (1440 px y
+Recorrido en Chromium, ya unido con main tras el PR #32: chequeo previo en `/admin/chequeo` (1440 px y
 390 px) y plan B completo en `/c?planb=1` (saludo, solicitud, invitaciones, cierre y terminar); axe sin
 hallazgos en lo de esta fase, sin desbordes, cero tokens pedidos y cero peticiones fuera de la app durante el
 plan B. Los recorridos completos de la empresa y del trabajador no se repitieron tras unir con main.
@@ -443,3 +443,19 @@ Pendiente del plan B y del chequeo:
   `/api/el/token` falla y no se pueden publicar los agentes.
 - HUMANO: con la URL de Vercel lista, correr `npm run agents:setup` (con `NEXT_PUBLIC_APP_URL` y `TOOL_SECRET`
   iguales a los de Vercel), poner en Vercel los `EL_AGENT_*_ID` que imprime y correr `npm run voice:check`.
+
+## Fase 12 · Ubicación de la obra, identidad en Nivi, Telegram y costos claros — lista en código, sin probar con servicios reales
+
+- [x] El contratista fija la obra con su ubicación (formulario, `/c/obra` o enviándola al bot). La llegada se
+      verifica contra ese punto con el margen de error del GPS a favor de la persona (tope 80 m); con señal
+      inservible se pide otra lectura en vez de decir "estás fuera". `POST /api/requests/:id/site`
+- [x] Nivi recibe del servidor con quién habla (`nivi_saludo`, `nivi_persona`) y reglas para atender solo a
+      esa persona; botón para pausar el micrófono. Hay que volver a publicar los agentes desde `/admin/datos`
+- [x] Bot de Telegram: conectar el chat desde la app con un código de un solo uso, ofertas con botones,
+      código de firma, pedir personal paso a paso, cuadrilla, ubicación de la obra y avisos de aceptación y
+      llegada. `TELEGRAM_BOT_TOKEN` + botón "Conectar el bot de Telegram" en `/admin/datos`
+- [x] Panel de costos: a dónde va cada dólar (trabajador, Estado, NIVEL), comprobantes y los tres planes
+- [x] Términos y privacidad con las bases legales de la revisión
+- [x] 692 pruebas
+
+Sin probar: el bot contra Telegram real, Nivi con las variables nuevas en ElevenLabs y el GPS en un teléfono.

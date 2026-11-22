@@ -1,4 +1,5 @@
 // Todo lo que la pantalla del contratista le pide al servidor, con sus tipos.
+import type { GeoFix } from "@/lib/geo";
 import type { FeePaymentMethod } from "@/lib/pricing";
 import type { FeeStatement } from "@/server/use-cases/billing";
 import type { PaymentRow, Receipt } from "@/server/use-cases/payments";
@@ -52,6 +53,10 @@ export function createCompanyApi(request: ApiRequest) {
     createRequest: (input: RequestInput) => post<JobRequestCreated>("/api/requests", input),
     voice: () =>
       get<{ token: string; dynamicVariables: Record<string, string> }>("/api/el/token?agent=contractor"),
+
+    /** "La obra es aquí": fija el punto exacto de la obra con la ubicación del contratista. */
+    pinSite: (requestId: string, site: GeoFix) =>
+      post<{ request: RequestBoard["request"] }>(`/api/requests/${segment(requestId)}/site`, { site }),
 
     invite: async (requestId: string, choice: InviteSelection) =>
       (await post<{ invitations: InvitationSent[] }>(`/api/requests/${segment(requestId)}/invite`, choice))

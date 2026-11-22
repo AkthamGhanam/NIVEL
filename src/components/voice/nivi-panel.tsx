@@ -5,6 +5,7 @@ import { ConversationProvider } from "@elevenlabs/react";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { MicIcon, MicOffIcon } from "@/components/ui/icons";
 import { Notice } from "@/components/ui/notice";
 import { VoiceOrb } from "@/components/ui/voice-orb";
 import { cx } from "@/lib/cx";
@@ -74,6 +75,28 @@ function MessageBox({ nivi }: { readonly nivi: Nivi }) {
   );
 }
 
+/** Con mucho ruido alrededor, la persona pausa su micrófono y Nivi solo la oye cuando ella quiere. */
+export function MuteControl({ nivi }: { readonly nivi: Pick<Nivi, "muted" | "toggleMute"> }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Button
+        variant={nivi.muted ? "primary" : "outline"}
+        block
+        aria-pressed={nivi.muted}
+        onClick={nivi.toggleMute}
+      >
+        {nivi.muted ? <MicIcon size={22} /> : <MicOffIcon size={22} />}
+        {nivi.muted ? "Volver a hablar" : "Pausar mi micrófono"}
+      </Button>
+      <p role="status" className="text-sm text-muted">
+        {nivi.muted
+          ? "Micrófono en pausa: Nivi no oye nada de lo que pasa alrededor."
+          : "¿Mucho ruido cerca? Acerca el teléfono o pausa el micrófono mientras no hablas."}
+      </p>
+    </div>
+  );
+}
+
 function StartButtons({ nivi, locked }: { readonly nivi: Nivi; readonly locked: boolean }) {
   return (
     <div className="grid gap-2 sm:grid-cols-2">
@@ -112,6 +135,7 @@ export function NiviPanel({ nivi, locked = false, before, children }: NiviPanelP
       {children}
       {nivi.live ? (
         <>
+          {nivi.voice && nivi.connected ? <MuteControl nivi={nivi} /> : null}
           <MessageBox nivi={nivi} />
           <Button variant="outline" block onClick={nivi.stop}>
             Terminar la conversación

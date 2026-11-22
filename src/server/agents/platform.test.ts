@@ -77,9 +77,16 @@ describe("agentPayload", () => {
     expect(payload.name).toBe("Nivi");
     expect(payload.tags).toEqual([AGENT_TAG, "worker"]);
     expect(payload.conversation_config.agent).toMatchObject({
-      first_message: worker.firstMessage,
+      // El saludo es una variable: el servidor lo llena con el nombre de quien tiene la sesión.
+      first_message: "{{nivi_saludo}}",
       language: "es",
-      dynamic_variables: { dynamic_variable_placeholders: { secret__nivel_contexto: "" } },
+      dynamic_variables: {
+        dynamic_variable_placeholders: {
+          secret__nivel_contexto: "",
+          nivi_saludo: worker.firstMessage,
+          nivi_persona: "Una persona nueva: todavía no tiene perfil en NIVEL.",
+        },
+      },
     });
     expect(payload.conversation_config.agent.prompt).toMatchObject({
       prompt: worker.prompt,

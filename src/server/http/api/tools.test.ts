@@ -423,7 +423,10 @@ describe("bitácora y servicio de voz", () => {
     const { events } = await team.get<{
       events: Array<{ type: string; product: string; latencyMs: number | null }>;
     }>("/api/events");
-    const toolEvents = events.filter((event) => event.type.startsWith("herramienta_"));
+    const toolEvents = events.filter(
+      (event) => event.type.startsWith("herramienta_") && !/rechazada|fallo|llegada/.test(event.type),
+    );
+    expect(events.some((event) => event.type === "herramienta_rechazada")).toBe(true);
     const serialized = JSON.stringify(events);
 
     expect(toolEvents.length).toBeGreaterThan(5);

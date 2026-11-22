@@ -13,6 +13,7 @@ import { LoadingText, NotEmployerNotice, Notice } from "./notice";
 import { PhoneFrame } from "./phone-frame";
 import { PriceBreakdown } from "./price";
 import { Progress } from "./progress";
+import { LevelRings, SeatRing } from "./rings";
 import { LevelBadge, Tag } from "./tag";
 import { VoiceOrb } from "./voice-orb";
 
@@ -118,6 +119,42 @@ describe("voz y marco", () => {
   });
 });
 
+describe("anillos", () => {
+  it("enciende un anillo por nivel alcanzado y deja punteado el siguiente", () => {
+    const markup = html(<LevelRings level={2}>2</LevelRings>);
+
+    expect(markup.match(/data-ring="reached"/g)).toHaveLength(2);
+    expect(markup.match(/data-ring="next"/g)).toHaveLength(1);
+    expect(markup).toContain('aria-hidden="true"');
+  });
+
+  it("en el nivel 5 todos los anillos están encendidos y no hay siguiente", () => {
+    const markup = html(<LevelRings level={5} />);
+
+    expect(markup.match(/data-ring="reached"/g)).toHaveLength(5);
+    expect(markup).not.toContain('data-ring="next"');
+  });
+
+  it("parte el anillo en un tramo por puesto y enciende los ocupados", () => {
+    const markup = html(<SeatRing filled={2} total={3} label="Cuadrilla 2 de 3" />);
+
+    expect(markup.match(/data-seat="filled"/g)).toHaveLength(2);
+    expect(markup.match(/data-seat="open"/g)).toHaveLength(1);
+    expect(markup).toMatch(/role="progressbar"[^>]*aria-label="Cuadrilla 2 de 3"/);
+    expect(markup).toContain('aria-valuenow="67"');
+  });
+
+  it("no se sale de sus límites con datos raros", () => {
+    const over = html(<SeatRing filled={9} total={3} label="x" />);
+    const empty = html(<SeatRing filled={-1} total={0} />);
+
+    expect(over.match(/data-seat="filled"/g)).toHaveLength(3);
+    expect(over).toContain('aria-valuenow="100"');
+    expect(empty.match(/data-seat=/g)).toHaveLength(1);
+    expect(empty).not.toContain("progressbar");
+  });
+});
+
 describe("política de seguridad de contenido", () => {
   it("ningún componente usa estilos en línea, que la CSP bloquea", () => {
     const everything = html(
@@ -132,6 +169,8 @@ describe("política de seguridad de contenido", () => {
         <PhoneFrame label="e">f</PhoneFrame>
         <PriceBreakdown label="g" price={hiringFee(2)} />
         <NivelMark />
+        <LevelRings level={3} />
+        <SeatRing filled={1} total={4} label="h" />
       </>,
     );
 

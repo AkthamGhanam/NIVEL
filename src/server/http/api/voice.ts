@@ -1,3 +1,4 @@
+import { identityVariables, voiceIdentity } from "../../use-cases/voice-identity";
 import { z } from "zod";
 
 import { ensure } from "@/lib/errors";
@@ -76,10 +77,15 @@ export const voiceRoutes = (runtime: RuntimeProvider) => ({
         ensure(consent === "1", "Necesitamos tu permiso para usar tu voz y guardar tu perfil.");
         toolContext = { kind: "registration", real: real === "1", consentAt: context.now().toISOString() };
       }
+      const identity = await voiceIdentity(context, agent, toolContext);
       return {
         token: await services.conversationToken(agent),
-        // Variable secreta del agente: se envía solo como cabecera de las herramientas, nunca al modelo.
-        dynamicVariables: { secret__nivel_contexto: issueToolContext(toolContext) },
+        dynamicVariables: {
+          // Con quién habla Nivi: el servidor lo sabe por la sesión, no por lo que alguien diga al hablar.
+          ...identityVariables(identity),
+          // Variable secreta del agente: se envía solo como cabecera de las herramientas, nunca al modelo.
+          secret__nivel_contexto: issueToolContext(toolContext),
+        },
       };
     },
     runtime,

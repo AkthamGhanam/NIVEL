@@ -3,12 +3,14 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { type IsoDate, resolveStartDate } from "@/lib/dates";
 import { ensure } from "@/lib/errors";
+import { assertValidPoint, type GeoFix, SITE_PIN_MAX_ACCURACY_M } from "@/lib/geo";
 import { estimateLegalCost, type LegalCostEstimate } from "@/lib/legal-cost";
 import type { Level } from "@/lib/level";
 import { type PublicCandidate, rankCandidates } from "@/lib/matching";
 import { moderateJobText } from "@/lib/moderation";
 import { hiringFeeRange, type PriceWithIva } from "@/lib/pricing";
-import { type ContractType, type Trade, tradeCount } from "@/lib/trades";
+import { formatDay, formatUsd, plural } from "@/lib/format";
+import { type ContractType, TRADE_LABELS, type Trade, tradeCount } from "@/lib/trades";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
@@ -18,6 +20,7 @@ import { loadWorkerFacts, toCandidate } from "../repos/worker-facts";
 import { type CrewMember, loadCrew } from "./crew";
 import { runDemoBot } from "./demo-bot";
 import { logEvent } from "./events";
+import { notifyByTelegram, openAppButton } from "./telegram-notify";
 
 export interface NewJobRequest {
   readonly trade: Trade;
@@ -31,6 +34,8 @@ export interface NewJobRequest {
   readonly contractType: ContractType;
 
   readonly notes?: string | undefined;
+  /** Punto exacto de la obra, tomado de la ubicación del contratista. Sin él se usa el de su sede. */
+  readonly site?: GeoFix | undefined;
   readonly createdVia: "voz" | "web";
 }
 
@@ -78,6 +83,15 @@ async function findCandidates(context: AppContext, request: JobRequestRow): Prom
   };
 }
 
+const WEAK_PIN =
+  "La señal de ubicación está débil. Sal a un lugar abierto, espera unos segundos y vuelve a intentar.";
+
+/** Una obra solo se fija con una lectura de GPS buena: con ella se verifica después cada llegada. */
+function assertGoodPin(site: GeoFix): void {
+  assertValidPoint(site);
+  ensure(site.accuracyM === undefined || site.accuracyM <= SITE_PIN_MAX_ACCURACY_M, WEAK_PIN);
+}
+
 function assertAllowedText(input: NewJobRequest): void {
   const moderation = moderateJobText(`${input.zone} ${input.notes ?? ""}`);
   const [firstViolation] = moderation.violations;
@@ -91,6 +105,7 @@ export async function createJobRequest(
 ): Promise<JobRequestCreated> {
   const { companyId } = requireRole(actor, "company");
   assertAllowedText(input);
+  if (input.site) assertGoodPin(input.site);
   const now = context.now();
   const [company] = await context.db.select().from(companies).where(eq(companies.id, companyId));
   if (!company) throw new NotFoundError("la empresa");
@@ -102,8 +117,9 @@ export async function createJobRequest(
     minLevel: input.minLevel,
     zone: input.zone.trim(),
 
-    lat: company.lat,
-    lng: company.lng,
+    lat: input.site?.lat ?? company.lat,
+    lng: input.site?.lng ?? company.lng,
+    sitePinnedAt: input.site ? now.toISOString() : null,
     startDate: resolveStartDate(input.startDate, now),
     days: input.days,
     dailyPayUsd: input.dailyPayUsd,
@@ -139,6 +155,34 @@ export async function loadOwnRequest(
   return request;
 }
 
+/**
+ * "La obra es aquí": el contratista, parado en la obra, fija el punto exacto con
+ * su ubicación. Desde ese momento las llegadas se verifican contra ese punto.
+ */
+export async function pinRequestSite(
+  context: AppContext,
+  actor: Actor,
+  input: { readonly requestId: string; readonly site: GeoFix },
+): Promise<JobRequestRow> {
+  requireRole(actor, "company");
+  assertGoodPin(input.site);
+  const request = await loadOwnRequest(context, actor, input.requestId);
+  if (request.status === "cerrada") throw new ConflictError("Esta obra ya terminó.");
+  const [updated] = await context.db
+    .update(jobRequests)
+    .set({ lat: input.site.lat, lng: input.site.lng, sitePinnedAt: context.now().toISOString() })
+    .where(eq(jobRequests.id, request.id))
+    .returning();
+  if (!updated) throw new NotFoundError("la solicitud");
+  await logEvent(context, {
+    actor: "NIVEL",
+    type: "obra_ubicada",
+    label: "La empresa fijó la ubicación exacta de la obra",
+    detail: { requestId: request.id },
+  });
+  return updated;
+}
+
 export interface InvitationSent {
   readonly invitation: InvitationRow;
   readonly candidate: PublicCandidate;
@@ -156,6 +200,42 @@ function pickInvitees(available: readonly PublicCandidate[], input: InviteChoice
   const picked = available.filter((candidate) => chosen.has(candidate.workerId));
   ensure(picked.length === chosen.size, "Alguna de esas personas ya no está disponible o ya fue invitada.");
   return picked;
+}
+
+/** Aviso por Telegram a cada persona invitada que conectó su chat, con los botones para responder ahí mismo. */
+async function announceInvitations(
+  context: AppContext,
+  request: JobRequestRow,
+  sent: readonly InvitationRow[],
+): Promise<void> {
+  if (!context.telegram || sent.length === 0) return;
+  const [company] = await context.db
+    .select({ name: companies.name })
+    .from(companies)
+    .where(eq(companies.id, request.companyId));
+  const text =
+    `Tienes una oferta de trabajo de ${company?.name ?? "una empresa"}.\n` +
+    `${TRADE_LABELS[request.trade].singular} en ${request.zone} · desde ${formatDay(request.startDate)} · ` +
+    `${plural(request.days, "día", "días")} · ${formatUsd(request.dailyPayUsd)} al día.\n` +
+    "El contrato es directo con la empresa. NIVEL es la plataforma, no el patrono.";
+  await Promise.all(
+    sent.map((invitation) =>
+      notifyByTelegram(
+        context,
+        { role: "worker", subjectId: invitation.workerId },
+        {
+          text,
+          buttons: [
+            [
+              { text: "Aceptar", data: `ac:${invitation.id}` },
+              { text: "Rechazar", data: `re:${invitation.id}` },
+            ],
+            openAppButton(context, "Ver la oferta en NIVEL", `/t/oferta/${invitation.id}`),
+          ].filter((row) => row.length > 0),
+        },
+      ),
+    ),
+  );
 }
 
 export async function inviteCandidates(
@@ -197,6 +277,7 @@ export async function inviteCandidates(
     label: `Invitaciones enviadas: ${next.map((candidate) => candidate.shortName).join(", ")}`,
     detail: { requestId: request.id, count: inserted.length },
   });
+  await announceInvitations(context, request, inserted);
   return inserted.map((invitation) => ({
     invitation,
     candidate: next.find((candidate) => candidate.workerId === invitation.workerId) as PublicCandidate,

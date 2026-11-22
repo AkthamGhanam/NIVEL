@@ -16,8 +16,11 @@ import { Button } from "@/components/ui/button";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { localDate } from "@/lib/dates";
+import { type GeoFix, SITE_PIN_MAX_ACCURACY_M } from "@/lib/geo";
 import { LEVEL_NAMES, type Level } from "@/lib/level";
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPES, TRADE_LABELS, TRADES } from "@/lib/trades";
+
+import { accuracyLabel, SitePin } from "./site-pin";
 
 const LEVELS = [1, 2, 3, 4, 5] as const satisfies readonly Level[];
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -34,7 +37,12 @@ interface FormState {
   readonly problems: DraftProblems;
   readonly failure: string | null;
   readonly sending: boolean;
+  /** Punto exacto de la obra, si el contratista lo fijó con su ubicación. */
+  readonly site: GeoFix | null;
 }
+
+const WEAK_SIGNAL =
+  "La señal de ubicación está débil. Sal a un lugar abierto, espera unos segundos y vuelve a intentar.";
 
 function useRequestForm({ zone, onSubmit }: RequestFormProps) {
   const [form, setForm] = useState<FormState>(() => ({
@@ -42,7 +50,14 @@ function useRequestForm({ zone, onSubmit }: RequestFormProps) {
     problems: {},
     failure: null,
     sending: false,
+    site: null,
   }));
+
+  const pinSite = (site: GeoFix | null) => {
+    if (site?.accuracyM !== undefined && site.accuracyM > SITE_PIN_MAX_ACCURACY_M)
+      throw new Error(WEAK_SIGNAL);
+    setForm((current) => ({ ...current, site }));
+  };
 
   const change = <Field extends keyof RequestDraft>(field: Field, value: RequestDraft[Field]) =>
     setForm((current) => ({
@@ -65,7 +80,7 @@ function useRequestForm({ zone, onSubmit }: RequestFormProps) {
     }
     setForm((current) => ({ ...current, problems: {}, failure: null, sending: true }));
     try {
-      await onSubmit(parsed.input);
+      await onSubmit(form.site ? { ...parsed.input, site: form.site } : parsed.input);
       setForm((current) => ({ ...current, sending: false }));
     } catch (error) {
       const problems = error instanceof ApiError ? problemsFromApi(error.details) : {};
@@ -74,7 +89,7 @@ function useRequestForm({ zone, onSubmit }: RequestFormProps) {
     }
   };
 
-  return { form, change, submit };
+  return { form, change, submit, pinSite };
 }
 
 type Change = <Field extends keyof RequestDraft>(field: Field, value: RequestDraft[Field]) => void;
@@ -202,12 +217,18 @@ function TermsFields({ draft, problems, change }: SectionProps) {
 
 /** Formulario de "pedir personal": la alternativa a pedirlo hablando con Nivi. */
 export function RequestForm(props: RequestFormProps) {
-  const { form, change, submit } = useRequestForm(props);
+  const { form, change, submit, pinSite } = useRequestForm(props);
   const section = { draft: form.draft, problems: form.problems, change };
   return (
     <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-3">
       <PeopleFields {...section} />
       <SiteFields {...section} />
+      <SitePin
+        pinned={form.site !== null}
+        detail={form.site ? accuracyLabel(form.site) : undefined}
+        onFix={pinSite}
+        onClear={() => pinSite(null)}
+      />
       <TermsFields {...section} />
       {form.failure ? (
         <Notice tone="alert" urgent>

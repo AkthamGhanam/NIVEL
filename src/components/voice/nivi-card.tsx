@@ -4,7 +4,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 
 import { Card } from "@/components/ui/card";
-import { MicIcon } from "@/components/ui/icons";
+import { ChevronIcon, MicIcon } from "@/components/ui/icons";
+import { cx } from "@/lib/cx";
 
 import { NiviPanel, NiviProvider } from "./nivi-panel";
 import { type NiviSession, useNivi } from "./use-nivi";
@@ -39,8 +40,12 @@ export function NiviCardFrame({ title, hint, children }: NiviCardFrameProps) {
         onClick={() => setOpen((current) => !current)}
         className="flex min-h-14 w-full items-center gap-3 text-left"
       >
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-brand text-white">
-          <MicIcon size={24} />
+        <span aria-hidden="true" className="relative grid size-16 shrink-0 place-items-center">
+          <span className="absolute inset-0 rounded-full border-2 border-brand-tint-2" />
+          <span className="absolute inset-[7px] rounded-full border-2 border-brand-2/35" />
+          <span className="relative grid size-10 place-items-center rounded-full bg-brand text-white shadow-glow">
+            <MicIcon size={22} />
+          </span>
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-lg font-extrabold">{title}</span>
@@ -48,9 +53,12 @@ export function NiviCardFrame({ title, hint, children }: NiviCardFrameProps) {
         </span>
         <span
           aria-hidden="true"
-          className={open ? "rotate-180 text-muted transition-transform" : "text-muted transition-transform"}
+          className={cx(
+            "grid size-10 shrink-0 place-items-center rounded-full bg-line-2 text-ink-2 transition-transform duration-200",
+            open && "rotate-180",
+          )}
         >
-          ▾
+          <ChevronIcon />
         </span>
       </button>
       {open ? <div className="animate-enter">{children}</div> : null}

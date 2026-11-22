@@ -12,6 +12,9 @@ export function useScriptedNivi(create: () => ScriptedNivi): Nivi {
   const state = useSyncExternalStore(conversation.subscribe, conversation.getState, conversation.getState);
   useEffect(() => conversation.stop, [conversation]);
   return {
+    muted: false,
+    toggleMute: () => undefined,
+    voice: false,
     start: async (mode) => conversation.start(mode),
     send: conversation.send,
     stop: conversation.stop,
