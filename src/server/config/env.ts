@@ -11,7 +11,10 @@ import { z } from "zod";
 
 const MIN_SECRET_LENGTH = 32;
 
-const secret = z.string().min(MIN_SECRET_LENGTH, `debe tener al menos ${MIN_SECRET_LENGTH} caracteres`);
+const secret = z
+  .string()
+  .trim()
+  .min(MIN_SECRET_LENGTH, `debe tener al menos ${MIN_SECRET_LENGTH} caracteres`);
 const nonEmpty = z.string().trim().min(1);
 
 const serverEnvSchema = z.object({

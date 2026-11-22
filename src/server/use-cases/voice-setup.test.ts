@@ -123,6 +123,23 @@ describe("probar la voz", () => {
 
     expect(check.ok).toBe(false);
     expect(check.steps[1]).toMatchObject({ ok: false });
+    expect(check.steps[1]?.detail).toContain("no llamó a guardar_perfil");
+  });
+
+  it("si el servidor rechazó la clave, sugiere reconectar", async () => {
+    const { admin } = fakeAdmin(async () => {
+      await logEvent(app.context, {
+        actor: "Nivi",
+        type: "herramienta_rechazada",
+        label: "x",
+        product: "agents",
+      });
+      return { conversationId: "conv_rechazo123", said: [] };
+    });
+    app.setNow(new Date(app.context.now().getTime() + 60_000));
+
+    const check = await checkVoice(app.context, setupWith(admin, ids), "contexto");
+
     expect(check.steps[1]?.detail).toContain("Reconectar a Nivi");
   });
 

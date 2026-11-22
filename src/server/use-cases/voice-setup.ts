@@ -1,5 +1,5 @@
 // Publica los agentes de voz con la configuración del servidor y comprueba de punta a punta que Nivi guarda un perfil.
-import { and, eq, gte } from "drizzle-orm";
+import { and, eq, gte, inArray } from "drizzle-orm";
 
 import type { ChatResult, ElevenLabsAdmin } from "../adapters/elevenlabs-admin";
 import { AGENTS } from "../agents/definitions";
@@ -69,6 +69,7 @@ const PERSONA =
   "manejo electrodo 6011 y 7018, vivo en Guacara y puedo empezar el lunes.";
 const CONFIRMATION = "Sí, todo está correcto. Guarda mi perfil, por favor.";
 const TOOL_EVENT = "herramienta_guardar_perfil";
+const TOOL_REJECTED = "herramienta_rechazada";
 
 const errorDetail = (error: unknown) => (error instanceof Error ? error.message : "fallo desconocido");
 
@@ -81,12 +82,25 @@ async function talk(setup: VoiceSetup, toolContext: string): Promise<ChatResult>
   });
 }
 
-async function toolWasReached(context: AppContext, since: string): Promise<boolean> {
+async function toolEvents(
+  context: AppContext,
+  since: string,
+): Promise<{ reached: boolean; rejected: boolean }> {
   const rows = await context.db
-    .select({ id: events.id })
+    .select({ type: events.type })
     .from(events)
-    .where(and(eq(events.type, TOOL_EVENT), gte(events.ts, since)));
-  return rows.length > 0;
+    .where(and(inArray(events.type, [TOOL_EVENT, TOOL_REJECTED]), gte(events.ts, since)));
+  return {
+    reached: rows.some((row) => row.type === TOOL_EVENT),
+    rejected: rows.some((row) => row.type === TOOL_REJECTED),
+  };
+}
+
+function reachDetail(reached: boolean, rejected: boolean): string {
+  if (reached) return "La herramienta guardar_perfil llegó al servidor.";
+  if (rejected)
+    return "Nivi llamó, pero el servidor rechazó su clave. Usa «Reconectar a Nivi» y prueba de nuevo.";
+  return "Nivi no llamó a guardar_perfil en esta conversación: mira abajo lo que respondió.";
 }
 
 async function takeTestProfile(context: AppContext, conversationId: string): Promise<boolean> {
@@ -112,14 +126,8 @@ export async function checkVoice(
     steps.push({ name: "Conversación con Nivi", ok: false, detail: errorDetail(error) });
     return { ok: false, steps, said: [] };
   }
-  const reached = await toolWasReached(context, since);
-  steps.push({
-    name: "Nivi llama a NIVEL",
-    ok: reached,
-    detail: reached
-      ? "La herramienta guardar_perfil llegó al servidor."
-      : "La herramienta no llegó: la clave o la dirección que usa Nivi no coincide. Usa «Reconectar a Nivi».",
-  });
+  const { reached, rejected } = await toolEvents(context, since);
+  steps.push({ name: "Nivi llama a NIVEL", ok: reached, detail: reachDetail(reached, rejected) });
   const saved = await takeTestProfile(context, chat.conversationId);
   steps.push({
     name: "Perfil guardado",
