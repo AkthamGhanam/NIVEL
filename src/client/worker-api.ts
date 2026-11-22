@@ -15,6 +15,7 @@ import type {
 } from "@/server/use-cases/profile";
 import type { NewRating, RatingSubmitted } from "@/server/use-cases/ratings";
 import type { ReportCreated, ReportKind } from "@/server/use-cases/reports";
+import type { VoiceReport } from "@/server/use-cases/voice";
 
 import type { ApiRequest } from "./api";
 
@@ -33,6 +34,7 @@ export type {
   MyProfile,
   MyRoute,
   ProfileCorrection,
+  VoiceReport,
   WorkerOffer,
 };
 export type WorkerPersona = DemoState["personas"]["workers"][number];
@@ -100,6 +102,12 @@ export function createWorkerApi(request: ApiRequest) {
     bookPracticalTest: () => post<unknown>("/api/practical-tests"),
 
     report: (input: ReportInput) => post<ReportCreated>("/api/reports", input),
+    /** Reporte dicho en una nota de voz: el servidor la transcribe y no guarda el audio. */
+    reportByVoice: (audio: Blob) =>
+      request<VoiceReport>("/api/voice/transcribe", { ...AS_WORKER, upload: audio }),
+
+    /** Pide el audio de una frase en la voz de Nivi y devuelve dónde escucharlo. */
+    speak: async (text: string) => (await post<{ url: string }>("/api/voice/tts", { text })).url,
   };
 }
 

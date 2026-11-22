@@ -4,12 +4,15 @@ import { type FormEvent, useState } from "react";
 
 import { REPORT_KIND_LABELS, REPORT_KINDS, type ReportKind } from "@/client/report-kinds";
 import type { ReportInput } from "@/client/worker-api";
+import { Card } from "@/components/ui/card";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { SelectField, TextAreaField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { HUMAN_REVIEW_NOTICE } from "@/lib/legal-copy";
 
 import { useAction } from "../hooks/use-action";
+import { useVoiceNote } from "../hooks/use-voice-note";
+import { VoiceReportPanel } from "./voice-report";
 import { useWorker } from "./worker-gate";
 
 const MAX_TEXT = 2000;
@@ -18,6 +21,25 @@ export interface ReportReceipt {
   readonly message: string;
   /** Orientación extra según el tipo (por ejemplo, cómo acudir al INPSASEL). */
   readonly guidance: string | null;
+  /** Solo en un reporte por nota de voz: lo que se entendió y cómo se anotó. */
+  readonly transcript?: string;
+  readonly kind?: ReportKind;
+}
+
+/** Lo que Nivi entendió de la nota de voz, para que la persona lo compruebe con sus ojos. */
+function HeardNote({ transcript, kind }: { readonly transcript: string; readonly kind?: ReportKind }) {
+  return (
+    <Card className="flex flex-col gap-1.5">
+      <h2 className="text-sm font-bold text-ink-2">Esto entendimos</h2>
+      <p>«{transcript}»</p>
+      {kind ? (
+        <p className="text-sm text-muted">
+          Lo anotamos como «{REPORT_KIND_LABELS[kind]}». Si no es así, la persona del equipo que lo revise lo
+          corrige.
+        </p>
+      ) : null}
+    </Card>
+  );
 }
 
 /** Confirmación de un reporte: lo revisa una persona, y nada cambia de forma automática. */
@@ -28,6 +50,7 @@ export function ReportConfirmation({ receipt }: { readonly receipt: ReportReceip
         <p>{receipt.message}</p>
         <p className="mt-1">{HUMAN_REVIEW_NOTICE}</p>
       </Notice>
+      {receipt.transcript ? <HeardNote transcript={receipt.transcript} kind={receipt.kind} /> : null}
       {receipt.guidance ? (
         <Notice tone="pending" title="También puedes acudir a la autoridad">
           {receipt.guidance}
@@ -102,16 +125,21 @@ export function ReportForm({ initialKind, onSubmit }: ReportFormProps) {
 export function HelpScreen({ initialKind }: { readonly initialKind: ReportKind }) {
   const { api } = useWorker();
   const [receipt, setReceipt] = useState<ReportReceipt>();
+  const note = useVoiceNote(async (audio) => setReceipt(await api.reportByVoice(audio)));
   return (
     <>
       <h1 className="display text-3xl">Ayuda</h1>
       {receipt ? (
         <ReportConfirmation receipt={receipt} />
       ) : (
-        <ReportForm
-          initialKind={initialKind}
-          onSubmit={async (input) => setReceipt(await api.report(input))}
-        />
+        <>
+          <VoiceReportPanel note={note} />
+          <h2 className="bar-title text-xl font-extrabold">O escríbelo</h2>
+          <ReportForm
+            initialKind={initialKind}
+            onSubmit={async (input) => setReceipt(await api.report(input))}
+          />
+        </>
       )}
     </>
   );

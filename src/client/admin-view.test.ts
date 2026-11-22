@@ -8,8 +8,8 @@ import {
   queueSummary,
   reportView,
   REVIEW_NOTE_MAX_LENGTH,
-  sameSiteAudio,
 } from "./admin-view";
+import { sameSiteAudio } from "./audio-url";
 import type { ReportRow } from "./team-api";
 
 const NOW = new Date("2026-11-22T18:00:00.000Z");
@@ -126,6 +126,7 @@ describe("cola de revisión humana", () => {
     expect(sameSiteAudio("/\\otro.example/a.webm")).toBeNull();
     expect(sameSiteAudio("javascript:alert(1)")).toBeNull();
     expect(sameSiteAudio(null)).toBeNull();
+    expect(sameSiteAudio(undefined)).toBeNull();
   });
 
   it("resume la cola con concordancia", () => {

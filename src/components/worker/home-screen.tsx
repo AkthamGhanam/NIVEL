@@ -18,7 +18,7 @@ import { REFERENCE_BAND_NOTICE } from "@/lib/legal-copy";
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
 import { ContractGate } from "./contract-gate";
-import { OfferCompany, OfferSummary, OfferVoiceNote } from "./offer-card";
+import { OfferCompany, OfferSummary, OfferVoiceNote, type Speak } from "./offer-card";
 import { useWorker } from "./worker-gate";
 
 /** Nivel de la persona, qué le falta para el siguiente y la banda de referencia del mercado. */
@@ -61,7 +61,12 @@ export function OpenToWorkSwitch({ open, onChange, pending }: OpenToWorkProps) {
   );
 }
 
-export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] }) {
+interface OfferListProps {
+  readonly offers: readonly WorkerOffer[];
+  readonly speak?: Speak;
+}
+
+export function OfferList({ offers, speak }: OfferListProps) {
   const pending = pendingOffers(offers);
   return (
     <section aria-labelledby="ofertas-titulo" className="flex flex-col gap-3">
@@ -77,7 +82,7 @@ export function OfferList({ offers }: { readonly offers: readonly WorkerOffer[] 
               <Card selected className="flex animate-enter flex-col gap-3">
                 <OfferCompany company={offer.company} />
                 <OfferSummary offer={offer} titleAs="h3" />
-                <OfferVoiceNote audioUrl={offer.audioUrl} />
+                <OfferVoiceNote offer={offer} speak={speak} />
                 <ButtonLink href={`/t/oferta/${encodeURIComponent(offer.invitationId)}`} block>
                   Ver oferta
                 </ButtonLink>
@@ -158,7 +163,7 @@ export function HomeScreen() {
       ) : null}
       {job ? <CurrentJob offer={job} /> : null}
       {offers.loading ? <LoadingText>Nivi está revisando tus ofertas…</LoadingText> : null}
-      {offers.data ? <OfferList offers={offers.data} /> : null}
+      {offers.data ? <OfferList offers={offers.data} speak={api.speak} /> : null}
       <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
     </>
   );
