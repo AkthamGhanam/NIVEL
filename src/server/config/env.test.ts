@@ -72,4 +72,12 @@ describe("serverEnv", () => {
     expect(first.NODE_ENV).toBe("test");
     expect(serverEnv()).toBe(first);
   });
+
+  it("de TOOL_SECRET solo cuenta la primera palabra, aunque se haya pegado texto de más", () => {
+    const clean = "a".repeat(40);
+    const env = parseServerEnv({ TOOL_SECRET: ` ${clean}\nOTRA_VARIABLE=valor ` });
+
+    expect(env.TOOL_SECRET).toBe(clean);
+    expect(() => parseServerEnv({ TOOL_SECRET: "corta\nOTRA=valor" })).toThrow(/TOOL_SECRET/);
+  });
 });

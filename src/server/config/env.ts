@@ -15,6 +15,7 @@ const secret = z
   .string()
   .trim()
   .min(MIN_SECRET_LENGTH, `debe tener al menos ${MIN_SECRET_LENGTH} caracteres`);
+const firstToken = z.string().transform((value) => value.trim().split(/\s+/)[0] ?? "");
 const nonEmpty = z.string().trim().min(1);
 
 const serverEnvSchema = z.object({
@@ -23,7 +24,7 @@ const serverEnvSchema = z.object({
   EL_AGENT_WORKER_ID: nonEmpty.optional(),
   EL_AGENT_CONTRACTOR_ID: nonEmpty.optional(),
   EL_VOICE_ID: nonEmpty.optional(),
-  TOOL_SECRET: secret.optional(),
+  TOOL_SECRET: firstToken.pipe(secret).optional(),
   DEMO_RESET_KEY: secret.optional(),
   SESSION_SECRET: secret.optional(),
   TURSO_DATABASE_URL: z
