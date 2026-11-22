@@ -19,6 +19,7 @@ export interface CallOptions {
 export interface ApiResult<T = unknown> {
   readonly status: number;
   readonly data: T;
+  readonly headers: Headers;
 }
 
 export class ApiError extends Error {
@@ -53,6 +54,14 @@ export class ApiClient {
     return this.expectOk<T>("POST", path, options);
   }
 
+  patch<T = unknown>(path: string, options: CallOptions = {}): Promise<T> {
+    return this.expectOk<T>("PATCH", path, options);
+  }
+
+  delete<T = unknown>(path: string, options: CallOptions = {}): Promise<T> {
+    return this.expectOk<T>("DELETE", path, options);
+  }
+
   /** Petición sin interpretar el resultado: para comprobar rechazos. */
   async call<T = unknown>(method: string, path: string, options: CallOptions = {}): Promise<ApiResult<T>> {
     const headers = new Headers(options.headers);
@@ -72,7 +81,11 @@ export class ApiClient {
     );
     this.rememberCookies(response);
     const text = await response.text();
-    return { status: response.status, data: (text ? JSON.parse(text) : null) as T };
+    return {
+      status: response.status,
+      data: (text ? JSON.parse(text) : null) as T,
+      headers: response.headers,
+    };
   }
 
   private async expectOk<T>(method: string, path: string, options: CallOptions): Promise<T> {
@@ -90,7 +103,11 @@ export class ApiClient {
     for (const cookie of response.headers.getSetCookie()) {
       const [pair = ""] = cookie.split(";");
       const separator = pair.indexOf("=");
-      if (separator > 0) this.cookies.set(pair.slice(0, separator), pair.slice(separator + 1));
+      if (separator <= 0) continue;
+      const value = pair.slice(separator + 1);
+      // Un valor vacío es el servidor cerrando la sesión.
+      if (value === "") this.cookies.delete(pair.slice(0, separator));
+      else this.cookies.set(pair.slice(0, separator), value);
     }
   }
 }

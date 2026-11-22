@@ -1,4 +1,4 @@
-import { and, count, countDistinct, eq, inArray, isNotNull, or, sql, sum } from "drizzle-orm";
+import { and, count, countDistinct, eq, inArray, isNotNull, isNull, or, sql, sum } from "drizzle-orm";
 
 import { addDays, type IsoDate } from "@/lib/dates";
 import type { Level, LevelInput, PrivateRating } from "@/lib/level";
@@ -38,8 +38,9 @@ export interface FactsFilter {
   readonly workerIds?: readonly string[];
   readonly trade?: Trade;
   /**
-   * Solo perfiles que una empresa puede ver: los de ejemplo y los de personas
-   * reales que aceptaron compartir su perfil. Toda búsqueda de candidatos lo usa.
+   * Solo perfiles que una empresa puede ver: con cuenta vigente, abiertos a
+   * trabajar y, si son de personas reales, que aceptaron compartir su perfil.
+   * Toda búsqueda de candidatos lo usa.
    */
   readonly shareableOnly?: boolean;
 }
@@ -237,7 +238,11 @@ export async function loadWorkerFacts(db: Database, filter: FactsFilter = {}): P
     filter.workerIds ? inArray(workers.id, [...filter.workerIds]) : undefined,
     filter.trade ? eq(workers.trade, filter.trade) : undefined,
     filter.shareableOnly
-      ? or(eq(workers.isReal, false), isNotNull(workers.consentShareProfileAt))
+      ? and(
+          isNull(workers.deletedAt),
+          eq(workers.openToWork, true),
+          or(eq(workers.isReal, false), isNotNull(workers.consentShareProfileAt)),
+        )
       : undefined,
   ];
   const people = await db

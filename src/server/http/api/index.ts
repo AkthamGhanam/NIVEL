@@ -1,5 +1,8 @@
 import type { RuntimeProvider } from "../endpoint";
+import { feeRoutes, metricRoutes } from "./business";
 import { levelRoutes, paymentRoutes, ratingRoutes } from "./closing";
+import { academyRoutes, learningRoutes } from "./learning";
+import { meRoutes } from "./me";
 import { requestRoutes } from "./requests";
 import { stateRoutes } from "./state";
 import { demoRoutes, eventRoutes, reportRoutes } from "./team";
@@ -24,6 +27,11 @@ export const createApi = (runtime: RuntimeProvider) => ({
   events: eventRoutes(runtime),
   demo: demoRoutes(runtime),
   voice: voiceRoutes(runtime),
+  me: meRoutes(runtime),
+  learning: learningRoutes(runtime),
+  academy: academyRoutes(runtime),
+  fees: feeRoutes(runtime),
+  metrics: metricRoutes(runtime),
   tools: {
     ...workerTools(runtime),
     ...offerTools(runtime),

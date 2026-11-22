@@ -62,6 +62,13 @@ export function sessionCookie(role: Role, token: string, secure: boolean): strin
   return attributes.join("; ");
 }
 
+/** Cabecera Set-Cookie que cierra la sesión de un rol en el navegador. */
+export function expiredSessionCookie(role: Role, secure: boolean): string {
+  const attributes = [`${sessionCookieName(role)}=`, "Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=0"];
+  if (secure) attributes.push("Secure");
+  return attributes.join("; ");
+}
+
 /** Comparación en tiempo constante de un secreto compartido (clave de demo, secreto de herramientas). */
 export function secretMatches(provided: string | null, expected: string): boolean {
   if (!provided) return false;

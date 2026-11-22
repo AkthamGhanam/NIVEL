@@ -314,12 +314,14 @@ function enrollmentRows(today: IsoDate): Pick<SeedRows, "enrollments" | "fees"> 
   const commission = academyCommission(PAID_COURSE_PRICE_USD);
   const enrollments = students.map((person, index) => {
     const paid = index % 2 === 0;
+    // Quien ya tiene la constancia del curso pago lo terminó.
+    const finished = paid && person.certificateCodes.length > 0;
     return {
       id: `en-${person.id}`,
       workerId: person.id,
       courseId: paid ? IDS.paidCourse : IDS.freeCourse,
-      status: "en_curso" as const,
-      progress: (index % 4) * 0.25,
+      status: finished ? ("completado" as const) : ("en_curso" as const),
+      progress: finished ? 1 : (index % 4) * 0.25,
       enrolledAt: morning(addDays(today, -(index + 1))),
     };
   });

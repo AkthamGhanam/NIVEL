@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import type { Level } from "@/lib/level";
 import { shortName } from "@/lib/matching";
@@ -16,6 +16,14 @@ export interface CrewMember {
   readonly signedWorkerAt: string | null;
   readonly days: number;
   readonly daysAttended: number;
+  /** Última jornada registrada: horas reales de entrada y salida, y el motivo si la persona dejó uno. */
+  readonly lastAttendance: {
+    readonly date: string;
+    readonly checkInAt: string | null;
+    readonly checkOutAt: string | null;
+    readonly insideGeofence: boolean;
+    readonly note: string | null;
+  } | null;
   readonly payment: {
     readonly id: string;
     readonly receiptNumber: string;
@@ -38,16 +46,22 @@ export async function loadCrew(context: AppContext, requestId: string): Promise<
   const contractIds = rows.map((row) => row.contract.id);
   const [attended, rated] = await Promise.all([
     context.db
-      .select({ contractId: attendance.contractId, total: count() })
+      .select()
       .from(attendance)
-      .where(and(inArray(attendance.contractId, contractIds), isNotNull(attendance.checkInAt)))
-      .groupBy(attendance.contractId),
+      .where(inArray(attendance.contractId, contractIds))
+      .orderBy(asc(attendance.date)),
     context.db
       .select({ contractId: ratings.contractId })
       .from(ratings)
       .where(and(inArray(ratings.contractId, contractIds), eq(ratings.fromRole, "empresa"))),
   ]);
-  const daysAttended = new Map(attended.map((row) => [row.contractId, row.total]));
+  const daysAttended = new Map<string, number>();
+  const lastAttendance = new Map<string, CrewMember["lastAttendance"]>();
+  for (const { contractId, date, checkInAt, checkOutAt, insideGeofence, note } of attended) {
+    if (checkInAt === null) continue;
+    daysAttended.set(contractId, (daysAttended.get(contractId) ?? 0) + 1);
+    lastAttendance.set(contractId, { date, checkInAt, checkOutAt, insideGeofence, note });
+  }
   const ratedContracts = new Set(rated.map((row) => row.contractId));
   return rows.map(({ contract, worker, payment }) => ({
     contractId: contract.id,
@@ -58,6 +72,7 @@ export async function loadCrew(context: AppContext, requestId: string): Promise<
     signedWorkerAt: contract.signedWorkerAt,
     days: contract.days,
     daysAttended: daysAttended.get(contract.id) ?? 0,
+    lastAttendance: lastAttendance.get(contract.id) ?? null,
     payment: payment && {
       id: payment.id,
       receiptNumber: payment.receiptNumber,

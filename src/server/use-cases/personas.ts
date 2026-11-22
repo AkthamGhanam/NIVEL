@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 
 import type { Actor, Sessions } from "../actor";
 import type { AppContext } from "../context";
@@ -45,7 +45,7 @@ export async function getDemoState(context: AppContext, sessions: Sessions): Pro
         zone: workers.zone,
       })
       .from(workers)
-      .where(eq(workers.isReal, false))
+      .where(and(eq(workers.isReal, false), isNull(workers.deletedAt)))
       .orderBy(asc(workers.id)),
     context.db
       .select({ id: companies.id, name: companies.name, zone: companies.zone })
@@ -72,7 +72,7 @@ async function seedWorker(context: AppContext, id: string): Promise<Actor> {
   const [worker] = await context.db
     .select({ id: workers.id, isReal: workers.isReal })
     .from(workers)
-    .where(eq(workers.id, id));
+    .where(and(eq(workers.id, id), isNull(workers.deletedAt)));
   if (!worker) throw new NotFoundError("esa persona");
   if (worker.isReal) throw new ForbiddenError("No se puede entrar como una persona real.");
   return { role: "worker", workerId: worker.id };

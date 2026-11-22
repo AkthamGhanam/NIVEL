@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +9,7 @@ import { DomainValidationError } from "@/lib/errors";
 import type { Actor } from "../actor";
 import { ConfigError } from "../config/env";
 import { ConflictError, RateLimitedError } from "../errors";
+import { workers } from "../db/schema";
 import { createTestApp, DEMO_NOW, type TestApp, TEST_SECRET } from "../testing/test-app";
 import { ApiResponse, endpoint, MAX_BODY_BYTES, type Runtime } from "./endpoint";
 import { createRateLimiter } from "./rate-limit";
@@ -151,6 +153,22 @@ describe("autenticación (denegada por defecto)", () => {
     expect((await admin(withKey(`${DEMO_KEY}x`))).status).toBe(401);
     expect((await unconfigured(withKey(DEMO_KEY))).status).toBe(401);
     expect((await whoAmI(withKey(DEMO_KEY))).status).toBe(401);
+  });
+});
+
+describe("la sesión muere con la cuenta", () => {
+  it("una cookie bien firmada de alguien que ya no existe o borró su cuenta responde 401", async () => {
+    const ghost: Actor = { role: "worker", workerId: "w-fantasma" };
+    const deleted: Actor = { role: "worker", workerId: "w-014" };
+    await app.context.db
+      .update(workers)
+      .set({ deletedAt: DEMO_NOW.toISOString() })
+      .where(eq(workers.id, deleted.workerId));
+    const call = (actor: Actor) => whoAmI(new Request(URL_BASE, { headers: { cookie: cookieOf(actor) } }));
+
+    expect((await call(ghost)).status).toBe(401);
+    expect((await call(deleted)).status).toBe(401);
+    expect((await call(CARLOS)).status).toBe(200);
   });
 });
 
