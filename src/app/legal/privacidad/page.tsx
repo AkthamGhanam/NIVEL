@@ -44,6 +44,8 @@ function WhatCompaniesSee() {
         items={[
           "Ve tu nombre corto, tu nivel, tus trabajos confirmados, tu prueba práctica y tus constancias.",
           "No ve tu foto, tu edad ni tu sexo antes de invitarte.",
+          "Nunca ve tu cédula ni tu fecha de nacimiento. La fecha solo sirve para confirmar que tienes 18 años o más, y en esta demo ni la cédula ni la fecha se guardan.",
+          "Tu contraseña no viaja a NIVEL en esta demo: el teléfono guarda solo una huella cifrada para dejarte entrar con tu cédula o tu RIF.",
           "Nunca ve las calificaciones que te dieron otras empresas.",
           "Si apagas «Abierto a trabajar», dejas de aparecer en las búsquedas.",
         ]}
@@ -57,7 +59,7 @@ function ForCompanies() {
     <LegalSection title="Si eres empresa">
       <LegalList
         items={[
-          "Guardamos el nombre, el RIF y la zona de tu empresa, tus solicitudes, las contrataciones y los pagos que registras.",
+          "Guardamos el nombre, el RIF, el tipo y las zonas de trabajo de tu empresa, tus solicitudes, las contrataciones y los pagos que registras.",
           "Si fijas la obra con tu ubicación, guardamos ese punto como dirección de la obra, para verificar las llegadas. No seguimos tu teléfono.",
           "Solo ves los datos de tus propias contrataciones.",
         ]}

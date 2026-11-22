@@ -271,6 +271,21 @@ const TRADE_BUTTONS: Rows = [
   [CANCEL],
 ];
 
+const DURATION_QUESTION =
+  "¿Por cuánto tiempo quieres contratar? Si son menos de 3 meses, las prestaciones son 5 días de " +
+  "salario por mes (LOTTT, art. 142, literal e). También puedes escribir los días exactos.";
+const DURATION_BUTTONS: Rows = [
+  [
+    { text: "Una semana", data: "d:7" },
+    { text: "Más de un mes", data: "d:30" },
+  ],
+  [
+    { text: "Más de 3 meses", data: "d:90" },
+    { text: "Contrato indefinido", data: "d:90" },
+  ],
+  [CANCEL],
+];
+
 interface Prompt {
   readonly text: string;
   readonly buttons: Rows;
@@ -311,8 +326,8 @@ function promptFor(draft: TelegramDraft, today: ReturnType<typeof localDate>): P
       };
     case "dias":
       return {
-        text: "¿Cuántos días de obra?",
-        buttons: [choices("d", [1, 3, 5, 10]), choices("d", [15, 20, 30]), [CANCEL]],
+        text: DURATION_QUESTION,
+        buttons: DURATION_BUTTONS,
       };
     case "pago":
       return {

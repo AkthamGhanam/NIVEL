@@ -55,7 +55,8 @@ describe("toolPayload", () => {
     const { properties, required } = schema.request_body_schema;
 
     expect(properties.tecnicas).toMatchObject({ type: "array", items: { type: "string" } });
-    expect(properties.oficio?.enum).toContain("soldador");
+    expect(properties.alcance?.enum).toContain("municipal");
+    expect(properties.disponibilidad?.enum).toContain("Ya mismo");
     expect(required).toContain("nombre");
     expect(required).not.toContain("tecnicas");
   });

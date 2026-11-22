@@ -111,14 +111,19 @@ Si es una persona nueva, tu objetivo es crear su perfil en menos de dos minutos.
 Haz UNA sola pregunta por turno, corta, y espera la respuesta antes de pasar a la siguiente. Nunca
 respondas tú la pregunta ni supongas la respuesta: si no oyes nada claro, repite la misma pregunta.
 Si la persona da varios datos de una vez, tómalos y pregunta solo lo que falte. En este orden:
-1. Su nombre.
-2. Si es mayor de 18 años. Si no lo es, explica con amabilidad que por ahora NIVEL es solo para
-   mayores de 18 y despídete.
-3. Su oficio principal.
-4. Cuántos años de experiencia tiene.
-5. Qué técnicas o equipos maneja.
-6. En qué municipio o sector vive (nunca la dirección exacta).
-7. Desde cuándo puede trabajar.
+1. Su nombre y apellido.
+2. Su fecha de nacimiento (día, mes y año). Si tiene menos de 18 años, explica con amabilidad que por
+   ahora NIVEL es solo para mayores de 18 y despídete.
+3. Qué oficios tiene. Puede tener varios: soldadura, electricidad, albañilería, plomería, pintura u otro.
+4. Cuánta experiencia tiene: menos de 2 años, más de 2, más de 5 o más de 10.
+5. Qué sabe hacer en esos oficios. Si duda, nombra dos o tres ejemplos del oficio (por ejemplo, para
+   soldadura: MIG, TIG, estructuras metálicas) y deja que elija.
+6. Dónde quiere trabajar: en todo el país, en algunos estados o en algunos municipios. Si dice estados
+   o municipios, pregunta cuáles. Nunca pidas su dirección.
+7. Cuándo puede trabajar: ya mismo, solo fines de semana, toda la semana o medio tiempo.
+8. Si también trabaja de noche.
+La cédula y la contraseña NO se dicen en voz alta: al terminar, dile que las ponga en la pantalla para
+poder entrar desde otro teléfono.
 Después resume todo en una frase y pregunta "¿Está bien así?". En cuanto diga que sí, llama a
 guardar_perfil de inmediato, sin hacer más preguntas. Lee en voz alta el campo "say" de la respuesta.
 Si corrige algo, cambia solo ese dato y vuelve a confirmar.
@@ -147,7 +152,10 @@ dato que no te dijeron. Si la persona da varios datos de una vez, tómalos y pre
 
 Objetivo: crear una solicitud completa en menos de un minuto y mostrar candidatos.
 Datos necesarios: oficio, cantidad, nivel mínimo (1 a 5; si no sabe, sugiere nivel 2 o más, y nivel 3
-para estructura crítica o trabajos con planos), zona, fecha de inicio, días y pago diario en dólares. Tipo de contrato:
+para estructura crítica o trabajos con planos), estado y municipio de la obra, fecha de inicio, horario (de qué
+hora a qué hora), cuánto tiempo quiere contratar (una semana, más de un mes, más de 3 meses o contrato
+indefinido) y pago diario en dólares. Si contrata por menos de 3 meses, las prestaciones son 5 días de salario
+por mes (LOTTT, art. 142, literal e); desde 3 meses rige la garantía de 15 días por trimestre. Tipo de contrato:
 por obra determinada si la obra tiene un fin claro; pregunta solo si no está claro.
 Cuando tengas los datos, repítelos en una frase y llama a crear_solicitud. Lee el campo "say".
 Pregunta si invita a los mejores candidatos. Si dice que sí, llama a invitar_candidatos y lee "say".
@@ -171,12 +179,38 @@ const WORKER_TOOLS: readonly ToolDefinition[] = [
     path: "/api/tools/guardar_perfil",
     parameters: {
       nombre: { type: "string", description: "Nombre y apellido como los dijo." },
-      mayor_de_edad: { type: "boolean", description: "Confirmó que tiene 18 años o más." },
-      oficio: { type: "string", description: "Oficio principal.", enum: TRADES },
-      anos_experiencia: { type: "number", description: "Años de experiencia en el oficio." },
-      tecnicas: { type: "string[]", description: "Técnicas o equipos que maneja.", optional: true },
-      zona: { type: "string", description: "Municipio o sector donde vive. Nunca la dirección exacta." },
-      disponibilidad: { type: "string", description: "Cuándo puede empezar a trabajar." },
+      fecha_nacimiento: { type: "string", description: "Fecha de nacimiento en formato AAAA-MM-DD." },
+      oficios: {
+        type: "string[]",
+        description:
+          "Sus oficios, el principal primero: soldador, electricista, albanil, plomero, pintor u otro.",
+      },
+      anos_experiencia: {
+        type: "number",
+        description: "Años de experiencia: 1 si dijo menos de 2, o 2, 5 o 10 según el rango que eligió.",
+      },
+      tecnicas: { type: "string[]", description: "Lo que sabe hacer en sus oficios.", optional: true },
+      alcance: {
+        type: "string",
+        description: "Dónde quiere trabajar: nacional, estadal o municipal.",
+        enum: ["nacional", "estadal", "municipal"],
+      },
+      estados: {
+        type: "string[]",
+        description: "Estados donde quiere trabajar, si eligió estados o municipios.",
+        optional: true,
+      },
+      municipios: {
+        type: "string[]",
+        description: "Municipios donde quiere trabajar, si eligió municipios.",
+        optional: true,
+      },
+      disponibilidad: {
+        type: "string",
+        description: "Cuándo puede trabajar.",
+        enum: ["Ya mismo", "Solo fines de semana", "Toda la semana", "Medio tiempo"],
+      },
+      trabaja_de_noche: { type: "boolean", description: "Si también trabaja de noche." },
       conversation_id: CONVERSATION_ID,
     },
   },
@@ -223,7 +257,15 @@ const CONTRACTOR_TOOLS: readonly ToolDefinition[] = [
         type: "string",
         description: 'Fecha de inicio: AAAA-MM-DD o como la dijo ("el martes").',
       },
-      dias: { type: "integer", description: "Días de trabajo." },
+      duracion: {
+        type: "string",
+        description:
+          "Cuánto tiempo quiere contratar: semana (una semana), mes (más de un mes), tres_meses (más de 3 meses) o indefinido.",
+        enum: ["semana", "mes", "tres_meses", "indefinido"],
+      },
+      dias: { type: "integer", description: "Días exactos de trabajo, solo si los dijo.", optional: true },
+      hora_entrada: { type: "string", description: "Hora de entrada, HH:MM en 24 horas.", optional: true },
+      hora_salida: { type: "string", description: "Hora de salida, HH:MM en 24 horas.", optional: true },
       pago_diario_usd: { type: "number", description: "Pago diario por persona, en dólares." },
       tipo_contrato: {
         type: "string",

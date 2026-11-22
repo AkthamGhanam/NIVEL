@@ -8,7 +8,7 @@ import { Notice } from "@/components/ui/notice";
 import { cx } from "@/lib/cx";
 import { formatUsd, plural } from "@/lib/format";
 import { FEE_PAYMENT_NOTICE, SEARCH_GUARANTEE_NOTICE } from "@/lib/legal-copy";
-import { LEGAL_COST_DISCLAIMER, moneyFlow } from "@/lib/legal-cost";
+import { LEGAL_COST_DISCLAIMER, moneyFlow, prestacionesBasis } from "@/lib/legal-cost";
 
 type LegalCost = RequestBoard["legalCost"];
 type FeeRange = NonNullable<RequestBoard["feeRange"]>;
@@ -68,7 +68,7 @@ export function LegalCostCard({ legalCost, days }: { readonly legalCost: LegalCo
         <Destination
           tone="worker"
           title="Va al trabajador"
-          hint="Salario y beneficios de ley."
+          hint={`Salario y beneficios de ley. Prestaciones: ${prestacionesBasis(days).toLowerCase()}.`}
           subtotal={flow.toWorker}
           rows={[
             [`Salario (${plural(days, "día", "días")})`, perWorker.salary],

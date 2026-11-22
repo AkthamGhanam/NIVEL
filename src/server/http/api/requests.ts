@@ -1,6 +1,7 @@
 // Rutas de solicitudes de personal: crear, tablero activo e invitar.
 import { z } from "zod";
 
+import { HIRE_DURATIONS } from "@/lib/profile-options";
 import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
 
 import {
@@ -10,7 +11,7 @@ import {
   pinRequestSite,
 } from "../../use-cases/requests";
 import { endpoint, type RuntimeProvider } from "../endpoint";
-import { idSchema, pathId } from "./schemas";
+import { clockSchema, idSchema, pathId, placeSchema } from "./schemas";
 
 const LIMITS = Object.freeze({
   quantity: 50,
@@ -28,13 +29,23 @@ export const geoFixSchema = z.strictObject({
   accuracyM: z.number().positive().max(100_000).optional(),
 });
 
+type HireKey = (typeof HIRE_DURATIONS)[number]["key"];
+
 const newRequestSchema = z.strictObject({
   trade: z.enum(TRADES),
   quantity: z.int().min(1).max(LIMITS.quantity),
   minLevel: z.literal([1, 2, 3, 4, 5]),
   zone: z.string().trim().min(2).max(LIMITS.zone),
+  place: placeSchema.optional(),
   startDate: z.string().trim().min(1).max(LIMITS.startDate),
   days: z.int().min(1).max(LIMITS.days),
+  duration: z.enum(HIRE_DURATIONS.map((duration) => duration.key) as [HireKey, ...HireKey[]]).optional(),
+  hours: z
+    .strictObject({ from: clockSchema, to: clockSchema })
+    .refine((hours) => hours.from !== hours.to, {
+      error: "La hora de salida debe ser distinta a la de entrada",
+    })
+    .optional(),
   dailyPayUsd: z.number().positive().max(LIMITS.dailyPayUsd),
   contractType: z.enum(CONTRACT_TYPES),
   notes: z.string().trim().max(LIMITS.notes).optional(),

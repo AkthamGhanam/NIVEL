@@ -1,3 +1,4 @@
+import { durationOf } from "@/lib/profile-options";
 import { formatDay, formatKm, formatTime, formatUsd, plural } from "@/lib/format";
 import { type Liquidation, liquidation } from "@/lib/legal-cost";
 import { round2 } from "@/lib/money";
@@ -29,7 +30,10 @@ export function requestFacts(request: Request): string[] {
     tradeCount(request.trade, request.quantity),
     request.minLevel >= 5 ? "Nivel 5" : `Nivel ${request.minLevel} o más`,
     `desde ${formatDay(request.startDate)}`,
-    plural(request.days, "día", "días"),
+    request.durationKey
+      ? durationOf(request.durationKey).label.toLowerCase()
+      : plural(request.days, "día", "días"),
+    ...(request.startTime && request.endTime ? [`de ${request.startTime} a ${request.endTime}`] : []),
     `${formatUsd(request.dailyPayUsd)} al día`,
   ];
 }

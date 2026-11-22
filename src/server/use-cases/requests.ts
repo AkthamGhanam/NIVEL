@@ -5,12 +5,14 @@ import { type IsoDate, resolveStartDate } from "@/lib/dates";
 import { ensure } from "@/lib/errors";
 import { assertValidPoint, type GeoFix, SITE_PIN_MAX_ACCURACY_M } from "@/lib/geo";
 import { estimateLegalCost, type LegalCostEstimate } from "@/lib/legal-cost";
+import { durationOf, type HireDuration } from "@/lib/profile-options";
 import type { Level } from "@/lib/level";
 import { type PublicCandidate, rankCandidates } from "@/lib/matching";
 import { moderateJobText } from "@/lib/moderation";
 import { hiringFeeRange, type PriceWithIva } from "@/lib/pricing";
 import { formatDay, formatUsd, plural } from "@/lib/format";
 import { type ContractType, TRADE_LABELS, type Trade, tradeCount } from "@/lib/trades";
+import { cleanPlace, describePlace, findPlace, type Place } from "@/lib/venezuela";
 
 import { type Actor, requireRole } from "../actor";
 import type { AppContext } from "../context";
@@ -27,9 +29,15 @@ export interface NewJobRequest {
   readonly quantity: number;
   readonly minLevel: Level;
   readonly zone: string;
+  /** Estado y municipio elegidos de la lista; la zona se escribe con ellos. */
+  readonly place?: Place | undefined;
 
   readonly startDate: string;
   readonly days: number;
+  /** Cuánto tiempo quiere contratar; si viene, manda sobre `days`. */
+  readonly duration?: HireDuration | undefined;
+  /** Horario, "07:00" a "16:00". */
+  readonly hours?: { readonly from: string; readonly to: string } | undefined;
   readonly dailyPayUsd: number;
   readonly contractType: ContractType;
 
@@ -56,6 +64,19 @@ export interface JobRequestCreated extends CandidateSearch {
 
 const MAX_INVITATIONS_PER_CALL = 10;
 
+/** El lugar de la obra: el que se eligió de la lista o, en pedidos viejos y por voz, el que se reconoce en la zona. */
+function placeSearch(request: JobRequestRow): { place?: Place } {
+  if (request.state) {
+    return {
+      place: request.municipality
+        ? { state: request.state, municipality: request.municipality }
+        : { state: request.state },
+    };
+  }
+  const place = findPlace(request.zone);
+  return place ? { place } : {};
+}
+
 async function findCandidates(context: AppContext, request: JobRequestRow): Promise<CandidateSearch> {
   const facts = await loadWorkerFacts(context.db, { trade: request.trade, shareableOnly: true });
   const ranked = rankCandidates(
@@ -64,6 +85,7 @@ async function findCandidates(context: AppContext, request: JobRequestRow): Prom
       trade: request.trade,
       minLevel: request.minLevel as Level,
       site: { lat: request.lat, lng: request.lng },
+      ...placeSearch(request),
       startDate: request.startDate as IsoDate,
       days: request.days,
     },
@@ -109,19 +131,28 @@ export async function createJobRequest(
   const now = context.now();
   const [company] = await context.db.select().from(companies).where(eq(companies.id, companyId));
   if (!company) throw new NotFoundError("la empresa");
+  const chosen = input.place ? cleanPlace(input.place) : undefined;
+  ensure(!input.place || chosen !== undefined, "Elige el estado y el municipio de la obra de la lista.");
+  const place = chosen ?? findPlace(input.zone);
+  const days = input.duration ? durationOf(input.duration).days : input.days;
   const row = {
     id: context.newId("jr"),
     companyId,
     trade: input.trade,
     quantity: input.quantity,
     minLevel: input.minLevel,
-    zone: input.zone.trim(),
+    zone: chosen ? describePlace(chosen) : input.zone.trim(),
+    state: place?.state ?? null,
+    municipality: place?.municipality ?? null,
+    durationKey: input.duration ?? null,
+    startTime: input.hours?.from ?? null,
+    endTime: input.hours?.to ?? null,
 
     lat: input.site?.lat ?? company.lat,
     lng: input.site?.lng ?? company.lng,
     sitePinnedAt: input.site ? now.toISOString() : null,
     startDate: resolveStartDate(input.startDate, now),
-    days: input.days,
+    days,
     dailyPayUsd: input.dailyPayUsd,
     contractType: input.contractType,
     status: "abierta" as const,

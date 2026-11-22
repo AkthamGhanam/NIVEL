@@ -1,5 +1,8 @@
 // Todo lo que la app del trabajador le pide al servidor, con sus tipos.
 import type { GeoFix } from "@/lib/geo";
+import type { AvailabilityOption } from "@/lib/profile-options";
+import type { Trade } from "@/lib/trades";
+import type { WorkArea } from "@/lib/venezuela";
 import type { AttendanceRow } from "@/server/use-cases/attendance";
 import type { ContractDetail, PublicContract } from "@/server/use-cases/contracts";
 import type { InvitationResponse, WorkerOffer } from "@/server/use-cases/invitations";
@@ -43,14 +46,17 @@ export interface AttendanceInput {
   readonly simulated?: boolean;
 }
 
+/** Lo que viaja al registrarse escribiendo. La cédula y la contraseña se quedan en el teléfono. */
 export interface WorkerSignupInput {
   readonly name: string;
-  readonly isAdult: true;
-  readonly trade: string;
+  /** Solo para comprobar que es mayor de edad; no se guarda. */
+  readonly birthDate: string;
+  readonly trades: readonly Trade[];
   readonly yearsExp: number;
   readonly skills: readonly string[];
-  readonly zone: string;
-  readonly availability: string;
+  readonly workArea: WorkArea;
+  readonly availability: AvailabilityOption;
+  readonly nightShift: boolean;
   readonly consent: true;
 }
 

@@ -5,8 +5,12 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { ApiError, errorMessage } from "@/client/api";
+import { MIN_PASSWORD, rememberAccess } from "@/client/demo-access";
 import type { WorkerApi } from "@/client/worker-api";
+import { PasswordField } from "@/components/access/account-key";
 import { Button } from "@/components/ui/button";
+import { TextField } from "@/components/ui/field";
+import { isCedula } from "@/lib/profile-options";
 import { Notice } from "@/components/ui/notice";
 import { NiviPanel, NiviProvider } from "@/components/voice/nivi-panel";
 import { useNivi } from "@/components/voice/use-nivi";
@@ -26,9 +30,15 @@ export function NiviRegistration(props: NiviRegistrationProps) {
   );
 }
 
-export async function tryClaim(api: WorkerApi, conversationId: string): Promise<string | null> {
+export interface Claimed {
+  readonly firstName: string;
+  readonly workerId: string;
+}
+
+export async function tryClaim(api: WorkerApi, conversationId: string): Promise<Claimed | null> {
   try {
-    return (await api.claimProfile(conversationId)).profile.firstName;
+    const { profile } = await api.claimProfile(conversationId);
+    return { firstName: profile.firstName, workerId: profile.workerId };
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
@@ -39,7 +49,7 @@ interface ClaimWatch {
   readonly api: WorkerApi;
   readonly conversationId: string | null;
   readonly ended: boolean;
-  readonly onClaimed: (firstName: string) => void;
+  readonly onClaimed: (claimed: Claimed) => void;
   readonly onProblem: (message: string) => void;
 }
 
@@ -53,10 +63,10 @@ function useProfileClaim({ api, conversationId, ended, onClaimed, onProblem }: C
     let cancelled = false;
     const check = async () => {
       try {
-        const firstName = cancelled ? null : await tryClaim(api, conversationId);
-        if (firstName !== null && !cancelled) {
+        const claimed = cancelled ? null : await tryClaim(api, conversationId);
+        if (claimed !== null && !cancelled) {
           cancelled = true;
-          callbacks.current.onClaimed(firstName);
+          callbacks.current.onClaimed(claimed);
         }
       } catch (error) {
         if (!cancelled) callbacks.current.onProblem(errorMessage(error));
@@ -87,7 +97,7 @@ function Consent({
         className="mt-1 size-6 shrink-0 accent-brand"
       />
       <span>
-        Tengo 18 años o más y acepto que NIVEL use lo que diga para armar mi perfil (
+        Acepto que NIVEL use lo que diga para armar mi perfil (
         <Link href="/legal/privacidad" className="font-semibold text-brand underline decoration-2">
           privacidad
         </Link>
@@ -97,16 +107,42 @@ function Consent({
   );
 }
 
-function Saved({ firstName, onEnter }: { readonly firstName: string; readonly onEnter: () => void }) {
+/** Después de hablar con Nivi: cédula y contraseña se ponen en pantalla, nunca en voz alta. */
+function Saved({ claimed, onEnter }: { readonly claimed: Claimed; readonly onEnter: () => void }) {
+  const [cedula, setCedula] = useState("");
+  const [password, setPassword] = useState("");
+  const [problem, setProblem] = useState<string | null>(null);
+  const secure = async () => {
+    if (!isCedula(cedula)) return setProblem("Escribe tu cédula con la letra, por ejemplo V-12345678.");
+    if (password.length < MIN_PASSWORD)
+      return setProblem(`La contraseña lleva al menos ${MIN_PASSWORD} letras o números.`);
+    await rememberAccess("worker", { document: cedula, password }, claimed.workerId);
+    onEnter();
+  };
   return (
     <div
       role="status"
       className="flex animate-enter flex-col gap-3 rounded-card border-[1.5px] border-brand bg-brand-tint p-4"
     >
-      <p className="display text-2xl text-brand">¡Listo, {firstName}!</p>
-      <p className="text-ink-2">Tu perfil quedó guardado. Ya puedes entrar a tu app.</p>
-      <Button block onClick={onEnter}>
-        Entrar a mi app
+      <p className="display text-2xl text-brand">¡Listo, {claimed.firstName}!</p>
+      <p className="text-ink-2">
+        Tu perfil quedó guardado. Pon tu cédula y una contraseña para volver a entrar si cambias de teléfono.
+      </p>
+      <TextField
+        id="nivi-cedula"
+        label="Cédula"
+        placeholder="Ej: V-12345678"
+        autoCapitalize="characters"
+        value={cedula}
+        onChange={(event) => setCedula(event.target.value)}
+      />
+      <PasswordField id="nivi-clave" label="Crea una contraseña" value={password} onChange={setPassword} />
+      {problem ? <Notice tone="alert">{problem}</Notice> : null}
+      <Button block onClick={() => void secure()}>
+        Guardar y entrar
+      </Button>
+      <Button block variant="outline" onClick={onEnter}>
+        Ahora no, entrar
       </Button>
     </div>
   );
@@ -114,24 +150,24 @@ function Saved({ firstName, onEnter }: { readonly firstName: string; readonly on
 
 function Registration({ api, onRegistered }: NiviRegistrationProps) {
   const [consent, setConsent] = useState(false);
-  const [savedName, setSavedName] = useState<string | null>(null);
+  const [saved, setSaved] = useState<Claimed | null>(null);
   const [claimProblem, setClaimProblem] = useState<string | null>(null);
   const nivi = useNivi(() => api.registrationVoice());
   useProfileClaim({
     api,
-    conversationId: savedName === null ? nivi.conversationId : null,
+    conversationId: saved === null ? nivi.conversationId : null,
     ended: nivi.ended,
-    onClaimed: setSavedName,
+    onClaimed: setSaved,
     onProblem: setClaimProblem,
   });
   const enter = () => {
     nivi.stop();
     onRegistered();
   };
-  const unfinished = nivi.ended && savedName === null && nivi.conversationId !== null;
+  const unfinished = nivi.ended && saved === null && nivi.conversationId !== null;
   return (
     <NiviPanel nivi={nivi} locked={!consent} before={<Consent checked={consent} onChange={setConsent} />}>
-      {savedName !== null ? <Saved firstName={savedName} onEnter={enter} /> : null}
+      {saved !== null ? <Saved claimed={saved} onEnter={enter} /> : null}
       {claimProblem ? <Notice tone="alert">{claimProblem}</Notice> : null}
       {unfinished ? (
         <Notice tone="pending">

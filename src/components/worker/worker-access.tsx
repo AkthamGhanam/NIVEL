@@ -3,7 +3,9 @@
 
 import { useState } from "react";
 
+import type { AccessKey } from "@/client/demo-access";
 import type { WorkerApi, WorkerPersona, WorkerSignupInput } from "@/client/worker-api";
+import { AccessLogin } from "@/components/access/account-key";
 import { AccessFrame, type AccessTab } from "@/components/access/access-frame";
 import { type Account, AccountList } from "@/components/access/account-list";
 import { Notice } from "@/components/ui/notice";
@@ -29,7 +31,8 @@ interface WorkerAccessProps {
   readonly api: WorkerApi;
   readonly accounts: readonly WorkerPersona[];
   readonly onPick: (workerId: string) => void;
-  readonly onRegister: (input: WorkerSignupInput) => void;
+  readonly onRegister: (input: WorkerSignupInput, access: AccessKey) => void;
+  readonly onLogin: (key: AccessKey) => Promise<string | null>;
   readonly onRegistered: () => void;
   readonly pending: boolean;
   readonly error: string | null;
@@ -78,7 +81,8 @@ function CreateProfile(props: WorkerAccessProps) {
       {method === "voz" ? (
         <>
           <p className="text-ink-2">
-            Nivi te pregunta tu nombre, tu oficio, tu experiencia y dónde vives. Puedes hablarle o escribirle.
+            Nivi te pregunta tu nombre, tus oficios, tu experiencia y dónde quieres trabajar. Puedes hablarle
+            o escribirle.
           </p>
           <NiviRegistration api={props.api} onRegistered={props.onRegistered} />
         </>
@@ -103,7 +107,14 @@ export function WorkerAccess(props: WorkerAccessProps) {
       {tab === "crear" ? (
         <CreateProfile {...props} />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
+          <AccessLogin
+            documentLabel="Cédula"
+            placeholder="Ej: V-12345678"
+            onLogin={props.onLogin}
+            pending={props.pending}
+          />
+          <p className="text-sm font-bold text-muted">O toca tu cuenta</p>
           {props.error ? (
             <Notice tone="alert" urgent>
               {props.error}

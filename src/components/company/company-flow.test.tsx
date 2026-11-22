@@ -102,6 +102,7 @@ describe("entrada del contratista", () => {
           accounts={accounts}
           onPick={noop}
           onRegister={noop}
+          onLogin={async () => null}
           pending={false}
           error={error}
           initialTab={tab}
@@ -115,7 +116,10 @@ describe("entrada del contratista", () => {
     // Una sola empresa de ejemplo: las del historial de los trabajadores no se ofrecen para entrar.
     expect(state.personas.companies).toHaveLength(1);
     expect(create).toContain("Registrar mi empresa");
-    expect(create).toContain('name="rif"');
+    expect(create).toContain('id="empresa-rif"');
+    expect(create).toContain("Petróleo, gas y energía");
+    expect(create).toContain("Zonas de trabajo");
+    expect(enter).toContain('id="entrar-documento"');
     expect(enter).toContain("Cuentas de demostración");
     expect(enter).toContain("Constructora Los Guayos");
     expect(enter).toContain("RIF J-50123456-7");

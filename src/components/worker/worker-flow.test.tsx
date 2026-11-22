@@ -131,6 +131,7 @@ describe("entrada del trabajador", () => {
           accounts={accounts}
           onPick={noop}
           onRegister={noop}
+          onLogin={async () => null}
           onRegistered={noop}
           pending={false}
           error={error}
@@ -153,6 +154,8 @@ describe("entrada del trabajador", () => {
     expect(create).toContain("Escribirle a Nivi");
     expect(create).toContain("Prefiero escribir");
     expect(enter).toContain("Cuentas de demostración");
+    expect(enter).toContain("Cédula");
+    expect(enter).toContain("Contraseña");
     expect(enter).not.toContain("Cuentas registradas");
     expect(enter).toContain("Entrar como Carlos Rodríguez");
     expect(text(enter)).toContain("Carlos Rodríguez Nivel 2 soldador · Los Guayos");

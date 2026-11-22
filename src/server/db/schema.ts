@@ -1,7 +1,9 @@
 // Esquema de NIVEL (docs/spec.md, sección 5.1).
 import { blob, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
+import type { HireDuration } from "@/lib/profile-options";
+import { CONTRACT_TYPES, type Trade, TRADES } from "@/lib/trades";
+import type { WorkArea } from "@/lib/venezuela";
 
 const id = () => text("id").primaryKey();
 const bool = (name: string) => integer(name, { mode: "boolean" }).notNull().default(false);
@@ -16,6 +18,10 @@ export const companies = sqliteTable("companies", {
   zone: text("zone").notNull(),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
+  /** Tipo de empresa según la gente que busca (texto libre de la lista COMPANY_SECTORS). */
+  sector: text("sector"),
+  /** Dónde trabaja normalmente: todo el país, unos estados o unos municipios. */
+  workArea: json<WorkArea>("work_area"),
 
   isReal: bool("is_real"),
 });
@@ -32,13 +38,17 @@ export const workers = sqliteTable("workers", {
   name: text("name").notNull(),
   phone: text("phone"),
   isAdult: bool("is_adult"),
+  /** Oficio principal; `trades` guarda todos, con el principal primero. */
   trade: text("trade", { enum: TRADES }).notNull(),
+  trades: json<Trade[]>("trades"),
   yearsExp: integer("years_exp").notNull().default(0),
   skills: json<string[]>("skills").notNull(),
   zone: text("zone").notNull(),
   lat: real("lat").notNull(),
   lng: real("lng").notNull(),
   availability: text("availability").notNull(),
+  /** Dónde acepta trabajar. Nulo en perfiles viejos: se usa la distancia a su zona. */
+  workArea: json<WorkArea>("work_area"),
   level: integer("level").notNull().default(1),
   photoUrl: text("photo_url"),
   createdVia: text("created_via", { enum: ["voz", "texto", "seed"] }).notNull(),
@@ -141,8 +151,16 @@ export const jobRequests = sqliteTable("job_requests", {
   lng: real("lng").notNull(),
   /** Cuándo la empresa fijó el punto exacto de la obra con su ubicación. Nulo: se usa el de su sede. */
   sitePinnedAt: text("site_pinned_at"),
+  /** Estado y municipio de la obra, si se eligieron de la lista. */
+  state: text("state"),
+  municipality: text("municipality"),
   startDate: text("start_date").notNull(),
   days: integer("days").notNull(),
+  /** Cuánto tiempo quiere contratar la empresa; `days` es el estimado que sale de ahí. */
+  durationKey: text("duration_key").$type<HireDuration>(),
+  /** Horario de trabajo, "07:00" a "16:00". */
+  startTime: text("start_time"),
+  endTime: text("end_time"),
   dailyPayUsd: real("daily_pay_usd").notNull(),
   contractType: text("contract_type", { enum: CONTRACT_TYPES }).notNull(),
   status: text("status", { enum: ["abierta", "completa", "cerrada"] }).notNull(),

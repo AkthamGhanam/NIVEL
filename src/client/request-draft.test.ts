@@ -16,9 +16,12 @@ describe("formulario de pedir personal", () => {
       trade: "soldador",
       quantity: "3",
       minLevel: "2",
-      zone: "Los Guayos",
+      state: "Carabobo",
+      municipality: "Los Guayos",
       startDate: "2026-11-24",
-      days: "5",
+      startTime: "07:00",
+      endTime: "16:00",
+      duration: "semana",
       dailyPayUsd: "25",
       contractType: "obra_determinada",
       notes: "",
@@ -27,7 +30,7 @@ describe("formulario de pedir personal", () => {
 
   it("convierte el texto en los datos exactos que espera la API", () => {
     const result = parseRequestDraft(
-      draft({ zone: "  Los Guayos ", dailyPayUsd: "27,50", notes: " con casco " }),
+      draft({ municipality: "  Los Guayos ", dailyPayUsd: "27,50", notes: " con casco " }),
       TODAY,
     );
 
@@ -37,9 +40,12 @@ describe("formulario de pedir personal", () => {
         trade: "soldador",
         quantity: 3,
         minLevel: 2,
-        zone: "Los Guayos",
+        zone: "Los Guayos, Carabobo",
+        place: { state: "Carabobo", municipality: "Los Guayos" },
         startDate: "2026-11-24",
-        days: 5,
+        days: 7,
+        duration: "semana",
+        hours: { from: "07:00", to: "16:00" },
         dailyPayUsd: 27.5,
         contractType: "obra_determinada",
         notes: "con casco",
@@ -58,9 +64,9 @@ describe("formulario de pedir personal", () => {
       draft({
         quantity: "0",
         minLevel: "6",
-        zone: " ",
+        municipality: " ",
         startDate: "mañana",
-        days: "1.5",
+        endTime: "07:00",
         dailyPayUsd: "-3",
         notes: "x".repeat(501),
       }),
@@ -72,9 +78,9 @@ describe("formulario de pedir personal", () => {
       problems: {
         quantity: "Escribe cuántas personas, de 1 a 50.",
         minLevel: "Elige un nivel del 1 al 5.",
-        zone: "Escribe la zona de la obra.",
+        municipality: "Elige el municipio de la obra.",
+        endTime: "La salida debe ser a otra hora que la entrada.",
         startDate: "Elige el día en que empieza la obra.",
-        days: "Escribe cuántos días, de 1 a 90.",
         dailyPayUsd: "Escribe el pago diario en dólares, por ejemplo 25.",
         notes: "La nota es demasiado larga.",
       },
@@ -83,7 +89,6 @@ describe("formulario de pedir personal", () => {
 
   it.each([
     ["51", "quantity"],
-    ["91", "days"],
     ["1001", "dailyPayUsd"],
     ["0", "dailyPayUsd"],
     ["25.999", "dailyPayUsd"],
@@ -105,9 +110,17 @@ describe("formulario de pedir personal", () => {
   it("reparte los problemas que devuelve la API e ignora campos que el formulario no tiene", () => {
     expect(
       problemsFromApi([
-        { field: "zone", problem: "Muy corta" },
+        { field: "municipality", problem: "Muy corta" },
         { field: "companyId", problem: "No se acepta" },
       ]),
-    ).toEqual({ zone: "Muy corta" });
+    ).toEqual({ municipality: "Muy corta" });
+  });
+
+  it("los días salen del tiempo que se quiere contratar; menos de 3 meses lleva prestaciones de 5 días por mes", () => {
+    const month = parseRequestDraft(draft({ duration: "mes" }), TODAY);
+    const forever = parseRequestDraft(draft({ duration: "indefinido" }), TODAY);
+
+    expect(month.ok && month.input.days).toBe(30);
+    expect(forever.ok && forever.input.days).toBe(90);
   });
 });

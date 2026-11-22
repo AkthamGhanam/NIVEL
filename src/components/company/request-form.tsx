@@ -14,11 +14,15 @@ import {
 } from "@/client/request-draft";
 import { Button } from "@/components/ui/button";
 import { Disclosure } from "@/components/ui/disclosure";
+import { ChoiceChips } from "@/components/ui/choice-chips";
 import { SelectField, TextAreaField, TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
+import { PlacePicker } from "@/components/ui/work-area-picker";
 import { localDate } from "@/lib/dates";
 import { type GeoFix, SITE_PIN_MAX_ACCURACY_M } from "@/lib/geo";
+import { FIRST_TRIMESTER_DAYS } from "@/lib/legal-cost";
 import { LEVEL_NAMES, type Level } from "@/lib/level";
+import { durationOf, HIRE_DURATIONS, type HireDuration } from "@/lib/profile-options";
 import { CONTRACT_TYPE_LABELS, CONTRACT_TYPES, TRADE_LABELS, TRADES } from "@/lib/trades";
 
 import { accuracyLabel, SitePin } from "./site-pin";
@@ -144,37 +148,68 @@ function PeopleFields({ draft, problems, change }: SectionProps) {
   );
 }
 
-/** Dónde y cuándo es la obra. */
+const DURATION_CHOICES = HIRE_DURATIONS.map((duration) => ({ value: duration.key, label: duration.label }));
+
+/** Dónde y cuándo es la obra: estado y municipio, día de inicio y horario. */
 function SiteFields({ draft, problems, change }: SectionProps) {
   return (
     <>
+      <PlacePicker
+        id="solicitud-lugar"
+        value={{ state: draft.state, municipality: draft.municipality }}
+        error={problems.municipality}
+        onChange={(place) => {
+          change("state", place.state);
+          change("municipality", place.municipality ?? "");
+        }}
+      />
       <TextField
-        id="solicitud-zona"
-        label="Zona de la obra"
-        maxLength={REQUEST_LIMITS.zone}
-        value={draft.zone}
-        error={problems.zone}
-        onChange={(event) => change("zone", event.target.value)}
+        id="solicitud-inicio"
+        label="Empieza el"
+        type="date"
+        value={draft.startDate}
+        error={problems.startDate}
+        onChange={(event) => change("startDate", event.target.value)}
       />
       <div className="grid grid-cols-2 gap-3">
         <TextField
-          id="solicitud-inicio"
-          label="Empieza el"
-          type="date"
-          value={draft.startDate}
-          error={problems.startDate}
-          onChange={(event) => change("startDate", event.target.value)}
+          id="solicitud-entrada"
+          label="Desde (hora)"
+          type="time"
+          value={draft.startTime}
+          onChange={(event) => change("startTime", event.target.value)}
         />
         <TextField
-          id="solicitud-dias"
-          label="Días de obra"
-          inputMode="numeric"
-          value={draft.days}
-          error={problems.days}
-          onChange={(event) => change("days", event.target.value)}
+          id="solicitud-salida"
+          label="Hasta (hora)"
+          type="time"
+          value={draft.endTime}
+          error={problems.endTime}
+          onChange={(event) => change("endTime", event.target.value)}
         />
       </div>
     </>
+  );
+}
+
+/** Cuánto tiempo se contrata. Decide cómo se calculan las prestaciones (LOTTT, art. 142). */
+function DurationField({ draft, change }: SectionProps) {
+  const days = durationOf(draft.duration).days;
+  return (
+    <ChoiceChips<HireDuration>
+      id="solicitud-duracion"
+      legend="¿Por cuánto tiempo quieres contratar?"
+      options={DURATION_CHOICES}
+      selected={[draft.duration]}
+      onToggle={(duration) => change("duration", duration)}
+      hint={
+        days < FIRST_TRIMESTER_DAYS
+          ? "Menos de 3 meses: el costo legal suma vacaciones y utilidades proporcionales, y prestaciones de 5 días de salario por mes (LOTTT, art. 142, literal e)."
+          : draft.duration === "indefinido"
+            ? "Contrato indefinido: estimamos los primeros 3 meses, con prestaciones de 15 días por trimestre (LOTTT, art. 142)."
+            : "Desde 3 meses: prestaciones de 15 días de salario por trimestre (LOTTT, art. 142, literal a)."
+      }
+    />
   );
 }
 
@@ -228,6 +263,7 @@ export function RequestForm(props: RequestFormProps) {
     <form onSubmit={(event) => void submit(event)} noValidate className="flex flex-col gap-3">
       <PeopleFields {...section} />
       <SiteFields {...section} />
+      <DurationField {...section} />
       <PayField {...section} />
       <Disclosure title="Más opciones" plain>
         <SitePin

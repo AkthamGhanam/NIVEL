@@ -3,7 +3,9 @@ import { and, count, eq, gte, inArray } from "drizzle-orm";
 
 import { ensure } from "@/lib/errors";
 import { type Level, MARKET_REFERENCE_BANDS } from "@/lib/level";
+import { COMPANY_SECTORS, type CompanySector, describeAvailability } from "@/lib/profile-options";
 import { type Trade, TRADE_LABELS } from "@/lib/trades";
+import { cleanWorkArea, type WorkArea, locateArea } from "@/lib/venezuela";
 import { locateZone } from "@/lib/zones";
 
 import type { Actor } from "../actor";
@@ -16,11 +18,17 @@ export interface VoiceProfile {
   readonly name: string;
   readonly isAdult: boolean;
   readonly trade: Trade;
+  /** Todos sus oficios, si dijo más de uno. El principal es `trade`. */
+  readonly trades?: readonly Trade[] | undefined;
   readonly yearsExp: number;
   readonly skills: readonly string[];
 
   readonly zone: string;
+  /** Dónde acepta trabajar. Si viene, manda sobre `zone`. */
+  readonly workArea?: WorkArea | undefined;
   readonly availability: string;
+  /** También trabaja de noche. */
+  readonly nightShift?: boolean | undefined;
 
   readonly conversationId: string;
 
@@ -41,7 +49,7 @@ export interface ProfileCreated {
 export const UNDERAGE_MESSAGE = "Por ahora NIVEL es solo para personas mayores de 18 años.";
 
 const NAME_PATTERN = /^\p{L}[\p{L} .'-]{1,79}$/u;
-const LIMITS = Object.freeze({ yearsExp: 60, skills: 10, skillLength: 40, text: 80 });
+const LIMITS = Object.freeze({ yearsExp: 60, skills: 16, skillLength: 40, text: 80 });
 
 const MAX_VOICE_PROFILES = 300;
 
@@ -58,13 +66,24 @@ function cleanProfile(input: VoiceProfile) {
     Number.isFinite(input.yearsExp) && input.yearsExp >= 0 && input.yearsExp <= LIMITS.yearsExp,
     "Los años de experiencia deben estar entre 0 y 60",
   );
-  const availability = tidy(input.availability).slice(0, LIMITS.text);
-  ensure(availability.length > 0, "Falta la disponibilidad");
+  const said = tidy(input.availability);
+  ensure(said.length > 0, "Falta la disponibilidad");
+  const availability = describeAvailability(said, input.nightShift === true).slice(0, LIMITS.text);
+  const workArea = input.workArea ? cleanWorkArea(input.workArea) : undefined;
+  ensure(!input.workArea || workArea !== undefined, "Elige dónde quieres trabajar de la lista.");
   const skills = input.skills
     .map((skill) => tidy(skill).slice(0, LIMITS.skillLength))
     .filter(Boolean)
     .slice(0, LIMITS.skills);
-  return { name, availability, skills, yearsExp: Math.round(input.yearsExp), zone: locateZone(input.zone) };
+  return {
+    name,
+    availability,
+    skills,
+    trades: [...new Set([input.trade, ...(input.trades ?? [])])],
+    workArea: workArea ?? null,
+    yearsExp: Math.round(input.yearsExp),
+    zone: workArea ? locateArea(workArea) : locateZone(input.zone),
+  };
 }
 
 async function routeFor(context: AppContext, trade: Trade): Promise<ProfileCreated["route"]> {
@@ -124,8 +143,10 @@ async function insertWorker(context: AppContext, input: NewWorker): Promise<stri
     name: profile.name,
     isAdult: true,
     trade: input.trade,
+    trades: profile.trades,
     yearsExp: profile.yearsExp,
     skills: profile.skills,
+    workArea: profile.workArea,
     zone: profile.zone.name,
     lat: profile.zone.point.lat,
     lng: profile.zone.point.lng,
@@ -222,7 +243,17 @@ export interface CompanySignup {
   readonly rif: string;
   readonly zone: string;
   readonly kind: CompanyKind;
+  /** Tipo de empresa según la gente que busca. */
+  readonly sector?: CompanySector | undefined;
+  /** Dónde trabaja normalmente. Si viene, manda sobre `zone`. */
+  readonly workArea?: WorkArea | undefined;
 }
+
+/** Las que hacen obras para otros son contratistas; las demás, empresas con personal propio. */
+export const kindOfSector = (sector: CompanySector): CompanyKind =>
+  sector === "Construcción y obras civiles" || sector === "Contratista de remodelaciones"
+    ? "contratista"
+    : "empresa";
 
 export interface CompanyCreated {
   readonly id: string;
@@ -253,7 +284,10 @@ export async function registerCompany(
   const rif = normalizeRif(input.rif);
   const zoneText = tidy(input.zone);
   ensure(zoneText.length > 0, "Falta la zona de la empresa");
-  const zone = locateZone(zoneText);
+  const workArea = input.workArea ? cleanWorkArea(input.workArea) : undefined;
+  ensure(!input.workArea || workArea !== undefined, "Elige de la lista dónde trabaja la empresa.");
+  ensure(!input.sector || COMPANY_SECTORS.includes(input.sector), "Elige el tipo de empresa de la lista.");
+  const zone = workArea ? locateArea(workArea) : locateZone(zoneText);
   const [taken] = await context.db.select({ id: companies.id }).from(companies).where(eq(companies.rif, rif));
   if (taken) throw new ConflictError("Ya hay una empresa registrada con ese RIF.");
   const [{ total } = { total: 0 }] = await context.db
@@ -268,7 +302,9 @@ export async function registerCompany(
     name,
     rif,
     verified: false,
-    kind: input.kind,
+    kind: input.sector ? kindOfSector(input.sector) : input.kind,
+    sector: input.sector ?? null,
+    workArea: workArea ?? null,
     zone: zone.name,
     lat: zone.point.lat,
     lng: zone.point.lng,
