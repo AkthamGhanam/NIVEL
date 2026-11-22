@@ -1,3 +1,4 @@
+// Pruebas de security-headers.
 import { describe, expect, it } from "vitest";
 
 import {

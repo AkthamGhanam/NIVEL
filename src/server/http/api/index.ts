@@ -1,3 +1,4 @@
+// Todas las rutas de la API, listas para montarse en src/app/api.
 import type { RuntimeProvider } from "../endpoint";
 import { feeRoutes, metricRoutes } from "./business";
 import { levelRoutes, paymentRoutes, ratingRoutes } from "./closing";
@@ -6,15 +7,11 @@ import { meRoutes } from "./me";
 import { requestRoutes } from "./requests";
 import { signupRoutes } from "./signup";
 import { stateRoutes } from "./state";
-import { demoRoutes, eventRoutes, reportRoutes } from "./team";
+import { demoRoutes, eventRoutes, reportRoutes, voiceSetupRoutes } from "./team";
 import { companyTools, crewTools, offerTools, workerTools } from "./tools";
 import { voiceRoutes } from "./voice";
 import { attendanceRoutes, contractRoutes, invitationRoutes } from "./work";
 
-/**
- * Todas las rutas de la API, listas para montarse en `src/app/api`. Reciben el
- * runtime como dependencia: en producción el real, en las pruebas uno temporal.
- */
 export const createApi = (runtime: RuntimeProvider) => ({
   state: stateRoutes(runtime),
   signup: signupRoutes(runtime),
@@ -28,6 +25,7 @@ export const createApi = (runtime: RuntimeProvider) => ({
   reports: reportRoutes(runtime),
   events: eventRoutes(runtime),
   demo: demoRoutes(runtime),
+  voiceSetup: voiceSetupRoutes(runtime),
   voice: voiceRoutes(runtime),
   me: meRoutes(runtime),
   learning: learningRoutes(runtime),

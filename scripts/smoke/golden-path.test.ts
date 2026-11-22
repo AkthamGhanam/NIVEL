@@ -1,14 +1,10 @@
+// El mismo smoke de npm run smoke, pero contra los archivos de ruta reales importados en proceso.
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IDS } from "../../src/server/db/seed/cast";
 import { dispatch, type InProcessApi, startInProcessApi } from "../../src/server/testing/in-process-api";
 import { ApiClient } from "./client";
 import { runGoldenPath, type SmokeClients, type SmokeResult } from "./golden-path";
-
-/**
- * El mismo smoke de `npm run smoke`, pero contra los archivos de ruta reales
- * importados en proceso. Después comprueba los rechazos por HTTP.
- */
 
 let api: InProcessApi;
 let clients: SmokeClients;
@@ -94,7 +90,7 @@ describe("smoke del camino dorado por las rutas reales", () => {
 
     expect(metrics.averageMinutesToFullCrew).toBeGreaterThanOrEqual(0);
     expect(metrics.requests.complete).toBeGreaterThanOrEqual(1);
-    // Tres contrataciones: Rafael y José (Nivel 3, $30) y Carlos (Nivel 2, $20), más IVA 16 %.
+
     expect(metrics.income.pendingTotalUsd).toBe(92.8);
   });
 
@@ -178,7 +174,7 @@ describe("rechazos por HTTP", () => {
     expect((await visitor.call("GET", "/api/events")).status).toBe(401);
   });
 
-  it("nadie entra como una persona real del evento, y el reset normal conserva su perfil", async () => {
+  it("una persona registrada aparece entre las cuentas con nombre corto, y el reset normal conserva su perfil", async () => {
     const { app } = await import("../../src/server/app");
     const { workers } = await import("../../src/server/db/schema");
     const { handle } = await app();
@@ -198,11 +194,16 @@ describe("rechazos por HTTP", () => {
     const visitor = newClient();
 
     const entry = await visitor.call("POST", "/api/state", { body: { role: "worker", id: "w-real-1" } });
-    const state = await visitor.get<{ personas: { workers: Array<{ id: string }> } }>("/api/state");
+    const state = await visitor.get<{
+      personas: { workers: Array<{ id: string; name: string; registered: boolean }> };
+    }>("/api/state");
     const summary = await clients.team.post<{ keptRealWorkers: number }>("/api/demo/reset", { as: "admin" });
 
-    expect(entry.status).toBe(403);
-    expect(state.personas.workers.map((worker) => worker.id)).not.toContain("w-real-1");
+    expect(entry.status).toBe(200);
+    expect(state.personas.workers.find((worker) => worker.id === "w-real-1")).toMatchObject({
+      name: "Persona R.",
+      registered: true,
+    });
     expect(summary.keptRealWorkers).toBe(1);
   });
 

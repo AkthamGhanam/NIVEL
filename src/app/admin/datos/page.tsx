@@ -1,3 +1,4 @@
+// Página de /admin/datos.
 import type { Metadata } from "next";
 
 import { DataScreen } from "@/components/admin/data-screen";

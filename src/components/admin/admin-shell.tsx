@@ -1,3 +1,4 @@
+// Marco de la administración.
 "use client";
 
 import Link from "next/link";
@@ -40,7 +41,6 @@ function AdminNav({ current }: { readonly current: string }) {
   );
 }
 
-/** Marco de la administración: barra oscura con las secciones del equipo y el contenido sobre el fondo claro. */
 export function AdminShell({ children }: { readonly children: ReactNode }) {
   const pathname = usePathname();
   return (

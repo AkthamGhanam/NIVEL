@@ -1,3 +1,4 @@
+// Todo lo que la pantalla del contratista le pide al servidor, con sus tipos.
 import type { FeePaymentMethod } from "@/lib/pricing";
 import type { FeeStatement } from "@/server/use-cases/billing";
 import type { PaymentRow, Receipt } from "@/server/use-cases/payments";
@@ -12,12 +13,6 @@ import type {
 } from "@/server/use-cases/requests";
 
 import type { ApiRequest } from "./api";
-
-/**
- * Todo lo que la pantalla del contratista le pide al servidor, con sus tipos.
- * Solo importa tipos del servidor: ningún código suyo llega al navegador.
- * Cada llamada va con la vista "company", así el servidor usa esa sesión.
- */
 
 export type { DemoState, FeeStatement, PaymentRow, Receipt, RequestBoard };
 export type CompanyPersona = DemoState["personas"]["companies"][number];
@@ -47,7 +42,6 @@ export function createCompanyApi(request: ApiRequest) {
   const post = <T>(path: string, body: unknown) => request<T>(path, { ...AS_COMPANY, method: "POST", body });
 
   return {
-    /** Personajes de la demo y con cuál está abierta cada vista. */
     state: (signal?: AbortSignal) => get<DemoState>("/api/state", signal),
     enter: (companyId: string) => post<DemoState>("/api/state", { role: "company", id: companyId }),
     register: (input: CompanySignupInput) =>
@@ -56,7 +50,9 @@ export function createCompanyApi(request: ApiRequest) {
     board: async (signal?: AbortSignal) =>
       (await get<{ board: RequestBoard | null }>("/api/requests/active", signal)).board,
     createRequest: (input: RequestInput) => post<JobRequestCreated>("/api/requests", input),
-    /** Invita a los N mejores, o a las personas elegidas de la lista. */
+    voice: () =>
+      get<{ token: string; dynamicVariables: Record<string, string> }>("/api/el/token?agent=contractor"),
+
     invite: async (requestId: string, choice: InviteSelection) =>
       (await post<{ invitations: InvitationSent[] }>(`/api/requests/${segment(requestId)}/invite`, choice))
         .invitations,

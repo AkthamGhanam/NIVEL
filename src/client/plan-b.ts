@@ -1,8 +1,7 @@
 import { sayInvited, sayRequestCreated } from "@/lib/say";
 
 import type { CompanyApi, RequestInput } from "./company-api";
-import type { VoiceToken } from "./nivi-session";
-import type { Script } from "./scripted-agent";
+import type { Script } from "./scripted-nivi";
 
 /**
  * Guion del Plan B para la empresa: el camino dorado de la demo (3 soldadores
@@ -29,9 +28,6 @@ const GOLDEN_REQUEST = Object.freeze({
   dailyPayUsd: 25,
   contractType: "obra_determinada",
 } satisfies Omit<RequestInput, "zone" | "via">);
-
-/** El guion no pide un token: nada sale hacia ElevenLabs. */
-export const PLAN_B_TOKEN: VoiceToken = Object.freeze({ token: "plan-b", dynamicVariables: {} });
 
 export interface ContractorScriptDeps {
   readonly api: Pick<CompanyApi, "createRequest" | "invite">;

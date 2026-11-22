@@ -1,3 +1,4 @@
+// La administración contra las rutas reales.
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -18,12 +19,6 @@ import { IncomeTable, LevelDistribution, MetricsView } from "./metrics-view";
 import { HUMAN_REVIEW_RULE, ReportCard, ReviewQueue } from "./review-queue";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/admin/revision" }));
-
-/**
- * La administración contra las rutas reales: las métricas salen de los datos
- * y los reportes los decide una persona del equipo, con una nota. Nada cambia
- * solo: ni el nivel de quien reporta ni el estado de la empresa.
- */
 
 let server: InProcessApi;
 let team: TeamApi;
@@ -82,7 +77,7 @@ describe("acceso del equipo", () => {
     expect(markup).toMatch(/<a[^>]*href="\/admin\/datos"[^>]*>Datos de la demo<\/a>/);
     expect(markup).not.toContain("Modo Jurado");
     expect(markup.match(/<main/g)).toHaveLength(1);
-    expect(markup).toContain("Demo · nombres, empresas y cifras de ejemplo");
+    expect(markup).toContain("Versión demo · datos de ejemplo");
   });
 });
 
@@ -206,7 +201,7 @@ describe("revisión humana de reportes", () => {
     expect(markup).not.toContain(IDS.carlos);
     expect(markup).not.toContain("Carlos");
     expect(markup).not.toContain("<audio");
-    // Reportar no cambia el nivel de nadie, y las métricas cuentan el caso abierto.
+
     expect((await carlos.level()).level).toBe(levelBefore);
     expect((await team.metrics()).reportsInReview).toBe(1);
   });

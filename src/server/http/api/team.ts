@@ -1,8 +1,10 @@
+// Rutas del equipo: reportes, bitácora, reinicio de la demo y voz.
 import { z } from "zod";
 
 import { fastForwardActiveRequest, resetDemoData, setDemoBot } from "../../use-cases/demo";
 import { listEventsSince } from "../../use-cases/events";
 import { createReport, listReportsInReview, REPORT_KINDS, resolveReport } from "../../use-cases/reports";
+import { checkVoice, publishAgents } from "../../use-cases/voice-setup";
 import { endpoint, type RuntimeProvider } from "../endpoint";
 import { emptyBody, idSchema, pathId } from "./schemas";
 
@@ -28,7 +30,6 @@ export const reportRoutes = (runtime: RuntimeProvider) => ({
     runtime,
   ),
 
-  /** Cola de revisión humana: solo el equipo de NIVEL. */
   inReview: endpoint(
     { access: "admin" },
     async ({ actor, context }) => ({ reports: await listReportsInReview(context, actor) }),
@@ -44,7 +45,6 @@ export const reportRoutes = (runtime: RuntimeProvider) => ({
 });
 
 export const eventRoutes = (runtime: RuntimeProvider) => ({
-  /** Bitácora en vivo del Modo Jurado, a partir de `?since=` (ISO 8601). */
   list: endpoint(
     { access: "admin" },
     async ({ url, context }) => {
@@ -56,7 +56,6 @@ export const eventRoutes = (runtime: RuntimeProvider) => ({
 });
 
 export const demoRoutes = (runtime: RuntimeProvider) => ({
-  /** Devuelve la demo al seed. Conserva los perfiles reales salvo con `?all=1`. */
   reset: endpoint(
     { access: "admin", body: emptyBody },
     ({ actor, url, context }) =>
@@ -64,7 +63,6 @@ export const demoRoutes = (runtime: RuntimeProvider) => ({
     runtime,
   ),
 
-  /** Enciende o apaga el bot que responde por Rafael, José y Luis. */
   bot: endpoint(
     { access: "admin", body: botSchema },
     ({ actor, body, context }) => setDemoBot(context, actor, body.state === "on"),
@@ -74,6 +72,25 @@ export const demoRoutes = (runtime: RuntimeProvider) => ({
   fastForward: endpoint(
     { access: "admin", body: fastForwardSchema },
     ({ actor, body, context }) => fastForwardActiveRequest(context, actor, body.requestId),
+    runtime,
+  ),
+});
+
+export const voiceSetupRoutes = (runtime: RuntimeProvider) => ({
+  publish: endpoint(
+    { access: "admin", body: emptyBody },
+    ({ services }) => publishAgents(services.voiceSetup()),
+    runtime,
+  ),
+
+  check: endpoint(
+    { access: "admin", body: emptyBody },
+    ({ context, services, issueToolContext }) =>
+      checkVoice(
+        context,
+        services.voiceSetup(),
+        issueToolContext({ kind: "registration", real: false, consentAt: context.now().toISOString() }),
+      ),
     runtime,
   ),
 });

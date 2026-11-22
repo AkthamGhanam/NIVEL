@@ -356,59 +356,56 @@ Pendiente de las notas de voz:
 - Sin probar en Safari (graba en MP4) ni en un teléfono real.
 - Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
 
-### 12b · Hablar con Nivi — listo en código (sin probar aún contra ElevenLabs real)
+### 12b · Worklets de audio propios para Nivi — listo en código (sin probar aún contra ElevenLabs real)
 
-- [x] `NiviVoice`: un componente y tres modos sobre el mismo agente. **Nota de voz** (el micrófono solo se
-      abre mientras se mantiene presionado; también con el teclado), **llamada** (manos libres, con «Colgar»)
-      y **texto** (sin micrófono). Orbe con su estado en palabras y la conversación escrita en vivo
-- [x] El modo elegido se recuerda en el teléfono, por separado para el trabajador y la empresa
-- [x] `/c`: tarjeta «Pídela hablando» en modo llamada; lo que el agente crea aparece en el tablero de al lado
-- [x] El registro por voz es el de la fase 11 (acceso de `/t`, con `@elevenlabs/react`). Aquí solo se le pasan
-      los worklets propios: sin eso el SDK los carga como `blob:`, que la CSP no admite
-- [x] SDK `@elevenlabs/client` 1.37.1, la misma versión que trae `@elevenlabs/react`. Sus worklets se sirven
-      desde `public/elevenlabs`; una prueba avisa si dejan de coincidir con el paquete
-- [x] 690 pruebas; cobertura de líneas 99 %
+La conversación con Nivi es la de main (`NiviPanel` y `NiviCard`, voz o texto, desde el PR #26). El
+componente `NiviVoice` de tres modos que traía esta fase se quitó para no tener dos conversaciones distintas.
 
-Recorrido en Chromium (1440 px y 390 px) antes de unir con la fase 11: estados de Nivi y panel de la empresa,
-axe sin hallazgos y sin desbordes. Se comprobó en el navegador que el worklet propio carga bajo la CSP real
-y que, con un token de mentira, el SDK intenta conectar con ElevenLabs sin chocar con la CSP.
+- [x] El Nivi de main abre la conversación con los worklets del SDK servidos desde `public/elevenlabs`. Sin
+      eso el SDK los carga como `blob:`, que la CSP no admite: la conversación sigue, pero el navegador
+      bloquea el análisis del audio de salida y deja un aviso en la consola
+- [x] Una prueba compara esas copias con las del paquete instalado y avisa si el SDK cambia de versión
+- [x] 665 pruebas; cobertura de líneas 99 %
 
-Pendiente de hablar con Nivi:
+Pendiente:
 
-- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs: nunca se oyó a Nivi desde estas
-  pantallas. Falta probar en producción el registro y el panel de `/c`.
-- La pantalla `/t/registro` que traía esta fase (hoja de permiso con audio, tres modos y «Esto entendimos»)
-  se quitó al unir con la fase 11, para no tener dos registros por voz. El registro actual solo tiene llamada.
-- Si ElevenLabs no conecta, el registro muestra el mensaje técnico del SDK en inglés.
+- **Una conversación real con el agente.** Aquí no hay clave de ElevenLabs, así que el arreglo no se vio
+  funcionando: los worklets se cargan solo cuando la conversación ya conectó.
+- El modo de mantener presionado para hablar (nota de voz) que pide la especificación no está: el panel de
+  main tiene voz y texto.
+- Si ElevenLabs no conecta, el panel muestra el mensaje técnico del SDK en inglés.
 - Sin probar en Safari ni en un teléfono real (el permiso del micrófono cambia entre navegadores).
 - El widget de respaldo (`?widget=1`) sigue pendiente.
 
 ### 12c · Plan B y chequeo previo — listos (el plan B sin audio pregenerado, solo para la empresa)
 
 - [x] **Plan B** en `/c?planb=1`: Nivi sigue el guion del camino dorado (3 soldadores de Nivel 2, 5 días,
-      25 dólares) sin pedir token ni conectarse al agente en vivo. Es el mismo componente y se ve igual. Cada
+      25 dólares) sin pedir token ni conectarse al agente en vivo. Se pinta con el mismo panel de Nivi de
+      main (`NiviPanel`), así que se ve igual. Cada
       turno ejecuta la acción real por la API de la empresa: crea la solicitud (queda «Pedida por voz») e
       invita a los mejores, así que el tablero y la bitácora cambian como en una conversación de verdad
-- [x] El guion avanza al soltar el botón (nota de voz), al enviar un texto o, en llamada, unos 5 s después
-      de que Nivi termina. **No escucha el micrófono**: en pantalla aparece la frase del guion, diga lo que
-      diga el presentador
+- [x] Con «Hablar con Nivi» el guion avanza solo, unos 5 s después de que Nivi termina cada frase; con
+      «Escribirle a Nivi» avanza con cada mensaje. Un mensaje enviado mientras Nivi habla la interrumpe.
+      **No escucha el micrófono** (ni lo pide): hablando, en pantalla aparece la frase del guion, diga lo
+      que diga el presentador
 - [x] La voz del plan B sale de `/api/voice/tts` con su caché en la base, que sobrevive al reinicio de la
       demo. Sin audio (sin red o sin clave), la frase queda escrita y el guion espera lo que toma leerla
 - [x] **Chequeo previo** en `/admin/chequeo` (solo el equipo), con un enlace para abrir `/c?planb=1`: base de datos, token de cada agente, voz de
       Nivi, audios pregenerados según su manifiesto, efectos de sonido, y a un toque el micrófono y la
       salida de audio. Cada prueba dice su estado con palabras y por qué falló. No cambia datos de la demo
-- [x] En una sola columna (teléfono o ventana angosta) el tablero de `/c` va justo después de la voz,
-      para ver sin bajar lo que Nivi crea
+- [x] Dos arreglos al panel de Nivi de main que salieron en el recorrido: en un teléfono, `/c` ya no se
+      desborda a lo ancho con la conversación abierta, y la conversación escrita se puede recorrer con el
+      teclado
 - [x] `POST /api/requests` acepta `via: "voz" | "web"` (por defecto `web`)
 - [x] **Subir de nivel** (`/t/nivel?subiste=1`): suena el efecto y la felicitación de Nivi, que también
       queda escrita con «Escuchar la felicitación». La de Carlos a Nivel 3 usa el audio pregenerado; para
       cualquier otra persona la frase se pide al TTS. Al salir de la pantalla se calla
-- [x] 751 pruebas; cobertura de líneas 99 %
+- [x] 728 pruebas; cobertura de líneas 99 %
 
-Recorrido en Chromium, ya unido con la fase 11: chequeo previo en `/admin/chequeo` (1440 px y 390 px) y plan
-B completo en `/c?planb=1` (saludo, solicitud, invitaciones); axe sin hallazgos en lo de esta fase, sin
-desbordes, cero tokens pedidos y cero peticiones fuera de la app durante el plan B. Los recorridos completos
-de la empresa y del trabajador no se repitieron tras unir con la fase 11.
+Recorrido en Chromium, ya unido con main tras el PR #26: chequeo previo en `/admin/chequeo` (1440 px y
+390 px) y plan B completo en `/c?planb=1` (saludo, solicitud, invitaciones, cierre y terminar); axe sin
+hallazgos en lo de esta fase, sin desbordes, cero tokens pedidos y cero peticiones fuera de la app durante el
+plan B. Los recorridos completos de la empresa y del trabajador no se repitieron tras unir con main.
 
 Pendiente del plan B y del chequeo:
 

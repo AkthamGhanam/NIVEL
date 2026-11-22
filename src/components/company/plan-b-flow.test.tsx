@@ -3,15 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 
 import { ApiError, createApiRequest } from "@/client/api";
 import { type CompanyApi, createCompanyApi } from "@/client/company-api";
-import { createNiviSession, type NiviSession } from "@/client/nivi-session";
-import {
-  CONTRACTOR_CLOSING,
-  CONTRACTOR_OPENING,
-  contractorScript,
-  isPlanB,
-  PLAN_B_TOKEN,
-} from "@/client/plan-b";
-import { createScriptedAgent } from "@/client/scripted-agent";
+import { CONTRACTOR_CLOSING, CONTRACTOR_OPENING, contractorScript, isPlanB } from "@/client/plan-b";
+import { createScriptedNivi, type ScriptedNivi } from "@/client/scripted-nivi";
 import { createSpeechPlayer } from "@/client/speech-player";
 import { createTeamApi } from "@/client/team-api";
 import { IDS } from "@/server/db/seed/cast";
@@ -27,6 +20,7 @@ import { RequestHeader } from "./board";
  */
 
 const ZONE = "Los Guayos";
+const REQUEST_LINE = "Necesito 3 soldadores de Nivel 2 en Los Guayos, por 5 días, a 25 dólares diarios.";
 let server: InProcessApi;
 let company: CompanyApi;
 let elevenLabs: ReturnType<typeof vi.fn>;
@@ -46,40 +40,32 @@ function planB(api: CompanyApi = company, zone = ZONE) {
     },
     wait: async () => undefined,
   });
-  const fetchToken = vi.fn(async () => PLAN_B_TOKEN);
-  const session = createNiviSession({
-    fetchToken,
-    connect: createScriptedAgent({
-      script: () => contractorScript({ api, zone, refresh }),
-      speak: player.speak,
-      stopSpeaking: player.stop,
-      turnPauseMs: 5,
-    }),
-    mode: "nota",
+  const nivi = createScriptedNivi({
+    script: () => contractorScript({ api, zone, refresh }),
+    speak: player.speak,
+    stopSpeaking: player.stop,
+    schedule: () => noop,
   });
-  return { session, played, refresh, fetchToken };
+  return { nivi, played, refresh };
 }
 
-const lines = (session: NiviSession) => session.getState().lines.map(({ from, text }) => `${from}: ${text}`);
+const lines = (nivi: ScriptedNivi) => nivi.getState().bubbles.map(({ from, text }) => `${from}: ${text}`);
+const niviLines = (nivi: ScriptedNivi) => nivi.getState().bubbles.filter((line) => line.from === "nivi");
 
 async function until(done: () => boolean) {
   await vi.waitFor(() => expect(done()).toBe(true), { timeout: 4000, interval: 10 });
 }
 
-/** Mantener presionado y soltar: el turno de la persona. Espera a que Nivi responda. */
-async function sayTurn(session: NiviSession) {
-  const before = session.getState().lines.filter((line) => line.from === "nivi").length;
-  session.hold();
-  session.release();
-  await until(() => {
-    const { lines: now, activity } = session.getState();
-    return now.filter((line) => line.from === "nivi").length > before && activity !== "speaking";
-  });
+/** El turno de la persona: envía su frase y espera a que Nivi responda. */
+async function sayTurn(nivi: ScriptedNivi, text: string) {
+  const before = niviLines(nivi).length;
+  nivi.send(text);
+  await until(() => niviLines(nivi).length > before && nivi.getState().activity === "listening");
 }
 
-async function openCall(session: NiviSession) {
-  await session.start();
-  await until(() => session.getState().lines.length === 1 && session.getState().activity !== "speaking");
+async function openTalk(nivi: ScriptedNivi) {
+  nivi.start("voz");
+  await until(() => nivi.getState().bubbles.length === 1 && nivi.getState().activity === "listening");
 }
 
 beforeEach(() => {
@@ -114,24 +100,23 @@ describe("plan B del contratista", () => {
   });
 
   it("Nivi saluda sin pedir token de conversación, con su voz y el texto al lado", async () => {
-    const { session, played, fetchToken } = planB();
+    const { nivi: session, played } = planB();
 
-    await openCall(session);
+    await openTalk(session);
 
     expect(lines(session)).toEqual([`nivi: ${CONTRACTOR_OPENING}`]);
-    expect(session.getState()).toMatchObject({ status: "live", conversationId: "plan-b", error: null });
+    expect(session.getState()).toMatchObject({ live: true, ended: false, mode: "voz" });
     expect(played).toEqual([expect.stringMatching(/^\/api\/voice\/audio\/[a-f0-9]{64}$/)]);
-    expect(fetchToken).toHaveBeenCalledOnce();
     const called = elevenLabs.mock.calls.map(([url]) => (url as URL).pathname);
     expect(called.every((path) => path.startsWith("/v1/text-to-speech/"))).toBe(true);
-    await session.stop();
+    session.stop();
   });
 
   it("el primer turno crea la solicitud real y Nivi dice quién cumple y cuánto cuesta en regla", async () => {
-    const { session, refresh } = planB();
-    await openCall(session);
+    const { nivi: session, refresh } = planB();
+    await openTalk(session);
 
-    await sayTurn(session);
+    await sayTurn(session, REQUEST_LINE);
 
     const board = await company.board();
     expect(board?.request).toMatchObject({
@@ -144,9 +129,7 @@ describe("plan B del contratista", () => {
       createdVia: "voz",
       status: "abierta",
     });
-    expect(lines(session)[1]).toBe(
-      "persona: Necesito 3 soldadores de Nivel 2 o más en Los Guayos, por 5 días desde el martes, a 25 dólares diarios.",
-    );
+    expect(lines(session)[1]).toBe(`tu: ${REQUEST_LINE}`);
     expect(lines(session)[2]).toMatch(
       /^nivi: Listo\. \d+ soldadores de nivel 2 o más cumplen cerca de Los Guayos\./,
     );
@@ -154,22 +137,22 @@ describe("plan B del contratista", () => {
     expect(refresh).toHaveBeenCalledOnce();
     expect(renderToStaticMarkup(<RequestHeader request={board!.request} />)).toContain("Pedida por voz");
 
-    await sayTurn(session);
+    await sayTurn(session, "Sí, invítalos.");
 
     const invited = (await company.board())?.invitations ?? [];
     expect(invited).toHaveLength(3);
-    expect(lines(session)[3]).toBe("persona: Sí, invítalos.");
+    expect(lines(session)[3]).toBe("tu: Sí, invítalos.");
     expect(lines(session)[4]).toMatch(/^nivi: Invité a .+ y .+\. Te aviso en pantalla cuando respondan\.$/);
     for (const { candidate } of invited) {
       expect(lines(session)[4]).toContain(candidate!.shortName.replace(/\.$/, ""));
     }
     expect(refresh).toHaveBeenCalledTimes(2);
 
-    await sayTurn(session);
+    await sayTurn(session, "Gracias.");
 
     expect(lines(session).at(-1)).toBe(`nivi: ${CONTRACTOR_CLOSING}`);
     expect((await company.board())?.invitations).toHaveLength(3);
-    await session.stop();
+    session.stop();
   });
 
   it("la bitácora cuenta lo mismo que en una conversación en vivo", async () => {
@@ -185,17 +168,16 @@ describe("plan B del contratista", () => {
   it("sin servicio de voz el guion sigue: la frase nueva queda escrita y nada se rompe", async () => {
     elevenLabs.mockImplementation(async () => new Response("{}", { status: 500 }));
     // Otra zona: la respuesta de Nivi es una frase que no está en la caché.
-    const { session, played } = planB(company, "Guacara");
+    const { nivi: session, played } = planB(company, "Guacara");
 
-    await openCall(session);
-    session.sendText("Necesito soldadores en Guacara");
-    await until(() => session.getState().lines.length === 3 && session.getState().activity !== "speaking");
+    await openTalk(session);
+    await sayTurn(session, "Necesito soldadores en Guacara");
 
     expect(played).toHaveLength(1);
-    expect(lines(session)[1]).toBe("persona: Necesito soldadores en Guacara");
+    expect(lines(session)[1]).toBe("tu: Necesito soldadores en Guacara");
     expect(lines(session)[2]).toMatch(/^nivi: .*Guacara/);
-    expect(session.getState().error).toBeNull();
-    await session.stop();
+    expect(session.getState().live).toBe(true);
+    session.stop();
   });
 
   it("si el servidor rechaza un paso, Nivi pide repetir en vez de quedarse callada", async () => {
@@ -205,13 +187,13 @@ describe("plan B del contratista", () => {
         throw new ApiError({ status: 422, code: "invalido", message: "Revisa los datos." });
       },
     };
-    const { session } = planB(failing);
-    await openCall(session);
+    const { nivi: session } = planB(failing);
+    await openTalk(session);
 
-    await sayTurn(session);
+    await sayTurn(session, REQUEST_LINE);
 
     expect(lines(session).at(-1)).toMatch(/^nivi: No pude completar ese paso/);
-    await session.stop();
+    session.stop();
   });
 
   it("el servidor solo acepta `voz` o `web` como origen de una solicitud", async () => {

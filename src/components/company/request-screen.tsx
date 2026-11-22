@@ -1,15 +1,18 @@
+// Pantalla principal del contratista: pedir cuadrilla (formulario o Nivi), tablero y costos.
 "use client";
 
-import { useState } from "react";
+import { useCallback } from "react";
 
 import { errorMessage } from "@/client/api";
 import type { InviteSelection, RequestBoard, RequestInput } from "@/client/company-api";
-import { contractorScript, PLAN_B_TOKEN } from "@/client/plan-b";
-import { createScriptedAgent } from "@/client/scripted-agent";
+import { contractorScript } from "@/client/plan-b";
+import { createScriptedNivi } from "@/client/scripted-nivi";
 import { createSpeechPlayer } from "@/client/speech-player";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
-import { NiviVoice } from "@/components/voice/nivi-voice";
+import { NiviCard, NiviCardFrame } from "@/components/voice/nivi-card";
+import { NiviPanel } from "@/components/voice/nivi-panel";
+import { useScriptedNivi } from "@/components/voice/use-scripted-nivi";
 
 import { useAction } from "../hooks/use-action";
 import { useLive } from "../hooks/use-live";
@@ -25,7 +28,6 @@ interface BoardViewProps {
   readonly error: string | null;
 }
 
-/** Centro de `/c`: la solicitud activa, quién aceptó y a quién más se puede invitar. */
 export function BoardView({ board, onInvite, pending, error }: BoardViewProps) {
   const open = board.request.status === "abierta";
   return (
@@ -59,43 +61,24 @@ export function EmptyBoard() {
   );
 }
 
-/**
- * Plan B: Nivi sigue el guion del camino dorado sin conectarse al agente en
- * vivo. Cada turno ejecuta la misma acción real, así que el tablero y la
- * bitácora cambian igual; la pantalla es la misma.
- */
-function ScriptedNivi() {
+const NIVI_CARD = {
+  title: "Pídela con Nivi",
+  hint: "Dile qué personal necesitas, hablando o escribiendo",
+} as const;
+
+function ScriptedTalk() {
   const { company, api, board } = useCompany();
-  const [connection] = useState(() => {
+  const nivi = useScriptedNivi(() => {
     const player = createSpeechPlayer({ audioUrlFor: api.speak });
-    const script = () => contractorScript({ api, zone: company.zone, refresh: board.refresh });
-    return {
-      fetchToken: async () => PLAN_B_TOKEN,
-      connect: createScriptedAgent({ script, speak: player.speak, stopSpeaking: player.stop }),
-    };
+    return createScriptedNivi({
+      script: () => contractorScript({ api, zone: company.zone, refresh: board.refresh }),
+      speak: player.speak,
+      stopSpeaking: player.stop,
+    });
   });
-  return <NiviVoice agent="contractor" defaultMode="llamada" connection={connection} />;
+  return <NiviPanel nivi={nivi} />;
 }
 
-/**
- * Pedir la cuadrilla hablando con Nivi. Lo que el agente crea o invita aparece
- * en el tablero de al lado, que se actualiza solo; el formulario sigue debajo.
- */
-export function VoiceRequestCard({ planB = false }: { readonly planB?: boolean }) {
-  return (
-    <Card className="flex flex-col gap-3">
-      <div>
-        <h2 className="display text-2xl">Pídela hablando</h2>
-        <p className="text-[0.9375rem] text-ink-2">
-          Dile a Nivi qué oficio necesitas, cuántas personas, desde cuándo y cuánto pagas al día.
-        </p>
-      </div>
-      {planB ? <ScriptedNivi /> : <NiviVoice agent="contractor" defaultMode="llamada" />}
-    </Card>
-  );
-}
-
-/** Pantalla principal del contratista: pedir personal, tablero en vivo y costos. */
 export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
   const { company, api, board: store } = useCompany();
   const live = useLive(store);
@@ -107,16 +90,29 @@ export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
     await api.createRequest(input);
     await store.refresh();
   };
+  const refreshBoard = useCallback(() => void store.refresh(), [store]);
   const board = live.data ?? null;
 
-  // En una sola columna (teléfono o ventana angosta) el tablero va justo después de la voz:
-  // lo que Nivi crea se ve sin bajar. En pantallas anchas, voz y formulario comparten la primera columna.
   return (
-    <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem] xl:grid-rows-[auto_1fr]">
-      <div className="xl:col-start-1 xl:row-start-1">
-        <VoiceRequestCard planB={planB} />
-      </div>
-      <div className="flex min-w-0 flex-col gap-4 xl:col-start-2 xl:row-span-2 xl:row-start-1">
+    <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)_19rem]">
+      <section aria-labelledby="pedir-titulo" className="flex min-w-0 flex-col gap-4">
+        <div>
+          {planB ? (
+            <NiviCardFrame {...NIVI_CARD}>
+              <ScriptedTalk />
+            </NiviCardFrame>
+          ) : (
+            <NiviCard {...NIVI_CARD} openSession={api.voice} onActivity={refreshBoard} />
+          )}
+        </div>
+        <Card className="flex flex-col gap-4">
+          <h2 id="pedir-titulo" className="display text-2xl">
+            Pide tu cuadrilla
+          </h2>
+          <RequestForm zone={company.zone} onSubmit={publish} />
+        </Card>
+      </section>
+      <div className="flex min-w-0 flex-col gap-4">
         {live.error !== undefined && !live.loading ? (
           <Notice tone="pending">{errorMessage(live.error)}</Notice>
         ) : null}
@@ -131,17 +127,7 @@ export function RequestScreen({ planB = false }: { readonly planB?: boolean }) {
         ) : null}
         {!live.loading && !board && live.error === undefined ? <EmptyBoard /> : null}
       </div>
-      <section aria-labelledby="pedir-titulo" className="xl:col-start-1 xl:row-start-2">
-        <Card className="flex flex-col gap-4">
-          <h2 id="pedir-titulo" className="display text-2xl">
-            Pide tu cuadrilla
-          </h2>
-          <RequestForm zone={company.zone} onSubmit={publish} />
-        </Card>
-      </section>
-      <div className="xl:col-start-3 xl:row-span-2 xl:row-start-1">
-        <CostPanel board={board} />
-      </div>
+      <CostPanel board={board} />
     </div>
   );
 }

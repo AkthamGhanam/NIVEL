@@ -1,3 +1,4 @@
+// Rutas de solicitudes de personal: crear, tablero activo e invitar.
 import { z } from "zod";
 
 import { CONTRACT_TYPES, TRADES } from "@/lib/trades";
@@ -29,7 +30,6 @@ const newRequestSchema = z.strictObject({
   via: z.enum(["voz", "web"]).optional(),
 });
 
-/** Los N mejores, o las personas que la empresa eligió de la lista. */
 const inviteSchema = z.union([
   z.strictObject({ quantity: z.int().min(1).max(10) }),
   z.strictObject({ workerIds: z.array(idSchema).min(1).max(10) }),
@@ -43,7 +43,6 @@ export const requestRoutes = (runtime: RuntimeProvider) => ({
     runtime,
   ),
 
-  /** Tablero en vivo de la solicitud más reciente de la empresa; `null` si no tiene ninguna. */
   active: endpoint(
     { access: "company" },
     async ({ actor, context }) => ({ board: await activeRequestBoard(context, actor) }),
