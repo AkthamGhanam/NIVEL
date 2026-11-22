@@ -11,11 +11,13 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, Eyebrow } from "@/components/ui/card";
 import { LoadingText, Notice } from "@/components/ui/notice";
 import { Switch } from "@/components/ui/switch";
+import { LevelRings } from "@/components/ui/rings";
 import { LevelBadge } from "@/components/ui/tag";
 import { cx } from "@/lib/cx";
 import { formatUsd } from "@/lib/format";
 import { REFERENCE_BAND_NOTICE } from "@/lib/legal-copy";
 
+import { TelegramCard } from "@/components/telegram/telegram-card";
 import { NiviCard } from "@/components/voice/nivi-card";
 
 import { useAction } from "../hooks/use-action";
@@ -24,19 +26,32 @@ import { ContractGate } from "./contract-gate";
 import { OfferCompany, OfferSummary, OfferVoiceNote } from "./offer-card";
 import { useWorker } from "./worker-gate";
 
+/** La consola del trabajador: sus anillos de nivel, qué le falta y la referencia de mercado. */
 export function LevelCard({ level }: { readonly level: MyProfile["level"] }) {
   return (
-    <Card className="flex flex-col gap-2">
-      <LevelBadge level={level.level} />
-      <p className="text-ink-2">{level.explanation}</p>
-      <p className="text-sm text-muted">
-        De {formatUsd(level.referenceBand.min)} a {formatUsd(level.referenceBand.max)} al mes.{" "}
-        {REFERENCE_BAND_NOTICE}
+    <section aria-label="Tu nivel" className="console flex flex-col gap-5 rounded-panel p-5 sm:p-6">
+      <div className="flex items-center gap-4 sm:gap-5">
+        <LevelRings level={level.level} className="w-28 shrink-0 sm:w-40">
+          <span aria-hidden="true" className="display figures text-5xl">
+            {level.level}
+          </span>
+        </LevelRings>
+        <div className="flex min-w-0 flex-col items-start gap-2.5">
+          <LevelBadge level={level.level} tone="signal" />
+          <p className="text-lg leading-snug font-semibold text-white">{level.explanation}</p>
+        </div>
+      </div>
+      <p className="border-t border-ink-line pt-4 text-sm text-muted-on-ink">
+        De{" "}
+        <span className="figures font-bold text-white">
+          {formatUsd(level.referenceBand.min)} a {formatUsd(level.referenceBand.max)}
+        </span>{" "}
+        al mes. {REFERENCE_BAND_NOTICE}
       </p>
-      <ButtonLink href="/t/nivel" variant="outline" block>
+      <ButtonLink href="/t/nivel" variant="outline" block className="border-transparent">
         Ver mi nivel
       </ButtonLink>
-    </Card>
+    </section>
   );
 }
 
@@ -49,13 +64,22 @@ interface OpenToWorkProps {
 export function OpenToWorkSwitch({ open, onChange, pending }: OpenToWorkProps) {
   return (
     <Card className="flex items-center justify-between gap-3">
-      <div>
-        <p id="abierto-titulo" className="text-lg font-extrabold">
-          Abierto a trabajar
-        </p>
-        <p className={cx("text-sm font-semibold", open ? "text-brand" : "text-muted")}>
-          {open ? "Las empresas pueden invitarte" : "No recibes invitaciones nuevas"}
-        </p>
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className={cx(
+            "mt-2 size-3 shrink-0 rounded-full",
+            open ? "bg-brand-2 shadow-[0_0_0_5px_var(--color-brand-tint)]" : "bg-line",
+          )}
+        />
+        <div>
+          <p id="abierto-titulo" className="text-lg font-extrabold">
+            Abierto a trabajar
+          </p>
+          <p className={cx("text-sm font-semibold", open ? "text-brand" : "text-muted")}>
+            {open ? "Las empresas pueden invitarte" : "No recibes invitaciones nuevas"}
+          </p>
+        </div>
       </div>
       <Switch checked={open} onChange={onChange} labelledBy="abierto-titulo" disabled={pending} />
     </Card>
@@ -142,7 +166,7 @@ export function HomeScreen() {
 
   return (
     <>
-      <h1 className="display text-3xl">Hola{profile.data ? `, ${profile.data.firstName}` : ""}</h1>
+      <h1 className="display text-4xl">Hola{profile.data ? `, ${profile.data.firstName}` : ""}</h1>
       {failure ? <Notice tone="alert">{failure}</Notice> : null}
       {profile.loading ? <LoadingText>Nivi está buscando tu perfil…</LoadingText> : null}
       {profile.data ? (
@@ -164,6 +188,7 @@ export function HomeScreen() {
         openSession={api.voice}
         onActivity={refreshOffers}
       />
+      <TelegramCard role="worker" />
       <HelpLink href="/t/ayuda">¿Algo salió mal? Pide ayuda</HelpLink>
     </>
   );

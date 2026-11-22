@@ -14,6 +14,7 @@ import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { paysOnTimeByCompany } from "../repos/company-reputation";
 import { NOT_EMPLOYER_NOTICE, newOtpCode, otpDigest } from "./contracts";
 import { logEvent } from "./events";
+import { notifyByTelegram, openAppButton } from "./telegram-notify";
 
 export interface WorkerOffer {
   readonly invitationId: string;
@@ -201,6 +202,20 @@ export async function respondToInvitation(
     detail: { invitationId: row.invitation.id, requestId: row.request.id },
   });
   if (accepted?.crewComplete) await logCrewComplete(context, row);
+  await notifyByTelegram(
+    context,
+    { role: "company", subjectId: row.company.id },
+    {
+      text:
+        `${shortName(worker.name)} ${input.accept ? "aceptó" : "rechazó"} tu invitación.` +
+        (accepted?.crewComplete
+          ? `\nCuadrilla completa: ${row.request.quantity} de ${row.request.quantity}.`
+          : input.accept
+            ? ""
+            : "\nPuedes invitar a otra persona desde tu tablero."),
+      buttons: [openAppButton(context, "Ver mi cuadrilla", "/c")].filter((buttons) => buttons.length > 0),
+    },
+  );
   const status = input.accept ? ("aceptada" as const) : ("rechazada" as const);
   const rates = await paysOnTimeByCompany(context.db, [row.company.id]);
   const offer = toOffer(

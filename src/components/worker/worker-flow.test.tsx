@@ -177,7 +177,7 @@ describe("entrada del trabajador", () => {
     expect(shell).toContain("Carlos");
     expect(shell).toContain("Cambiar de cuenta");
     expect(shell).not.toContain("md:rounded-[56px]");
-    expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/t"[^>]*>Inicio<\/a>/);
+    expect(shell).toMatch(/<a [^>]*aria-current="page"[^>]*href="\/t"[^>]*>(?:(?!<\/a>).)*Inicio<\/a>/);
 
     expect(shell.match(/<li>/g)).toHaveLength(8);
     expect(shell).toContain(DEMO_FOOTER);
@@ -314,7 +314,7 @@ describe("entrada y salida de la obra", () => {
       message: "Necesitamos tu ubicación solo para confirmar que estás en la obra.",
     });
     await expect(worker.checkIn({ contractId, position: northOfSite(2) })).rejects.toMatchObject({
-      message: "Estás fuera de la obra. Acércate a la entrada para marcar.",
+      message: "Estás a unos 2,0 km de la obra. Acércate a la entrada para marcar.",
     });
     await expect(worker.checkIn({ contractId, position: SITE.point })).rejects.toMatchObject({
       status: 409,

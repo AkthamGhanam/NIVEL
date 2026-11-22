@@ -1,6 +1,6 @@
 "use client";
 
-import { currentPosition } from "@/client/geolocation";
+import { precisePosition } from "@/client/geolocation";
 import type { AttendanceInput, ContractDetail } from "@/client/worker-api";
 import { currentJob, jobStep, type JobStep, stepAction } from "@/client/worker-view";
 import { Button, ButtonLink } from "@/components/ui/button";
@@ -33,7 +33,8 @@ export function MarkControls({ step, onMark, pending, error, canSimulate }: Mark
         {pending ? "Confirmando dónde estás…" : arriving ? "Llegué a la obra" : "Marcar mi salida"}
       </Button>
       <p className="text-sm text-muted">
-        Usamos tu ubicación solo en este momento, para confirmar que estás en la obra. No te seguimos.
+        Usamos tu ubicación solo en este momento, para confirmar que estás en la obra. No te seguimos. Puede
+        tardar unos segundos mientras el teléfono afina la señal.
       </p>
       {error ? (
         <Notice tone="alert" urgent>
@@ -110,7 +111,7 @@ function SiteControls({ contract, refresh }: SiteControlsProps) {
   const action = useAction(async (simulated: boolean) => {
     const input: AttendanceInput = simulated
       ? { contractId: contract.id, simulated: true }
-      : { contractId: contract.id, position: await currentPosition() };
+      : { contractId: contract.id, position: await precisePosition() };
     await (leaving ? api.checkOut(input) : api.checkIn(input));
     await refresh();
   });

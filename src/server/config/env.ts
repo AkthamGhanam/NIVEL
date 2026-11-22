@@ -35,6 +35,10 @@ const serverEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url({ protocol: /^https?$/ }).optional(),
   BLOB_READ_WRITE_TOKEN: nonEmpty.optional(),
   ANTHROPIC_API_KEY: nonEmpty.optional(),
+  /** Token del bot que entrega @BotFather. Solo cuenta su primera palabra, por si se pegó texto de más. */
+  TELEGRAM_BOT_TOKEN: firstToken
+    .pipe(z.string().regex(/^\d+:[A-Za-z0-9_-]{30,}$/, "no tiene la forma de un token de bot"))
+    .optional(),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

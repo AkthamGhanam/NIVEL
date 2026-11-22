@@ -14,8 +14,8 @@ import { LESSONS, lessonAudioUrl } from "./lessons";
 
 type Insert<K extends keyof typeof schema> = (typeof schema)[K]["$inferInsert"];
 
-/** Tablas con datos de la demo. La caché de voz no es dato de la demo: el seed no la llena. */
-export type DemoTable = Exclude<keyof typeof schema, "voiceClips">;
+/** Tablas con datos de la demo. La caché de voz y los chats de Telegram no lo son: el seed no los toca. */
+export type DemoTable = Exclude<keyof typeof schema, "voiceClips" | "telegramLinks" | "telegramCodes">;
 export type SeedRows = { [K in DemoTable]: Array<Insert<K>> };
 
 export const EXAMPLE_RATE_BS_PER_USD = 36.5;

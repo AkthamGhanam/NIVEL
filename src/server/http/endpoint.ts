@@ -85,6 +85,8 @@ export interface EndpointInput<Body, RequestActor> {
   readonly upload: Blob | undefined;
   readonly params: Readonly<Record<string, string>>;
   readonly url: URL;
+  /** Lee una cabecera de la petición (por ejemplo, la firma de un webhook). */
+  readonly header: (name: string) => string | null;
   readonly context: AppContext;
 
   readonly sessions: Sessions;
@@ -397,6 +399,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
       upload,
       params: (await route?.params) ?? {},
       url: new URL(request.url),
+      header: (name) => request.headers.get(name),
       context: resolved.context,
       sessions,
       issueSession: (next) =>

@@ -353,7 +353,7 @@ describe("casos borde del camino dorado", () => {
 
     await expect(
       checkIn(app.context, ACTORS.jose, { contractId: joseContract, position: farAway }),
-    ).rejects.toThrow(/fuera de la obra/);
+    ).rejects.toThrow(/Estás a unos 1,1 km de la obra/);
     await expect(checkIn(app.context, ACTORS.jose, { contractId: joseContract })).rejects.toThrow(
       DomainValidationError,
     );

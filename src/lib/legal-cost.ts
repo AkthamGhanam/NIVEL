@@ -77,3 +77,27 @@ export function estimateLegalCost(input: LegalCostInput): LegalCostEstimate {
   };
   return { perWorker, quantity: input.quantity, totalForQuantity: round2(exactTotal * input.quantity) };
 }
+
+/**
+ * A dónde va cada dólar del costo legal. Nada de esto es ingreso de NIVEL ni
+ * pasa por NIVEL: el patrono le paga al trabajador y aporta al Estado.
+ */
+export interface MoneyFlow {
+  /** Lo que recibe el trabajador ahora: su salario por los días de obra. */
+  readonly salary: number;
+  /** Lo que la ley le reconoce además del salario: utilidades, vacaciones con su bono y prestaciones. */
+  readonly workerBenefits: number;
+  /** Salario más beneficios: todo lo que termina en manos del trabajador. */
+  readonly toWorker: number;
+  /** Aportes del patrono a la seguridad social: pensiones, IVSS, FAOV e INCES. */
+  readonly toState: number;
+  readonly total: number;
+}
+
+export function moneyFlow({ perWorker }: LegalCostEstimate): MoneyFlow {
+  const workerBenefits = round2(perWorker.utilidades + perWorker.vacacionesBono + perWorker.prestaciones);
+  const toState = round2(perWorker.pensiones + perWorker.aportes);
+  // El total manda: los subtotales se ajustan a él para que la suma siempre cuadre al centavo.
+  const toWorker = round2(perWorker.total - toState);
+  return { salary: perWorker.salary, workerBenefits, toWorker, toState, total: perWorker.total };
+}
