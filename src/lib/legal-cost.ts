@@ -101,3 +101,73 @@ export function moneyFlow({ perWorker }: LegalCostEstimate): MoneyFlow {
   const toWorker = round2(perWorker.total - toState);
   return { salary: perWorker.salary, workerBenefits, toWorker, toState, total: perWorker.total };
 }
+
+/** Lo que el patrono le paga al trabajador al terminar la obra: salario y partes proporcionales de ley. */
+export interface Liquidation {
+  readonly salary: number;
+  readonly utilidades: number;
+  readonly vacacionesBono: number;
+  readonly prestaciones: number;
+  readonly total: number;
+}
+
+export function liquidation(input: { readonly dailyPayUsd: number; readonly days: number }): Liquidation {
+  const { perWorker } = estimateLegalCost({ ...input, quantity: 1 });
+  const flow = moneyFlow(estimateLegalCost({ ...input, quantity: 1 }));
+  return {
+    salary: perWorker.salary,
+    utilidades: perWorker.utilidades,
+    vacacionesBono: perWorker.vacacionesBono,
+    prestaciones: perWorker.prestaciones,
+    total: flow.toWorker,
+  };
+}
+
+export const LIQUIDATION_LABELS: ReadonlyArray<
+  readonly [key: keyof Omit<Liquidation, "total">, label: string]
+> = [
+  ["salary", "Salario"],
+  ["utilidades", "Utilidades proporcionales"],
+  ["vacacionesBono", "Vacaciones y bono vacacional"],
+  ["prestaciones", "Prestaciones sociales"],
+];
+
+/**
+ * Aportes del patrono al Estado, por institución, sobre el salario pagado.
+ * Suman lo mismo que el costo legal estimado: 9 % de pensiones y 15 % de aportes.
+ */
+export const INSTITUTIONS = ["ivss", "faov", "inces", "pensiones"] as const;
+export type Institution = (typeof INSTITUTIONS)[number];
+
+export const INSTITUTION_INFO: Readonly<
+  Record<
+    Institution,
+    { readonly name: string; readonly what: string; readonly rate: number; readonly portal: string }
+  >
+> = Object.freeze({
+  ivss: {
+    name: "IVSS",
+    what: "Seguro social y paro forzoso (RPE)",
+    rate: 0.11,
+    portal: "Portal TIUNA del IVSS",
+  },
+  faov: { name: "BANAVIH · FAOV", what: "Ahorro para vivienda", rate: 0.02, portal: "FAOV en línea" },
+  inces: { name: "INCES", what: "Formación de trabajadores", rate: 0.02, portal: "Portal del INCES" },
+  pensiones: {
+    name: "SENIAT · Pensiones",
+    what: "Contribución especial de pensiones",
+    rate: 0.09,
+    portal: "Portal fiscal del SENIAT",
+  },
+});
+
+/** Cuánto le toca a cada institución por un monto de salarios pagados en el mes. */
+export function contributionsFor(salariesUsd: number): Readonly<Record<Institution, number>> {
+  ensure(Number.isFinite(salariesUsd) && salariesUsd >= 0, "El salario debe ser un monto válido");
+  return Object.fromEntries(
+    INSTITUTIONS.map((institution) => [
+      institution,
+      round2(salariesUsd * INSTITUTION_INFO[institution].rate),
+    ]),
+  ) as Record<Institution, number>;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { estimateLegalCost, moneyFlow } from "./legal-cost";
+import { contributionsFor, estimateLegalCost, liquidation, moneyFlow } from "./legal-cost";
 
 describe("a dónde va cada dólar", () => {
   it("separa lo que recibe el trabajador de lo que va al Estado, y siempre cuadra con el total", () => {
@@ -22,5 +22,27 @@ describe("a dónde va cada dólar", () => {
     expect(flow.total).toBe(1573.33);
     expect(flow.toWorker).toBe(1333.33);
     expect(flow.toState).toBe(240);
+  });
+});
+
+describe("liquidación y aportes por institución", () => {
+  it("la liquidación es lo que va al trabajador, con cada concepto", () => {
+    expect(liquidation({ dailyPayUsd: 50, days: 20 })).toEqual({
+      salary: 1000,
+      utilidades: 83.33,
+      vacacionesBono: 83.33,
+      prestaciones: 166.67,
+      total: 1333.33,
+    });
+  });
+
+  it("los aportes por institución suman lo mismo que el costo legal estimado", () => {
+    const split = contributionsFor(1000);
+
+    expect(split).toEqual({ ivss: 110, faov: 20, inces: 20, pensiones: 90 });
+    expect(Object.values(split).reduce((sum, value) => sum + value, 0)).toBe(
+      moneyFlow(estimateLegalCost({ dailyPayUsd: 50, days: 20, quantity: 1 })).toState,
+    );
+    expect(() => contributionsFor(-1)).toThrow();
   });
 });

@@ -442,6 +442,7 @@ export function buildSeed(now: Date): SeedRows {
     incidents: [],
     reports: [],
     fees: [...history.fees, ...academy.fees],
+    contributions: [],
     events: [],
   };
 }

@@ -1,8 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 
 import { localDate } from "@/lib/dates";
+import { formatUsd } from "@/lib/format";
+import { LIQUIDATION_LABELS, liquidation } from "@/lib/legal-cost";
 import { shortName } from "@/lib/matching";
-import { round2 } from "@/lib/money";
 import { type FeePaymentMethod, toBolivares } from "@/lib/pricing";
 
 import { type Actor, requireRole } from "../actor";
@@ -12,6 +13,7 @@ import { companies, contracts, payments, workers } from "../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError } from "../errors";
 import { getDemoValue } from "./demo-state";
 import { logEvent } from "./events";
+import { notifyByTelegram, openAppButton } from "./telegram-notify";
 
 export type PaymentRow = typeof payments.$inferSelect;
 
@@ -48,7 +50,9 @@ export async function registerPayment(
   const [existing] = await context.db.select().from(payments).where(eq(payments.contractId, contract.id));
   if (existing) return existing; // Doble clic: un contrato tiene un solo pago.
   const now = context.now();
-  const amountUsd = round2(contract.dailyPayUsd * contract.days);
+  // Se paga la liquidación completa: salario más las partes proporcionales que reconoce la ley.
+  const settled = liquidation({ dailyPayUsd: contract.dailyPayUsd, days: contract.days });
+  const amountUsd = settled.total;
   const id = context.newId("pa");
   const [payment] = await context.db
     .insert(payments)
@@ -61,15 +65,31 @@ export async function registerPayment(
       reference: input.reference.trim(),
       receiptNumber: `R-${localDate(now).replaceAll("-", "")}-${id.slice(-RECEIPT_SUFFIX_LENGTH).toUpperCase()}`,
       registeredAt: now.toISOString(),
+      salaryUsd: settled.salary,
+      utilidadesUsd: settled.utilidades,
+      vacacionesUsd: settled.vacacionesBono,
+      prestacionesUsd: settled.prestaciones,
     })
     .returning();
   if (!payment) throw new Error("El pago no se guardó");
   await logEvent(context, {
     actor: "Empresa",
     type: "pago_registrado",
-    label: `Pago registrado por ${input.method === "pago_movil" ? "Pago Móvil" : "transferencia"} · recibo ${payment.receiptNumber}`,
+    label: `Liquidación registrada por ${input.method === "pago_movil" ? "Pago Móvil" : "transferencia"} · recibo ${payment.receiptNumber}`,
     detail: { contractId: contract.id, amountUsd },
   });
+  await notifyByTelegram(
+    context,
+    { role: "worker", subjectId: contract.workerId },
+    {
+      text:
+        `La empresa registró tu liquidación de ${formatUsd(amountUsd)}: salario, utilidades, vacaciones y ` +
+        "prestaciones. Revisa que te llegó todo y confírmalo en NIVEL.",
+      buttons: [openAppButton(context, "Revisar mi liquidación", `/t/fin/${contract.id}`)].filter(
+        (row) => row.length > 0,
+      ),
+    },
+  );
   return payment;
 }
 
@@ -113,12 +133,26 @@ export async function confirmPayment(
   return confirmed ?? { ...payment, confirmedByWorkerAt: confirmedAt };
 }
 
+/** Los conceptos de un pago, en el orden del recibo. */
+export function paymentItems(payment: PaymentRow): Array<{ label: string; amountUsd: number }> {
+  if (payment.salaryUsd === null) return [{ label: "Salario", amountUsd: payment.amountUsd }];
+  const amounts: Record<(typeof LIQUIDATION_LABELS)[number][0], number | null> = {
+    salary: payment.salaryUsd,
+    utilidades: payment.utilidadesUsd,
+    vacacionesBono: payment.vacacionesUsd,
+    prestaciones: payment.prestacionesUsd,
+  };
+  return LIQUIDATION_LABELS.map(([key, label]) => ({ label, amountUsd: amounts[key] ?? 0 }));
+}
+
 /** Datos del recibo de pago (LOTTT art. 106). */
 export interface Receipt {
   readonly receiptNumber: string;
   readonly employer: { readonly name: string; readonly rif: string };
   readonly workerName: string;
   readonly concept: string;
+  /** Cada concepto pagado. Un pago anterior a la liquidación trae solo el salario. */
+  readonly items: ReadonlyArray<{ readonly label: string; readonly amountUsd: number }>;
   readonly days: number;
   readonly dailyPayUsd: number;
   readonly amountUsd: number;
@@ -141,7 +175,8 @@ export async function getReceipt(context: AppContext, actor: Actor, paymentId: s
     receiptNumber: payment.receiptNumber,
     employer: { name: company.name, rif: company.rif },
     workerName,
-    concept: `Salario por ${contract.days} días de trabajo desde el ${contract.startDate}`,
+    concept: `Liquidación por ${contract.days} días de trabajo desde el ${contract.startDate}`,
+    items: paymentItems(payment),
     days: contract.days,
     dailyPayUsd: contract.dailyPayUsd,
     amountUsd: payment.amountUsd,

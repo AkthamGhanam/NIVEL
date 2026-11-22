@@ -12,6 +12,7 @@ export function OfferCompany({ company }: { readonly company: WorkerOffer["compa
         <Tag tone={company.verified ? "ok" : "pending"}>
           {company.verified ? "Empresa verificada" : "Verificación pendiente"}
         </Tag>
+        {company.paysInRegla ? <Tag tone="ok">Paga en regla</Tag> : null}
         {paysOnTime ? <Tag tone="ok">{paysOnTime}</Tag> : null}
       </div>
     </div>

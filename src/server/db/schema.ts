@@ -212,6 +212,11 @@ export const payments = sqliteTable("payments", {
   receiptNumber: text("receipt_number").notNull().unique(),
   registeredAt: text("registered_at").notNull(),
   confirmedByWorkerAt: text("confirmed_by_worker_at"),
+  /** Desglose de la liquidación. Nulos en pagos anteriores, que eran solo salario. */
+  salaryUsd: real("salary_usd"),
+  utilidadesUsd: real("utilidades_usd"),
+  vacacionesUsd: real("vacaciones_usd"),
+  prestacionesUsd: real("prestaciones_usd"),
 });
 
 export const ratings = sqliteTable("ratings", {
@@ -269,6 +274,26 @@ export const fees = sqliteTable("fees", {
   status: text("status", { enum: ["por_pagar", "pagado"] }).notNull(),
   method: text("method", { enum: ["pago_movil", "transferencia"] }),
   createdAt: text("created_at").notNull(),
+  /** Referencia del Pago Móvil o la transferencia con que la empresa pagó a NIVEL (simulado). */
+  reference: text("reference"),
+  paidAt: text("paid_at"),
+});
+
+/**
+ * Aportes al Estado que la empresa declaró como pagados, por mes e institución.
+ * NIVEL no los cobra: solo deja constancia del comprobante que la empresa registró.
+ */
+export const contributions = sqliteTable("contributions", {
+  id: id(),
+  companyId: text("company_id")
+    .notNull()
+    .references(() => companies.id),
+  /** Mes de los salarios, AAAA-MM. */
+  period: text("period").notNull(),
+  institution: text("institution", { enum: ["ivss", "faov", "inces", "pensiones"] }).notNull(),
+  amountUsd: real("amount_usd").notNull(),
+  reference: text("reference").notNull(),
+  declaredAt: text("declared_at").notNull(),
 });
 
 export const events = sqliteTable("events", {
@@ -363,6 +388,7 @@ export const schema = {
   fees,
   events,
   demoState,
+  contributions,
   voiceClips,
   telegramLinks,
   telegramCodes,

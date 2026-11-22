@@ -1,4 +1,5 @@
 import { formatDay, formatKm, formatTime, formatUsd, plural } from "@/lib/format";
+import { type Liquidation, liquidation } from "@/lib/legal-cost";
 import { round2 } from "@/lib/money";
 import { tradeCount } from "@/lib/trades";
 
@@ -98,6 +99,11 @@ export function attendanceLine(day: AttendanceDay): string {
 /** Salario que la empresa le debe a esa persona por todos sus días. El dinero no pasa por NIVEL. */
 export function wageOwed(request: Request, member: CrewMember): number {
   return round2(request.dailyPayUsd * member.days);
+}
+
+/** Liquidación completa que la empresa le paga al terminar: salario y partes proporcionales de ley. */
+export function liquidationOwed(request: Request, member: CrewMember): Liquidation {
+  return liquidation({ dailyPayUsd: request.dailyPayUsd, days: member.days });
 }
 
 export type PaymentStage = "sin_firma" | "por_pagar" | "por_confirmar" | "confirmado";

@@ -74,3 +74,12 @@ export function toBolivares(amountUsd: number, exampleRateBsPerUsd: number): num
   ensure(Number.isFinite(exampleRateBsPerUsd) && exampleRateBsPerUsd > 0, "La tasa debe ser mayor que cero");
   return round2(amountUsd * exampleRateBsPerUsd);
 }
+
+/** Datos de NIVEL para recibir pagos. Son de ejemplo: la demo no cobra de verdad. */
+export const NIVEL_BILLING = Object.freeze({
+  name: "NIVEL (Bytes Technology) · datos de ejemplo",
+  rif: "J-00000000-0",
+  bank: "Banco de ejemplo",
+  pagoMovilPhone: "0414-000-0000",
+  account: "0000-0000-00-0000000000",
+});

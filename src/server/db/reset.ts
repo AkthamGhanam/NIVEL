@@ -36,6 +36,7 @@ const INSERT_ORDER = [
   "incidents",
   "reports",
   "fees",
+  "contributions",
   "events",
   "demoState",
 ] as const satisfies ReadonlyArray<keyof typeof schema>;

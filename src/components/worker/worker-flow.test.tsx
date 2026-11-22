@@ -360,10 +360,11 @@ describe("fin de obra", () => {
     const markup = finishView(contract);
 
     expect(jobStep(contract)).toBe("confirmar_pago");
-    expect(markup).toContain("¿Recibiste tu pago de $125?");
+    expect(markup).toContain("¿Recibiste tu liquidación de $166,67?");
+    expect(text(markup)).toContain("Vacaciones y bono vacacional $10,42");
     expect(markup).toContain(`href="/recibo/${paymentId}?vista=trabajador"`);
-    expect(markup).toContain("Sí, lo recibí");
-    expect(markup).toMatch(/<a [^>]*href="\/t\/ayuda\?tipo=no_pago"[^>]*>No lo he recibido<\/a>/);
+    expect(markup).toContain("Sí, recibí todo");
+    expect(markup).toMatch(/<a [^>]*href="\/t\/ayuda\?tipo=no_pago"[^>]*>Me falta una parte<\/a>/);
     expect(markup).not.toContain("Califica a la empresa");
   });
 

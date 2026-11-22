@@ -4,14 +4,16 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
 import type { PaymentInput, RequestBoard } from "@/client/company-api";
-import { type CrewMember, paymentStage, wageOwed } from "@/client/company-view";
+import { type CrewMember, liquidationOwed, paymentStage } from "@/client/company-view";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { LiquidationList } from "@/components/ui/liquidation-list";
 import { SelectField, TextField } from "@/components/ui/field";
 import { Notice } from "@/components/ui/notice";
 import { Tag } from "@/components/ui/tag";
 import { formatUsd, plural } from "@/lib/format";
+import { LIQUIDATION_LABELS } from "@/lib/legal-cost";
 import { FEE_PAYMENT_METHODS, type FeePaymentMethod, PAYMENT_METHOD_LABELS } from "@/lib/pricing";
 
 import { useAction } from "../hooks/use-action";
@@ -76,7 +78,7 @@ function PaymentForm({
         </Notice>
       ) : null}
       <Button type="submit" className="self-start" disabled={register.pending}>
-        {register.pending ? "Registrando…" : "Registrar pago"}
+        {register.pending ? "Registrando…" : "Registrar liquidación pagada"}
         <span className="sr-only"> a {member.shortName}</span>
       </Button>
     </form>
@@ -104,6 +106,7 @@ interface WageCardProps {
 /** Salario de una persona de la cuadrilla y en qué va su pago. */
 export function WageCard({ request, member, onRegister }: WageCardProps) {
   const stage = paymentStage(member);
+  const owed = liquidationOwed(request, member);
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
@@ -114,8 +117,14 @@ export function WageCard({ request, member, onRegister }: WageCardProps) {
             {plural(member.days, "día", "días")} a {formatUsd(request.dailyPayUsd)}
           </p>
         </div>
-        <p className="text-2xl font-extrabold tabular-nums">{formatUsd(wageOwed(request, member))}</p>
+        <p className="text-2xl font-extrabold tabular-nums">{formatUsd(owed.total)}</p>
       </div>
+      {stage === "por_pagar" ? (
+        <LiquidationList
+          items={LIQUIDATION_LABELS.map(([key, label]) => ({ label, amountUsd: owed[key] }))}
+          total={owed.total}
+        />
+      ) : null}
       {stage === "sin_firma" ? (
         <Tag tone="pending" className="self-start">
           {member.status === "terminado" ? "Contrato terminado" : "Falta la firma del trabajador"}
@@ -124,12 +133,12 @@ export function WageCard({ request, member, onRegister }: WageCardProps) {
       {stage === "por_pagar" ? <PaymentForm member={member} onRegister={onRegister} /> : null}
       {stage === "por_confirmar" ? (
         <Tag tone="pending" className="self-start">
-          Pago registrado. Falta que {member.shortName} confirme
+          Liquidación registrada. Falta que {member.shortName} confirme
         </Tag>
       ) : null}
       {stage === "confirmado" ? (
         <Tag tone="ok" className="self-start">
-          {member.shortName} confirmó que recibió el pago
+          {member.shortName} confirmó que recibió su liquidación
         </Tag>
       ) : null}
       <ReceiptLink member={member} />
@@ -146,12 +155,12 @@ export function WagePayments({ board, onRegister }: WagePaymentsProps) {
   return (
     <section aria-labelledby="salarios-titulo" className="flex flex-col gap-3">
       <h2 id="salarios-titulo" className="bar-title text-xl font-extrabold">
-        Pago a tu cuadrilla
+        Liquidación de tu cuadrilla
       </h2>
-      <Notice>
-        Le pagas directo a cada persona por Pago Móvil o transferencia. El dinero no pasa por NIVEL: aquí solo
-        queda el recibo.
-      </Notice>
+      <p className="text-sm text-muted">
+        Al terminar la obra le pagas a cada persona su liquidación completa, directo. NIVEL genera el recibo y
+        la persona confirma que la recibió.
+      </p>
       {board.crew.length === 0 ? (
         <p className="text-muted">Aún no hay nadie contratado en esta solicitud.</p>
       ) : (
