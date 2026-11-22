@@ -273,6 +273,36 @@ Pendiente de esta vista:
 - En 1280 × 720 el teléfono queda con 440 px de alto útil; funciona, pero hay que desplazar dentro del marco.
 - Sin probar en Safari ni en un proyector real.
 
+## Fase 10 · Academia (`/a`) y administración (`/admin`) — listas sin el audio de los reportes
+
+- [x] `/a`: se entra como una academia de ejemplo. Pruebas prácticas por evaluar (la nota la decide la
+      academia, el servidor dice si aprueba y recalcula el nivel), constancias por emitir, inscripciones y
+      ventas del mes, comisión de NIVEL del 15 % con el IVA aparte, cursos y el ranking con su cuenta y su
+      fórmula a la vista
+- [x] `/admin`: solo con la clave del equipo. Trabajadores, solicitudes, contrataciones, tiempo promedio a
+      cuadrilla completa, reportes en revisión, ingresos por origen (tarifa, IVA y total) y gente por nivel.
+      Se recalcula cada 5 s
+- [x] `/admin/revision`: cola de reportes de la más antigua a la más nueva, con lo que dijo la persona, la
+      empresa señalada, cuánto queda del plazo de 24 h y la decisión (resolver o descartar) con nota
+      obligatoria. La pantalla no muestra quién reportó
+- [x] La regla de la prueba práctica (3 de cada 4 criterios) vive en `src/lib/practical-test.ts`: la usan el
+      servidor, que decide, y el panel, que la explica
+- [x] 606 pruebas; cobertura de líneas 99 %
+
+Recorrido completo en un navegador real (Chromium, 1440 px y 390 px) sobre el servidor de producción, con un
+trabajador reportando por API: 18 estados de pantalla, axe sin hallazgos WCAG 2.1 A y AA, sin desbordes,
+objetivos táctiles de 44 px o más y cero errores de consola. Esa revisión se corre a mano; no está en CI.
+Encontró dos fallos que las pruebas no veían y ya están corregidos: un enlace demasiado pequeño para el dedo
+y una tabla que en el teléfono no se podía desplazar con el teclado.
+
+Pendiente de estas vistas:
+
+- El audio de un reporte por nota de voz: la cola ya lo reproduce si el reporte trae un archivo de la propia
+  app, pero ningún reporte lo trae hasta integrar la voz. Solo está probado con datos de prueba.
+- La cola solo muestra los casos abiertos: no hay historial de los ya decididos.
+- La academia no registra inscripciones ni cobra cuotas desde su panel: el alumno se inscribe en su app.
+- Sin probar en Safari ni en un teléfono real.
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.
@@ -280,10 +310,12 @@ Pendiente de esta vista:
 
 ## HUMANO
 
-- HUMANO: crear el proyecto en Vercel conectado a ese repositorio.
+- [x] Proyecto en Vercel conectado al repositorio. Producción: https://nivel-wheat.vercel.app
 - HUMANO: confirmar créditos de ElevenLabs (Agents, TTS, STT, Sound Effects).
 - HUMANO: crear la base en Turso y poner en Vercel `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, `SESSION_SECRET`,
-  `DEMO_RESET_KEY`, `TOOL_SECRET` y `NEXT_PUBLIC_APP_URL` (ver `.env.example`).
+  `DEMO_RESET_KEY` y `TOOL_SECRET` (ver `.env.example`).
+- HUMANO: poner en Vercel `NEXT_PUBLIC_APP_URL=https://nivel-wheat.vercel.app`. De esa variable dependen las
+  cookies seguras, el QR del Modo Jurado y la dirección a la que llaman las herramientas de los agentes.
 - HUMANO: poner `ELEVENLABS_API_KEY` y `EL_VOICE_ID=9Ux14cxOYULytGFBVsW4` en Vercel.
 - HUMANO: en elevenlabs.io → Developers → API Keys, darle a la clave los permisos de ElevenAgents (lectura y
   escritura), Sound Effects y, para la voz propia, Voices (escritura) y Voice Generation. Sin ElevenAgents,

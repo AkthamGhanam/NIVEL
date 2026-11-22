@@ -435,7 +435,7 @@ describe("mi ruta", () => {
     const markup = html(<LearningView route={route} actions={learningActions} />);
 
     expect(started.enrollment?.progress).toBe(0);
-    expect(text(markup)).toContain("1. Tu equipo de protección personal · 1:15 min Escuchada");
+    expect(text(markup)).toContain("1. Tu equipo de protección personal · 0:47 min Escuchada");
     expect(markup).toContain('Ya la escuché<span class="sr-only">: lección 2</span>');
     expect(markup.match(/Ya la escuché/g)).toHaveLength(1);
     expect(text(markup)).toContain("Avance: 33 %");
