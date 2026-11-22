@@ -333,13 +333,20 @@ function successResponse(result: unknown, requestId: string): Response {
   return jsonResponse(result, 200, { "X-Request-ID": requestId });
 }
 
-async function noteRejectedTool(runtime: RuntimeProvider, request: Request): Promise<void> {
+export const TOOL_FAILED_EVENT = "herramienta_fallo";
+
+async function noteToolFailure(runtime: RuntimeProvider, error: unknown): Promise<void> {
   try {
     const { context } = await runtime();
+    const { status, code } = describeError(error);
+    const rejected = error instanceof ToolRejectedError;
+    const kind = error instanceof Error ? error.name : "desconocido";
     await logEvent(context, {
       actor: "Nivi",
-      type: TOOL_REJECTED_EVENT,
-      label: `Herramienta rechazada: la clave no coincide${request.headers.has(TOOL_SECRET_HEADER) ? "" : " (sin clave)"}`,
+      type: rejected ? TOOL_REJECTED_EVENT : TOOL_FAILED_EVENT,
+      label: rejected
+        ? "Herramienta rechazada: la clave no coincide"
+        : `Herramienta con error ${status} (${code}, ${kind})`,
       product: "agents",
     });
   } catch {
@@ -392,7 +399,7 @@ export function endpoint<A extends Access, Schema extends z.ZodType | undefined 
     try {
       response = successResponse(await respond(request, route), requestId);
     } catch (error) {
-      if (error instanceof ToolRejectedError) await noteRejectedTool(runtime, request);
+      if (options.access === "tool") await noteToolFailure(runtime, error);
       response = errorResponse(error, requestId);
     }
     log("info", "http_request", {

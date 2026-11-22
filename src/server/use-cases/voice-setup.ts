@@ -70,6 +70,7 @@ const PERSONA =
 const CONFIRMATION = "Sí, todo está correcto. Guarda mi perfil, por favor.";
 const TOOL_EVENT = "herramienta_guardar_perfil";
 const TOOL_REJECTED = "herramienta_rechazada";
+const TOOL_FAILED = "herramienta_fallo";
 
 const errorDetail = (error: unknown) => (error instanceof Error ? error.message : "fallo desconocido");
 
@@ -82,25 +83,30 @@ async function talk(setup: VoiceSetup, toolContext: string): Promise<ChatResult>
   });
 }
 
-async function toolEvents(
-  context: AppContext,
-  since: string,
-): Promise<{ reached: boolean; rejected: boolean }> {
+interface ToolTrace {
+  readonly reached: boolean;
+  readonly rejected: boolean;
+  readonly failure: string | null;
+}
+
+async function toolEvents(context: AppContext, since: string): Promise<ToolTrace> {
   const rows = await context.db
-    .select({ type: events.type })
+    .select({ type: events.type, label: events.label })
     .from(events)
-    .where(and(inArray(events.type, [TOOL_EVENT, TOOL_REJECTED]), gte(events.ts, since)));
+    .where(and(inArray(events.type, [TOOL_EVENT, TOOL_REJECTED, TOOL_FAILED]), gte(events.ts, since)));
   return {
     reached: rows.some((row) => row.type === TOOL_EVENT),
     rejected: rows.some((row) => row.type === TOOL_REJECTED),
+    failure: rows.find((row) => row.type === TOOL_FAILED)?.label ?? null,
   };
 }
 
-function reachDetail(reached: boolean, rejected: boolean): string {
+function reachDetail({ reached, rejected, failure }: ToolTrace): string {
   if (reached) return "La herramienta guardar_perfil llegó al servidor.";
   if (rejected)
     return "Nivi llamó, pero el servidor rechazó su clave. Usa «Reconectar a Nivi» y prueba de nuevo.";
-  return "Nivi no llamó a guardar_perfil en esta conversación: mira abajo lo que respondió.";
+  if (failure) return `Nivi llamó, pero el servidor respondió con un fallo: ${failure}.`;
+  return "La llamada de Nivi no llegó al servidor: algo la detiene antes (dirección o protección de Vercel).";
 }
 
 async function takeTestProfile(context: AppContext, conversationId: string): Promise<boolean> {
@@ -126,8 +132,9 @@ export async function checkVoice(
     steps.push({ name: "Conversación con Nivi", ok: false, detail: errorDetail(error) });
     return { ok: false, steps, said: [] };
   }
-  const { reached, rejected } = await toolEvents(context, since);
-  steps.push({ name: "Nivi llama a NIVEL", ok: reached, detail: reachDetail(reached, rejected) });
+  const trace = await toolEvents(context, since);
+  const reached = trace.reached;
+  steps.push({ name: "Nivi llama a NIVEL", ok: reached, detail: reachDetail(trace) });
   const saved = await takeTestProfile(context, chat.conversationId);
   steps.push({
     name: "Perfil guardado",
