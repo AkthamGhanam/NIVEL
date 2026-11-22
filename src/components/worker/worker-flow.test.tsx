@@ -8,7 +8,8 @@ import { isReportKind } from "@/client/report-kinds";
 import { type CompanyApi, createCompanyApi } from "@/client/company-api";
 import type { Receipt } from "@/client/company-api";
 import { type ContractDetail, createWorkerApi, type WorkerApi, type WorkerOffer } from "@/client/worker-api";
-import { jobStep, stepAction } from "@/client/worker-view";
+import { jobStep, offerSpeech, stepAction } from "@/client/worker-view";
+import { SpokenNoteView } from "@/components/ui/spoken-note";
 import {
   BLIND_RATING_NOTICE,
   DEMO_FOOTER,
@@ -36,8 +37,10 @@ import {
   ProfileSummary,
   ReceivedRatings,
 } from "./my-data-screen";
+import { OfferVoiceNote } from "./offer-card";
 import { OfferView } from "./offer-screen";
 import { SiteView } from "./site-screen";
+import { VOICE_REPORT_PROMISE, VoiceReportPanel } from "./voice-report";
 import { WorkerGate } from "./worker-gate";
 import { WorkerAccess } from "./worker-access";
 import { WorkerShell } from "./worker-shell";
@@ -56,6 +59,11 @@ let requestId: string;
 let invitationId: string;
 let contractId: string;
 let paymentId: string;
+
+/** Lo que "responde" ElevenLabs en estas pruebas: aquí se prueba la pantalla, no su red. */
+const SPOKEN_AUDIO = new Uint8Array([73, 68, 51, 4, 0]);
+const HEARD = "No había extintor en el área de soldadura.";
+let elevenLabs: ReturnType<typeof vi.fn>;
 
 const noop = () => undefined;
 const idle = async () => undefined;
@@ -94,6 +102,15 @@ beforeEach(() => {
 beforeAll(async () => {
   vi.spyOn(console, "warn").mockImplementation(() => undefined);
   server = startInProcessApi();
+  vi.stubEnv("ELEVENLABS_API_KEY", "clave-de-voz");
+  vi.stubEnv("EL_VOICE_ID", "voz-nivi");
+  elevenLabs = vi.fn(async (url: URL) =>
+    url.pathname === "/v1/speech-to-text"
+      ? new Response(JSON.stringify({ text: HEARD }))
+      : new Response(SPOKEN_AUDIO),
+  );
+  // El cliente de las pantallas usa su propio `fetch`; el global queda solo para el servicio de voz.
+  vi.stubGlobal("fetch", elevenLabs);
   team = new ApiClient(server.baseUrl, dispatch, server.demoKey);
   await team.post("/api/demo/reset", { as: "admin" });
 
@@ -103,7 +120,10 @@ beforeAll(async () => {
   await company.enter(IDS.activeCompany);
 });
 
-afterAll(() => server.dispose());
+afterAll(() => {
+  vi.unstubAllGlobals();
+  server.dispose();
+});
 
 describe("entrada del trabajador", () => {
   it("antes de saber quién entra, la puerta dice con palabras que está cargando", () => {
@@ -239,6 +259,45 @@ describe("oferta y contrato", () => {
     expect(html(<OfferView offer={offer} onRespond={noop} pending error="No pudimos conectar." />)).toMatch(
       /role="alert".*No pudimos conectar\..*<button[^>]*disabled=""[^>]*>Aceptar/,
     );
+  });
+
+  it("Nivi lee la oferta en voz alta cuando Carlos lo pide; repetirla no vuelve a gastar", async () => {
+    const speak = vi.fn(worker.speak);
+    const idleNote = html(<OfferVoiceNote offer={offer} speak={speak} />);
+    const audioUrl = await worker.speak(offerSpeech(offer));
+    const again = await worker.speak(offerSpeech(offer));
+    const audio = await createBrowserFetch(server.baseUrl)(audioUrl);
+    const playing = html(<SpokenNoteView state={{ kind: "ready", audioUrl }} action="" onListen={noop} />);
+
+    // El audio no se pide hasta que la persona toca el botón.
+    expect(idleNote).toMatch(/<button[^>]*>Escuchar la oferta<\/button>/);
+    expect(speak).not.toHaveBeenCalled();
+    expect(html(<OfferList offers={[offer]} speak={speak} />)).toContain("Escuchar la oferta");
+    expect(html(<OfferView offer={offer} onRespond={noop} pending={false} error={null} />)).not.toContain(
+      "Escuchar la oferta",
+    );
+    expect(audioUrl).toMatch(/^\/api\/voice\/audio\/[a-f0-9]{64}$/);
+    expect(again).toBe(audioUrl);
+    expect(elevenLabs).toHaveBeenCalledOnce();
+    expect(audio.headers.get("content-type")).toBe("audio/mpeg");
+    expect(new Uint8Array(await audio.arrayBuffer())).toEqual(SPOKEN_AUDIO);
+    expect(playing).toMatch(new RegExp(`<audio controls="" autoPlay="" preload="none" src="${audioUrl}"`));
+    expect(html(<SpokenNoteView state={{ kind: "loading" }} action="" onListen={noop} />)).toMatch(
+      /role="status".*Nivi está preparando el audio…/,
+    );
+    expect(
+      html(<SpokenNoteView state={{ kind: "failed" }} action="Escuchar la oferta" onListen={noop} />),
+    ).toMatch(/Escuchar la oferta<\/button>.*role="alert".*Todo lo que dice está escrito aquí mismo\./);
+  });
+
+  it("una invitación que ya trae su audio lo muestra de una vez, solo si es de esta misma app", () => {
+    const recorded = html(<OfferVoiceNote offer={{ ...offer, audioUrl: "/audio/oferta.mp3" }} />);
+    const foreign = html(<OfferVoiceNote offer={{ ...offer, audioUrl: "https://otro.example/a.mp3" }} />);
+
+    expect(recorded).toMatch(
+      /Nota de voz de Nivi.*<audio controls="" preload="none" src="\/audio\/oferta\.mp3"/,
+    );
+    expect(foreign).toBe("");
   });
 
   it("nadie más puede responder la invitación de Carlos", async () => {
@@ -493,6 +552,48 @@ describe("ayuda", () => {
       status: 422,
     });
   });
+
+  it("el reporte por nota de voz promete que no se guarda el audio y muestra cada momento con palabras", () => {
+    const controls = { seconds: 0, error: null, start: noop, finish: noop, cancel: noop };
+    const idleNote = html(<VoiceReportPanel note={{ ...controls, phase: "idle" }} />);
+    const recording = html(<VoiceReportPanel note={{ ...controls, phase: "recording", seconds: 12 }} />);
+
+    expect(idleNote).toContain(VOICE_REPORT_PROMISE);
+    expect(VOICE_REPORT_PROMISE).toContain("No guardamos el audio");
+    expect(idleNote).toMatch(/<button[^>]*>Grabar nota de voz<\/button>/);
+    expect(text(recording)).toContain("Grabando 0:12 de 1:00");
+    expect(recording).toMatch(/role="progressbar"[^>]*aria-valuenow="20"/);
+    expect(recording).toMatch(/Terminar y enviar<\/button>.*Descartar<\/button>/);
+    expect(recording).not.toContain("Grabar nota de voz");
+    expect(html(<VoiceReportPanel note={{ ...controls, phase: "starting" }} />)).toContain(
+      "Esperando el permiso del micrófono…",
+    );
+    expect(html(<VoiceReportPanel note={{ ...controls, phase: "sending" }} />)).toContain(
+      "Nivi está escribiendo lo que dijiste…",
+    );
+    expect(
+      html(<VoiceReportPanel note={{ ...controls, phase: "idle", error: "No tenemos permiso." }} />),
+    ).toMatch(/role="alert".*No tenemos permiso\./);
+  });
+
+  it("al mandar la nota muestra lo que se entendió, y la revisión sigue siendo humana", async () => {
+    const before = await worker.level();
+    const note = new Blob([new Uint8Array(2048).fill(1)], { type: "audio/webm" });
+    const receipt = await worker.reportByVoice(note);
+    const markup = html(<ReportConfirmation receipt={receipt} />);
+
+    expect(receipt).toMatchObject({ kind: "inseguridad", transcript: HEARD });
+    expect(text(markup)).toContain(`Esto entendimos «${HEARD}»`);
+    expect(text(markup)).toContain("Lo anotamos como «La obra es insegura»");
+    expect(markup).toContain(HUMAN_REVIEW_NOTICE);
+    expect(markup).toContain("autoridad");
+    expect((await worker.level()).level).toBe(before.level);
+    // El servidor rechaza lo que no es audio, y a quien no tiene sesión de trabajador.
+    await expect(worker.reportByVoice(new Blob(["hola"], { type: "text/plain" }))).rejects.toMatchObject({
+      status: 415,
+    });
+    await expect(createWorkerApi(browser()).reportByVoice(note)).rejects.toMatchObject({ status: 401 });
+  });
 });
 
 describe("mis datos", () => {
@@ -561,7 +662,8 @@ describe("mis datos", () => {
     expect(markup).toContain("Trabajo prolijo");
     expect(markup).not.toMatch(/★|☆|estrella/i);
     expect(data.work.map((job) => job.contractId)).toContain(contractId);
-    expect(data.reports).toHaveLength(1);
+    // El reporte escrito y el de la nota de voz.
+    expect(data.reports).toHaveLength(2);
     expect(JSON.stringify(data)).not.toMatch(/"lat"|"lng"|phone/);
     expect(html(<ReceivedRatings ratings={[]} />)).toContain("Aún no tienes calificaciones.");
   });

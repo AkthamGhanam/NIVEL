@@ -330,6 +330,32 @@ Pendiente:
 - La voz de registro solo está probada hasta el token: falta una conversación real con micrófono en el Preview.
 - No hay inicio de sesión para volver a una cuenta real desde otro navegador: la sesión vive en la cookie.
 
+## Fase 12 · Voz en las pantallas — en curso
+
+### 12a · Notas de voz — listas (sin probar aún contra ElevenLabs real)
+
+- [x] «Escuchar la oferta» en la tarjeta y en el detalle de la invitación: Nivi lee lo mismo que está escrito
+      (empresa, oficio, zona, días, pago diario y total) y recuerda que el contrato es directo con la empresa.
+      El audio se pide solo cuando la persona lo toca, y repetir la misma frase sale de la caché del servidor
+- [x] Reporte por nota de voz en `/t/ayuda`: hasta 60 s, con reloj, «Terminar y enviar» y «Descartar». La nota
+      sube cruda a `/api/voice/transcribe`; la pantalla muestra lo que se entendió y cómo se anotó, y el aviso
+      de revisión humana. El formulario escrito queda siempre debajo
+- [x] El audio de la nota no se guarda en el navegador ni en el servidor, y el micrófono se suelta al terminar,
+      al descartar o al salir de la pantalla
+- [x] Solo se reproduce audio servido por la propia app (`src/client/audio-url.ts`)
+- [x] 661 pruebas; cobertura de líneas 99 %
+
+Recorrido en Chromium a 390 px con el micrófono falso del navegador: 8 estados, axe sin hallazgos, sin
+desbordes y sin errores inesperados. La nota grabada subió de verdad al servidor local (`audio/webm`), que
+respondió 503 porque aquí no hay clave de ElevenLabs; el camino feliz en el navegador se vio interceptando
+solo las dos rutas de voz. Contra las rutas reales, con ElevenLabs sustituido, lo cubren las pruebas.
+
+Pendiente de las notas de voz:
+
+- Probarlas contra ElevenLabs real (TTS y Scribe) en producción: desde este hilo no hay clave ni acceso.
+- Sin probar en Safari (graba en MP4) ni en un teléfono real.
+- Sin servicio de voz, el mensaje al fallar es el genérico del servidor («aún no está configurado»).
+
 ## Decisiones
 
 - **Sin Cache Components.** La CSP con nonce exige renderizar cada página por petición, y la demo es en vivo.

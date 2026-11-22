@@ -1,4 +1,4 @@
-import { asc, gt } from "drizzle-orm";
+import { asc, gt, sql } from "drizzle-orm";
 
 import type { AppContext } from "../context";
 import { events } from "../db/schema";
@@ -33,9 +33,13 @@ export async function logEvent(context: AppContext, event: NewEvent): Promise<vo
 
 export type EventRow = typeof events.$inferSelect;
 
-/** Eventos posteriores a `since` (ISO 8601), en orden cronológico y paginados. */
+/**
+ * Eventos posteriores a `since` (ISO 8601), en orden cronológico y paginados.
+ * Dos eventos del mismo milisegundo salen en el orden en que se registraron
+ * (`rowid`): sus ids son aleatorios y no sirven para desempatar.
+ */
 export function listEventsSince(context: AppContext, since: string | undefined): Promise<EventRow[]> {
   const query = context.db.select().from(events);
   const filtered = since ? query.where(gt(events.ts, since)) : query;
-  return filtered.orderBy(asc(events.ts), asc(events.id)).limit(MAX_EVENTS_PER_PAGE);
+  return filtered.orderBy(asc(events.ts), sql`rowid`).limit(MAX_EVENTS_PER_PAGE);
 }
