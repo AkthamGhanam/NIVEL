@@ -1,7 +1,7 @@
 import { type Client, createClient } from "@libsql/client";
 import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 
-import { createTableSql } from "./ddl";
+import { addColumnSql, columnNames, createTableSql, tableName } from "./ddl";
 import { schema } from "./schema";
 
 export type Database = LibSQLDatabase<typeof schema>;
@@ -29,6 +29,9 @@ const INDEXES: readonly string[] = [
   `CREATE INDEX IF NOT EXISTS "idx_ratings_contract" ON "ratings" ("contract_id")`,
   `CREATE INDEX IF NOT EXISTS "idx_events_ts" ON "events" ("ts")`,
   `CREATE INDEX IF NOT EXISTS "idx_reports_status" ON "reports" ("status", "created_at")`,
+  // Una inscripción y una constancia por persona y curso, aunque lleguen dos toques a la vez.
+  `CREATE UNIQUE INDEX IF NOT EXISTS "uq_enrollments_worker_course" ON "enrollments" ("worker_id", "course_id")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "uq_certificates_worker_course" ON "certificates" ("worker_id", "course_id")`,
 ];
 
 export function openDatabase(config: DatabaseConfig): DatabaseHandle {
@@ -38,8 +41,27 @@ export function openDatabase(config: DatabaseConfig): DatabaseHandle {
   return { db: drizzle(client, { schema }), client };
 }
 
-/** Crea tablas e índices si no existen. Idempotente. */
+/** Columnas que el esquema define y la tabla real todavía no tiene. */
+async function missingColumnStatements(client: Client): Promise<string[]> {
+  const statements: string[] = [];
+  for (const table of Object.values(schema)) {
+    // El nombre sale del esquema del código, nunca de datos de usuarios.
+    const info = await client.execute(`PRAGMA table_info("${tableName(table)}")`);
+    const existing = new Set(info.rows.map((row) => String(row.name)));
+    for (const name of columnNames(table)) {
+      if (!existing.has(name)) statements.push(addColumnSql(table, name));
+    }
+  }
+  return statements;
+}
+
+/**
+ * Crea tablas e índices si no existen y agrega las columnas nuevas del
+ * esquema a las tablas que ya existían, sin tocar sus datos. Idempotente.
+ */
 export async function migrate({ client }: DatabaseHandle): Promise<void> {
-  const statements = ["PRAGMA foreign_keys = ON", ...Object.values(schema).map(createTableSql), ...INDEXES];
-  await client.batch(statements, "write");
+  const tables = Object.values(schema).map(createTableSql);
+  await client.batch(["PRAGMA foreign_keys = ON", ...tables], "write");
+  const additions = await missingColumnStatements(client);
+  await client.batch([...additions, ...INDEXES], "write");
 }
